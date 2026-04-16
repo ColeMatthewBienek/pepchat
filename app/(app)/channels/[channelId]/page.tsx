@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ChannelShell from '@/components/chat/ChannelShell'
-import { MESSAGE_SELECT } from '@/app/(app)/messages/actions'
+import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 
 export default async function ChannelPage({

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import { MESSAGE_SELECT } from '@/app/(app)/messages/actions'
+import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile } from '@/lib/types'
 
 const PAGE_SIZE = 50

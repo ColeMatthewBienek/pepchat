@@ -2,11 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile } from '@/lib/types'
-
-/** Supabase select string that includes profile + quoted message joins. */
-export const MESSAGE_SELECT =
-  '*, profiles(username, avatar_url), replied_to:reply_to_id(id, content, user_id, profiles(username, avatar_url))'
 
 export async function sendMessage(
   channelId: string,
