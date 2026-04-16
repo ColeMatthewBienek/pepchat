@@ -11,6 +11,7 @@ interface MessageListProps {
   loadingMore: boolean
   currentUserId: string
   onLoadMore: () => void
+  onReply: (msg: MessageWithProfile) => void
 }
 
 /** Same author within 5 minutes of the previous message = compact (no repeated header). */
@@ -50,6 +51,7 @@ export default function MessageList({
   loadingMore,
   currentUserId,
   onLoadMore,
+  onReply,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -188,6 +190,20 @@ export default function MessageList({
                   </div>
                 )}
 
+                {/* Reply quote */}
+                {msg.replied_to && (
+                  <div className="flex items-start gap-2 mb-1 pl-2 border-l-2 border-[var(--accent)]/50 opacity-80">
+                    <span className="text-xs font-semibold text-[var(--accent)] flex-shrink-0">
+                      @{msg.replied_to.profiles?.username}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] truncate">
+                      {msg.replied_to.content.length > 120
+                        ? msg.replied_to.content.slice(0, 120) + '…'
+                        : msg.replied_to.content}
+                    </span>
+                  </div>
+                )}
+
                 {editingId === msg.id ? (
                   <div>
                     <textarea
@@ -218,27 +234,40 @@ export default function MessageList({
                 )}
               </div>
 
-              {/* Edit / delete buttons (own messages only) */}
-              {isOwn && editingId !== msg.id && (
+              {/* Action buttons — reply always, edit/delete own only */}
+              {editingId !== msg.id && (
                 <div className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0">
+                  {/* Reply — visible for all messages */}
                   <button
-                    onClick={() => startEdit(msg)}
-                    title="Edit"
+                    onClick={() => onReply(msg)}
+                    title="Reply"
                     className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                     </svg>
                   </button>
-                  <button
-                    onClick={() => handleDelete(msg.id)}
-                    title="Delete"
-                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+
+                  {isOwn && <>
+                    <button
+                      onClick={() => startEdit(msg)}
+                      title="Edit"
+                      className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(msg.id)}
+                      title="Delete"
+                      className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </>}
                 </div>
               )}
             </div>

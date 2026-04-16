@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useMessages } from '@/lib/hooks/useMessages'
 import { usePresence } from '@/lib/hooks/usePresence'
 import MessageList from '@/components/chat/MessageList'
@@ -17,7 +18,7 @@ interface ChannelShellProps {
 
 /**
  * Client wrapper for the chat area.
- * Owns message state (via useMessages) and presence state (via usePresence).
+ * Owns message state, presence state, and reply-to state.
  */
 export default function ChannelShell({
   channelId,
@@ -36,6 +37,8 @@ export default function ChannelShell({
     avatar_url: profile.avatar_url,
   })
 
+  const [replyingTo, setReplyingTo] = useState<MessageWithProfile | null>(null)
+
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Main column */}
@@ -46,16 +49,20 @@ export default function ChannelShell({
           loadingMore={loadingMore}
           currentUserId={profile.id}
           onLoadMore={loadMore}
+          onReply={setReplyingTo}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput
           channelId={channelId}
           channelName={channelName}
           profile={profile}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
           onTyping={broadcastTyping}
           onSent={(msg) => {
-            addMessage(msg)           // show immediately for the sender
-            broadcastNewMessage(msg)  // push to everyone else in the room
+            addMessage(msg)
+            broadcastNewMessage(msg)
+            setReplyingTo(null)
           }}
         />
       </div>
