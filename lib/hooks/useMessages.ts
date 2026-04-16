@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { MESSAGE_SELECT } from '@/app/(app)/messages/actions'
 import type { MessageWithProfile } from '@/lib/types'
 
 const PAGE_SIZE = 50
@@ -103,7 +104,7 @@ export function useMessages(
     const supabase = createClient()
     const { data } = await supabase
       .from('messages')
-      .select('*, profiles(username, avatar_url)')
+      .select(MESSAGE_SELECT)
       .eq('channel_id', channelId)
       .lt('created_at', oldest)
       .order('created_at', { ascending: false })

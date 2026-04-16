@@ -49,12 +49,13 @@ create table if not exists public.channels (
 );
 
 create table if not exists public.messages (
-  id         uuid primary key default gen_random_uuid(),
-  channel_id uuid references public.channels(id) on delete cascade not null,
-  user_id    uuid references public.profiles(id) on delete cascade not null,
-  content    text not null,
-  edited_at  timestamptz,
-  created_at timestamptz default now() not null
+  id          uuid primary key default gen_random_uuid(),
+  channel_id  uuid references public.channels(id) on delete cascade not null,
+  user_id     uuid references public.profiles(id) on delete cascade not null,
+  content     text not null,
+  reply_to_id uuid references public.messages(id) on delete set null,
+  edited_at   timestamptz,
+  created_at  timestamptz default now() not null
 );
 
 create table if not exists public.direct_messages (
@@ -288,6 +289,7 @@ create index if not exists idx_group_members_user    on public.group_members(use
 create index if not exists idx_group_members_group   on public.group_members(group_id);
 create index if not exists idx_channels_group        on public.channels(group_id, position);
 create index if not exists idx_messages_channel_time on public.messages(channel_id, created_at desc);
+create index if not exists idx_messages_reply_to     on public.messages(reply_to_id);
 create index if not exists idx_dm_sender             on public.direct_messages(sender_id, created_at desc);
 create index if not exists idx_dm_recipient          on public.direct_messages(recipient_id, created_at desc);
 create index if not exists idx_groups_invite_code    on public.groups(invite_code);

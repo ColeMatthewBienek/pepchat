@@ -2,12 +2,16 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import type { MessageWithProfile } from '@/lib/types'
+
+/** Supabase select string that includes profile + quoted message joins. */
+export const MESSAGE_SELECT =
+  '*, profiles(username, avatar_url), replied_to:reply_to_id(id, content, user_id, profiles(username, avatar_url))'
 
 export async function sendMessage(
   channelId: string,
-  content: string
+  content: string,
+  replyToId?: string | null
 ): Promise<{ error: string } | { ok: true; message: MessageWithProfile }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,8 +23,13 @@ export async function sendMessage(
 
   const { data: message, error } = await supabase
     .from('messages')
-    .insert({ channel_id: channelId, user_id: user.id, content: trimmed })
-    .select('*, profiles(username, avatar_url)')
+    .insert({
+      channel_id:  channelId,
+      user_id:     user.id,
+      content:     trimmed,
+      reply_to_id: replyToId ?? null,
+    })
+    .select(MESSAGE_SELECT)
     .single()
 
   if (error || !message) return { error: error?.message ?? 'Failed to send message.' }
@@ -58,7 +67,6 @@ export async function deleteMessage(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
-  // RLS enforces ownership; no extra check needed
   const { error } = await supabase
     .from('messages')
     .delete()
