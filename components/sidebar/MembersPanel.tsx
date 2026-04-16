@@ -1,0 +1,160 @@
+'use client'
+
+import { useEffect, useState, useTransition } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { assignRole, kickMember } from '@/app/(app)/members/actions'
+import Avatar from '@/components/ui/Avatar'
+import { PERMISSIONS, type Role } from '@/lib/permissions'
+import type { GroupMember, Profile } from '@/lib/types'
+
+type MemberWithProfile = GroupMember & { profiles: Pick<Profile, 'username' | 'avatar_url'> }
+
+const ROLE_BADGE: Record<Role, { label: string; className: string }> = {
+  admin:     { label: 'admin',     className: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+  moderator: { label: 'mod',       className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+  user:      { label: 'user',      className: 'bg-white/10 text-[var(--text-muted)] border-white/10' },
+  noob:      { label: 'noob',      className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
+}
+
+const ASSIGNABLE_ROLES: Role[] = ['moderator', 'user', 'noob']
+
+interface MembersPanelProps {
+  groupId: string
+  currentUserId: string
+  currentUserRole: Role
+}
+
+/**
+ * Collapsible members list shown in the channels sidebar.
+ * Admins can assign roles and kick. Moderators see read-only view.
+ */
+export default function MembersPanel({ groupId, currentUserId, currentUserRole }: MembersPanelProps) {
+  const [members, setMembers] = useState<MemberWithProfile[]>([])
+  const [expanded, setExpanded] = useState(true)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState('')
+
+  const canManage = PERMISSIONS.canAssignRoles(currentUserRole)
+  const canKick   = PERMISSIONS.canKickMembers(currentUserRole)
+
+  useEffect(() => {
+    if (!groupId) return
+    const supabase = createClient()
+
+    async function fetchMembers() {
+      const { data } = await supabase
+        .from('group_members')
+        .select('*, profiles(username, avatar_url)')
+        .eq('group_id', groupId)
+        .order('role')
+
+      if (data) setMembers(data as MemberWithProfile[])
+    }
+
+    fetchMembers()
+
+    // Live updates when roles change or members join/leave
+    const sub = supabase
+      .channel(`members-${groupId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` }, fetchMembers)
+      .subscribe()
+
+    return () => { supabase.removeChannel(sub) }
+  }, [groupId])
+
+  function handleRoleChange(member: MemberWithProfile, newRole: Role) {
+    setError('')
+    startTransition(async () => {
+      const result = await assignRole(groupId, member.user_id, newRole)
+      if ('error' in result) setError(result.error)
+    })
+  }
+
+  function handleKick(member: MemberWithProfile) {
+    if (!confirm(`Kick ${member.profiles.username} from the group?`)) return
+    setError('')
+    startTransition(async () => {
+      const result = await kickMember(groupId, member.user_id)
+      if ('error' in result) setError(result.error)
+    })
+  }
+
+  return (
+    <div className="border-t border-black/20 mt-2">
+      {/* Section header */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center justify-between w-full px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+      >
+        <span>Members — {members.length}</span>
+        <svg
+          className={`w-3 h-3 transition-transform ${expanded ? 'rotate-0' : '-rotate-90'}`}
+          fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {error && (
+        <p className="mx-3 mb-2 text-xs text-[var(--danger)] bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded px-2 py-1">
+          {error}
+        </p>
+      )}
+
+      {expanded && (
+        <ul className="pb-2 space-y-0.5">
+          {members.map((member) => {
+            const badge  = ROLE_BADGE[member.role as Role] ?? ROLE_BADGE.user
+            const isSelf = member.user_id === currentUserId
+            const isTargetAdmin = member.role === 'admin'
+
+            return (
+              <li key={member.user_id} className="group/member flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded mx-1">
+                <Avatar
+                  src={member.profiles?.avatar_url}
+                  username={member.profiles?.username ?? '?'}
+                  size={28}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{member.profiles?.username ?? member.user_id}</p>
+                </div>
+
+                {/* Role badge / dropdown */}
+                {canManage && !isSelf && !isTargetAdmin ? (
+                  <select
+                    value={member.role}
+                    disabled={isPending}
+                    onChange={(e) => handleRoleChange(member, e.target.value as Role)}
+                    className="text-xs rounded px-1 py-0.5 border bg-[var(--bg-primary)] text-[var(--text-primary)] border-white/10 focus:outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
+                  >
+                    {ASSIGNABLE_ROLES.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                )}
+
+                {/* Kick button */}
+                {canKick && !isSelf && !isTargetAdmin && (
+                  <button
+                    onClick={() => handleKick(member)}
+                    disabled={isPending}
+                    title="Kick member"
+                    className="hidden group-hover/member:flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors flex-shrink-0"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}

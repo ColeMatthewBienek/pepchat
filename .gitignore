@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Cloudflare build output
+.vercel/
+.wrangler/
+
+# environment variables — never commit these
+.env
+.env.local
+.env*.local
+
+# secrets / credentials
+*.pem
+*.key
+
+# editor / OS
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Claude Code session data
+.claude/
+
+# Supabase local dev temp files (contain project refs / tokens)
+supabase/.temp/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+next-env.d.ts

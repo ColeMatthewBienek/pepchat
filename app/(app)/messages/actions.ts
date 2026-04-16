@@ -1,0 +1,69 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import type { MessageWithProfile } from '@/lib/types'
+
+export async function sendMessage(
+  channelId: string,
+  content: string
+): Promise<{ error: string } | { ok: true; message: MessageWithProfile }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const trimmed = content.trim()
+  if (!trimmed) return { error: 'Message cannot be empty.' }
+  if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
+
+  const { data: message, error } = await supabase
+    .from('messages')
+    .insert({ channel_id: channelId, user_id: user.id, content: trimmed })
+    .select('*, profiles(username, avatar_url)')
+    .single()
+
+  if (error || !message) return { error: error?.message ?? 'Failed to send message.' }
+  return { ok: true, message: message as MessageWithProfile }
+}
+
+export async function editMessage(
+  messageId: string,
+  content: string
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const trimmed = content.trim()
+  if (!trimmed) return { error: 'Message cannot be empty.' }
+  if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
+
+  const { error } = await supabase
+    .from('messages')
+    .update({ content: trimmed, edited_at: new Date().toISOString() })
+    .eq('id', messageId)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/(app)', 'layout')
+  return { ok: true }
+}
+
+export async function deleteMessage(
+  messageId: string
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // RLS enforces ownership; no extra check needed
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId)
+
+  if (error) return { error: error.message }
+  return { ok: true }
+}
