@@ -15,6 +15,7 @@ interface MessageListProps {
   currentUsername: string
   onLoadMore: () => void
   onReact: (messageId: string, emoji: string) => void
+  onReply: (msg: MessageWithProfile) => void
 }
 
 /** Same author within 5 minutes of the previous message = compact (no repeated header). */
@@ -56,6 +57,7 @@ export default function MessageList({
   currentUsername,
   onLoadMore,
   onReact,
+  onReply,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -202,6 +204,20 @@ export default function MessageList({
                   </div>
                 )}
 
+                {/* Reply quote */}
+                {msg.replied_to && (
+                  <div className="flex items-start gap-2 mb-1 pl-2 border-l-2 border-[var(--accent)]/50 opacity-80">
+                    <span className="text-xs font-semibold text-[var(--accent)] flex-shrink-0">
+                      @{msg.replied_to.profiles?.username}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] truncate">
+                      {msg.replied_to.content.length > 120
+                        ? msg.replied_to.content.slice(0, 120) + '…'
+                        : msg.replied_to.content}
+                    </span>
+                  </div>
+                )}
+
                 {editingId === msg.id ? (
                   <div>
                     <textarea
@@ -241,10 +257,10 @@ export default function MessageList({
                 )}
               </div>
 
-              {/* Action buttons: emoji + edit/delete (own messages) */}
+              {/* Action buttons: emoji + reply (all messages), edit/delete (own only) */}
               {editingId !== msg.id && (
                 <div className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0 relative">
-                  {/* Emoji reaction button — visible for all, disabled if at limit */}
+                  {/* Emoji reaction */}
                   <button
                     onClick={() => setPickerOpenFor(pickerOpenFor === msg.id ? null : msg.id)}
                     title={atReactionLimit ? 'Max 20 emoji per message' : 'Add reaction'}
@@ -252,6 +268,17 @@ export default function MessageList({
                     className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-default"
                   >
                     <span className="text-sm leading-none">😊</span>
+                  </button>
+
+                  {/* Reply */}
+                  <button
+                    onClick={() => onReply(msg)}
+                    title="Reply"
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
                   </button>
 
                   {isOwn && (

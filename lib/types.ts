@@ -36,21 +36,12 @@ export interface Channel {
   created_at: string
 }
 
-export interface Message {
+/** Minimal shape of a quoted (replied-to) message. */
+export interface QuotedMessage {
   id: string
-  channel_id: string
-  user_id: string
   content: string
-  edited_at: string | null
-  created_at: string
-  /** Joined from profiles — populated by select queries */
-  profiles?: Pick<Profile, 'username' | 'avatar_url'>
-}
-
-/** Message with the profiles join always present (used in chat components). */
-export type MessageWithProfile = Message & {
+  user_id: string
   profiles: Pick<Profile, 'username' | 'avatar_url'>
-  reactions?: Reaction[]
 }
 
 export interface Reaction {
@@ -61,6 +52,27 @@ export interface Reaction {
   created_at: string
   /** Joined from profiles — populated by select queries */
   profiles?: Pick<Profile, 'username'>
+}
+
+export interface Message {
+  id: string
+  channel_id: string
+  user_id: string
+  content: string
+  reply_to_id: string | null
+  edited_at: string | null
+  created_at: string
+  /** Joined from profiles — populated by select queries */
+  profiles?: Pick<Profile, 'username' | 'avatar_url'>
+  /** Joined quoted message — null when original was deleted */
+  replied_to?: QuotedMessage | null
+}
+
+/** Message with the profiles join always present (used in chat components). */
+export type MessageWithProfile = Message & {
+  profiles: Pick<Profile, 'username' | 'avatar_url'>
+  replied_to?: QuotedMessage | null
+  reactions?: Reaction[]
 }
 
 export interface DirectMessage {

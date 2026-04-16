@@ -7,7 +7,8 @@ import { MESSAGE_SELECT } from '@/lib/queries'
 
 export async function sendMessage(
   channelId: string,
-  content: string
+  content: string,
+  replyToId?: string | null
 ): Promise<{ error: string } | { ok: true; message: MessageWithProfile }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,7 +20,12 @@ export async function sendMessage(
 
   const { data: message, error } = await supabase
     .from('messages')
-    .insert({ channel_id: channelId, user_id: user.id, content: trimmed })
+    .insert({
+      channel_id:  channelId,
+      user_id:     user.id,
+      content:     trimmed,
+      reply_to_id: replyToId ?? null,
+    })
     .select(MESSAGE_SELECT)
     .single()
 
@@ -58,7 +64,6 @@ export async function deleteMessage(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
-  // RLS enforces ownership; no extra check needed
   const { error } = await supabase
     .from('messages')
     .delete()

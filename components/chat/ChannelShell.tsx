@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useMessages } from '@/lib/hooks/useMessages'
 import { usePresence } from '@/lib/hooks/usePresence'
 import MessageList from '@/components/chat/MessageList'
@@ -19,7 +19,7 @@ interface ChannelShellProps {
 
 /**
  * Client wrapper for the chat area.
- * Owns message state (via useMessages) and presence state (via usePresence).
+ * Owns message state, presence state, and reply-to state.
  */
 export default function ChannelShell({
   channelId,
@@ -44,18 +44,17 @@ export default function ChannelShell({
     avatar_url: profile.avatar_url,
   })
 
+  const [replyingTo, setReplyingTo] = useState<MessageWithProfile | null>(null)
+
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
-    // Optimistic update first
     toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
 
     const result = await toggleReaction(messageId, emoji)
     if ('error' in result) {
-      // Roll back on error
       toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
       return
     }
 
-    // Broadcast the change to peers
     broadcastReactionChange(messageId, emoji, profile.id, result.action)
   }, [broadcastReactionChange, profile.id, profile.username, toggleReactionOptimistic])
 
@@ -71,16 +70,20 @@ export default function ChannelShell({
           currentUsername={profile.username}
           onLoadMore={loadMore}
           onReact={handleReact}
+          onReply={setReplyingTo}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput
           channelId={channelId}
           channelName={channelName}
           profile={profile}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
           onTyping={broadcastTyping}
           onSent={(msg) => {
-            addMessage(msg)           // show immediately for the sender
-            broadcastNewMessage(msg)  // push to everyone else in the room
+            addMessage(msg)
+            broadcastNewMessage(msg)
+            setReplyingTo(null)
           }}
         />
       </div>
