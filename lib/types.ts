@@ -44,6 +44,16 @@ export interface QuotedMessage {
   profiles: Pick<Profile, 'username' | 'avatar_url'>
 }
 
+export interface Reaction {
+  id: string
+  message_id: string
+  user_id: string
+  emoji: string
+  created_at: string
+  /** Joined from profiles — populated by select queries */
+  profiles?: Pick<Profile, 'username'>
+}
+
 export interface Message {
   id: string
   channel_id: string
@@ -62,6 +72,7 @@ export interface Message {
 export type MessageWithProfile = Message & {
   profiles: Pick<Profile, 'username' | 'avatar_url'>
   replied_to?: QuotedMessage | null
+  reactions?: Reaction[]
 }
 
 export interface DirectMessage {

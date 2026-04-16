@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useMessages } from '@/lib/hooks/useMessages'
 import { usePresence } from '@/lib/hooks/usePresence'
 import MessageList from '@/components/chat/MessageList'
 import MessageInput from '@/components/chat/MessageInput'
 import TypingIndicator from '@/components/chat/TypingIndicator'
 import PresencePanel from '@/components/chat/PresencePanel'
+import { toggleReaction } from '@/app/(app)/reactions/actions'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 
 interface ChannelShellProps {
@@ -26,10 +27,16 @@ export default function ChannelShell({
   initialMessages,
   profile,
 }: ChannelShellProps) {
-  const { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage } = useMessages(
-    channelId,
-    initialMessages
-  )
+  const {
+    messages,
+    hasMore,
+    loadingMore,
+    loadMore,
+    addMessage,
+    broadcastNewMessage,
+    toggleReactionOptimistic,
+    broadcastReactionChange,
+  } = useMessages(channelId, initialMessages, profile.id)
 
   const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(channelId, {
     user_id:    profile.id,
@@ -38,6 +45,18 @@ export default function ChannelShell({
   })
 
   const [replyingTo, setReplyingTo] = useState<MessageWithProfile | null>(null)
+
+  const handleReact = useCallback(async (messageId: string, emoji: string) => {
+    toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
+
+    const result = await toggleReaction(messageId, emoji)
+    if ('error' in result) {
+      toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
+      return
+    }
+
+    broadcastReactionChange(messageId, emoji, profile.id, result.action)
+  }, [broadcastReactionChange, profile.id, profile.username, toggleReactionOptimistic])
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -48,7 +67,9 @@ export default function ChannelShell({
           hasMore={hasMore}
           loadingMore={loadingMore}
           currentUserId={profile.id}
+          currentUsername={profile.username}
           onLoadMore={loadMore}
+          onReact={handleReact}
           onReply={setReplyingTo}
         />
         <TypingIndicator typingUsernames={typingUsernames} />

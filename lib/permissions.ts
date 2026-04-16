@@ -40,4 +40,7 @@ export const PERMISSIONS = {
 
   /** Can delete the group, update group settings. Admin only. */
   canManageGroup: (role: Role) => role === 'admin',
+
+  /** Can react to messages. All roles including noob (noob restricted to welcome channel by RLS). */
+  canReact: (role: Role) => (['admin', 'moderator', 'user', 'noob'] as Role[]).includes(role),
 } as const

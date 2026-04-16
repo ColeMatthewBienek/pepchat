@@ -2,8 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile } from '@/lib/types'
+import { MESSAGE_SELECT } from '@/lib/queries'
 
 export async function sendMessage(
   channelId: string,

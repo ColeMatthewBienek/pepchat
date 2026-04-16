@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Avatar from '@/components/ui/Avatar'
 import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
+import ReactionPills from '@/components/chat/ReactionPills'
+import ReactionPicker from '@/components/chat/ReactionPicker'
 import type { MessageWithProfile } from '@/lib/types'
 
 interface MessageListProps {
@@ -10,7 +12,9 @@ interface MessageListProps {
   hasMore: boolean
   loadingMore: boolean
   currentUserId: string
+  currentUsername: string
   onLoadMore: () => void
+  onReact: (messageId: string, emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
 }
 
@@ -50,13 +54,16 @@ export default function MessageList({
   hasMore,
   loadingMore,
   currentUserId,
+  currentUsername,
   onLoadMore,
+  onReact,
   onReply,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -111,6 +118,11 @@ export default function MessageList({
     })
   }
 
+  function handleEmojiSelect(messageId: string, emoji: string) {
+    setPickerOpenFor(null)
+    onReact(messageId, emoji)
+  }
+
   return (
     <div
       ref={listRef}
@@ -148,6 +160,8 @@ export default function MessageList({
         const compact = isCompact(msg, prev)
         const showDateSep = !prev || !isSameDay(msg.created_at, prev.created_at)
         const isOwn = msg.user_id === currentUserId
+        const uniqueEmojiCount = new Set((msg.reactions ?? []).map((r) => r.emoji)).size
+        const atReactionLimit = uniqueEmojiCount >= 20
 
         return (
           <div key={msg.id}>
@@ -232,12 +246,31 @@ export default function MessageList({
                     )}
                   </p>
                 )}
+
+                {/* Reaction pills */}
+                {msg.reactions && msg.reactions.length > 0 && (
+                  <ReactionPills
+                    reactions={msg.reactions}
+                    currentUserId={currentUserId}
+                    onToggle={(emoji) => onReact(msg.id, emoji)}
+                  />
+                )}
               </div>
 
-              {/* Action buttons — reply always, edit/delete own only */}
+              {/* Action buttons: emoji + reply (all messages), edit/delete (own only) */}
               {editingId !== msg.id && (
-                <div className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0">
-                  {/* Reply — visible for all messages */}
+                <div className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0 relative">
+                  {/* Emoji reaction */}
+                  <button
+                    onClick={() => setPickerOpenFor(pickerOpenFor === msg.id ? null : msg.id)}
+                    title={atReactionLimit ? 'Max 20 emoji per message' : 'Add reaction'}
+                    disabled={atReactionLimit && !((msg.reactions ?? []).some((r) => r.user_id === currentUserId))}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-default"
+                  >
+                    <span className="text-sm leading-none">😊</span>
+                  </button>
+
+                  {/* Reply */}
                   <button
                     onClick={() => onReply(msg)}
                     title="Reply"
@@ -248,26 +281,36 @@ export default function MessageList({
                     </svg>
                   </button>
 
-                  {isOwn && <>
-                    <button
-                      onClick={() => startEdit(msg)}
-                      title="Edit"
-                      className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(msg.id)}
-                      title="Delete"
-                      className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </>}
+                  {isOwn && (
+                    <>
+                      <button
+                        onClick={() => startEdit(msg)}
+                        title="Edit"
+                        className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(msg.id)}
+                        title="Delete"
+                        className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
+
+                  {/* Emoji picker popover */}
+                  {pickerOpenFor === msg.id && (
+                    <ReactionPicker
+                      onSelect={(emoji) => handleEmojiSelect(msg.id, emoji)}
+                      onClose={() => setPickerOpenFor(null)}
+                    />
+                  )}
                 </div>
               )}
             </div>
