@@ -2,8 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import type { MessageWithProfile } from '@/lib/types'
+import { MESSAGE_SELECT } from '@/lib/queries'
 
 export async function sendMessage(
   channelId: string,
@@ -20,7 +20,7 @@ export async function sendMessage(
   const { data: message, error } = await supabase
     .from('messages')
     .insert({ channel_id: channelId, user_id: user.id, content: trimmed })
-    .select('*, profiles(username, avatar_url)')
+    .select(MESSAGE_SELECT)
     .single()
 
   if (error || !message) return { error: error?.message ?? 'Failed to send message.' }

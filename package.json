@@ -12,6 +12,8 @@
     "pages:preview": "npm run pages:build && wrangler pages dev"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.2",
     "next": "14.2.35",

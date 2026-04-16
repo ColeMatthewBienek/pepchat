@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ChannelShell from '@/components/chat/ChannelShell'
+import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 
 export default async function ChannelPage({
@@ -33,7 +34,7 @@ export default async function ChannelPage({
   // Fetch last 50 messages (descending, then reverse for chronological display)
   const { data: messages } = await supabase
     .from('messages')
-    .select('*, profiles(username, avatar_url)')
+    .select(MESSAGE_SELECT)
     .eq('channel_id', params.channelId)
     .order('created_at', { ascending: false })
     .limit(50)

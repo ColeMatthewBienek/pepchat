@@ -50,6 +50,17 @@ export interface Message {
 /** Message with the profiles join always present (used in chat components). */
 export type MessageWithProfile = Message & {
   profiles: Pick<Profile, 'username' | 'avatar_url'>
+  reactions?: Reaction[]
+}
+
+export interface Reaction {
+  id: string
+  message_id: string
+  user_id: string
+  emoji: string
+  created_at: string
+  /** Joined from profiles — populated by select queries */
+  profiles?: Pick<Profile, 'username'>
 }
 
 export interface DirectMessage {

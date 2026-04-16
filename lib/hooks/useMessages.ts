@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import type { MessageWithProfile } from '@/lib/types'
+import type { MessageWithProfile, Reaction } from '@/lib/types'
+import { MESSAGE_SELECT } from '@/lib/queries'
 
 const PAGE_SIZE = 50
 
@@ -14,6 +15,8 @@ interface UseMessagesReturn {
   loadMore: () => Promise<void>
   addMessage: (msg: MessageWithProfile) => void
   broadcastNewMessage: (msg: MessageWithProfile) => void
+  toggleReactionOptimistic: (messageId: string, emoji: string, userId: string, username: string) => void
+  broadcastReactionChange: (messageId: string, emoji: string, userId: string, action: 'added' | 'removed') => void
 }
 
 /**
@@ -24,10 +27,13 @@ interface UseMessagesReturn {
  *
  * Edits and deletes still use postgres_changes since those only need to update
  * existing state and don't require delivering profile data.
+ *
+ * Reactions use Broadcast for add/remove events.
  */
 export function useMessages(
   channelId: string,
-  initialMessages: MessageWithProfile[]
+  initialMessages: MessageWithProfile[],
+  currentUserId?: string
 ): UseMessagesReturn {
   const [messages, setMessages]       = useState<MessageWithProfile[]>(initialMessages)
   const [hasMore, setHasMore]         = useState(initialMessages.length === PAGE_SIZE)
@@ -46,6 +52,28 @@ export function useMessages(
           if (prev.some((m) => m.id === msg.id)) return prev
           return [...prev, msg]
         })
+      })
+      // ── Broadcast: reaction added by another user ────────────────────────
+      .on('broadcast', { event: 'reaction_added' }, ({ payload }) => {
+        const { messageId, reaction } = payload as { messageId: string; reaction: Reaction }
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== messageId) return m
+            const existing = m.reactions ?? []
+            if (existing.some((r) => r.id === reaction.id || (r.user_id === reaction.user_id && r.emoji === reaction.emoji))) return m
+            return { ...m, reactions: [...existing, reaction] }
+          })
+        )
+      })
+      // ── Broadcast: reaction removed by another user ──────────────────────
+      .on('broadcast', { event: 'reaction_removed' }, ({ payload }) => {
+        const { messageId, userId, emoji } = payload as { messageId: string; userId: string; emoji: string }
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== messageId) return m
+            return { ...m, reactions: (m.reactions ?? []).filter((r) => !(r.user_id === userId && r.emoji === emoji)) }
+          })
+        )
       })
       // ── postgres_changes: edits and deletes ──────────────────────────────
       .on(
@@ -93,6 +121,64 @@ export function useMessages(
     })
   }, [])
 
+  /**
+   * Optimistically toggle a reaction in local state.
+   * Call before the server action; caller is responsible for rollback on error.
+   */
+  const toggleReactionOptimistic = useCallback(
+    (messageId: string, emoji: string, userId: string, username: string) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m
+          const existing = m.reactions ?? []
+          const hasReaction = existing.some((r) => r.user_id === userId && r.emoji === emoji)
+          if (hasReaction) {
+            return { ...m, reactions: existing.filter((r) => !(r.user_id === userId && r.emoji === emoji)) }
+          } else {
+            const newReaction: Reaction = {
+              id: `optimistic-${Date.now()}`,
+              message_id: messageId,
+              user_id: userId,
+              emoji,
+              created_at: new Date().toISOString(),
+              profiles: { username },
+            }
+            return { ...m, reactions: [...existing, newReaction] }
+          }
+        })
+      )
+    },
+    []
+  )
+
+  /** Broadcast a reaction change to other room members. */
+  const broadcastReactionChange = useCallback(
+    (messageId: string, emoji: string, userId: string, action: 'added' | 'removed') => {
+      if (action === 'added') {
+        // Build a minimal reaction object for peers (no real id yet — they'll get it via their own fetch if needed)
+        const reaction: Reaction = {
+          id: `broadcast-${Date.now()}`,
+          message_id: messageId,
+          user_id: userId,
+          emoji,
+          created_at: new Date().toISOString(),
+        }
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'reaction_added',
+          payload: { messageId, reaction },
+        })
+      } else {
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'reaction_removed',
+          payload: { messageId, userId, emoji },
+        })
+      }
+    },
+    []
+  )
+
   /** Prepend older messages (pagination). */
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return
@@ -103,7 +189,7 @@ export function useMessages(
     const supabase = createClient()
     const { data } = await supabase
       .from('messages')
-      .select('*, profiles(username, avatar_url)')
+      .select(MESSAGE_SELECT)
       .eq('channel_id', channelId)
       .lt('created_at', oldest)
       .order('created_at', { ascending: false })
@@ -117,5 +203,5 @@ export function useMessages(
     setLoadingMore(false)
   }, [channelId, hasMore, loadingMore, messages])
 
-  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage }
+  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange }
 }
