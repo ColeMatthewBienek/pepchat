@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Avatar from '@/components/ui/Avatar'
+import { createClient } from '@/lib/supabase/client'
 import { getProfile } from '@/app/(app)/profile/actions'
 import type { Profile } from '@/lib/types'
 
@@ -20,9 +21,23 @@ function formatMemberSince(iso: string) {
 export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }: ProfileCardProps) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [openingDM, setOpeningDM] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const isOwn = userId === currentUserId
+
+  async function handleSendMessage() {
+    setOpeningDM(true)
+    try {
+      const supabase = createClient()
+      const { data: convId, error } = await supabase.rpc('get_or_create_dm', { other_user_id: userId })
+      if (error || !convId) { setOpeningDM(false); return }
+      onClose()
+      router.push(`/dm/${convId}`)
+    } catch {
+      setOpeningDM(false)
+    }
+  }
 
   // If own profile, redirect to settings instead
   useEffect(() => {
@@ -133,11 +148,11 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
             {/* Actions */}
             <div className="flex items-center gap-2">
               <button
-                className="flex-1 py-1.5 rounded-lg text-sm font-medium text-white bg-[var(--accent)] hover:bg-[var(--accent)]/90 transition-colors"
-                onClick={onClose}
-                title="Direct messages not yet available"
+                className="flex-1 py-1.5 rounded-lg text-sm font-medium text-white bg-[var(--accent)] hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50"
+                onClick={handleSendMessage}
+                disabled={openingDM}
               >
-                Send Message
+                {openingDM ? 'Opening…' : 'Send Message'}
               </button>
               <button
                 className="px-3 py-1.5 rounded-lg text-sm text-[var(--text-muted)] border border-white/10 hover:bg-white/5 transition-colors"

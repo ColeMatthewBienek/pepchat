@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { assignRole, kickMember } from '@/app/(app)/members/actions'
 import Avatar from '@/components/ui/Avatar'
@@ -40,6 +41,13 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
 
   const canManage = PERMISSIONS.canAssignRoles(currentUserRole)
   const canKick   = PERMISSIONS.canKickMembers(currentUserRole)
+  const router = useRouter()
+
+  async function handleMessage(userId: string) {
+    const supabase = createClient()
+    const { data: convId } = await supabase.rpc('get_or_create_dm', { other_user_id: userId })
+    if (convId) router.push(`/dm/${convId}`)
+  }
 
   useEffect(() => {
     if (!groupId) return
@@ -147,6 +155,19 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                   <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${badge.className}`}>
                     {badge.label}
                   </span>
+                )}
+
+                {/* Message button */}
+                {!isSelf && (
+                  <button
+                    onClick={() => handleMessage(member.user_id)}
+                    title="Send message"
+                    className="hidden group-hover/member:flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors flex-shrink-0"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                  </button>
                 )}
 
                 {/* Kick button */}

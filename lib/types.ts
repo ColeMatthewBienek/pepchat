@@ -111,11 +111,29 @@ export type MessageWithProfile = Message & {
 
 export interface DirectMessage {
   id: string
+  conversation_id: string
   sender_id: string
   recipient_id: string
   content: string
+  attachments: Attachment[]
+  edited_at: string | null
   read_at: string | null
   created_at: string
+}
+
+export type DirectMessageWithProfile = DirectMessage & {
+  sender: Profile
+}
+
+export type DMConversation = {
+  id: string
+  user_a: string
+  user_b: string
+  last_message: string | null
+  last_message_at: string | null
+  created_at: string
+  other_user: Profile
+  unread_count: number
 }
 
 /** Presence payload for a single online user */
