@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
 import Avatar from '@/components/ui/Avatar'
 import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
 import ReactionPills from '@/components/chat/ReactionPills'
 import ReactionPicker from '@/components/chat/ReactionPicker'
 import MessageAttachments from '@/components/chat/MessageAttachments'
 import type { MessageWithProfile } from '@/lib/types'
+
+const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
 
 interface MessageListProps {
   messages: MessageWithProfile[]
@@ -65,6 +68,7 @@ export default function MessageList({
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
+  const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -184,11 +188,16 @@ export default function MessageList({
                     {formatTime(msg.created_at)}
                   </span>
                 ) : (
-                  <Avatar
-                    src={msg.profiles?.avatar_url}
-                    username={msg.profiles?.username ?? '?'}
-                    size={32}
-                  />
+                  <button
+                    className="rounded-full focus:outline-none"
+                    onClick={e => setProfileCard({ userId: msg.user_id, anchor: e.currentTarget })}
+                  >
+                    <Avatar
+                      src={msg.profiles?.avatar_url}
+                      username={msg.profiles?.display_name ?? msg.profiles?.username ?? '?'}
+                      size={32}
+                    />
+                  </button>
                 )}
               </div>
 
@@ -196,9 +205,14 @@ export default function MessageList({
               <div className="flex-1 min-w-0">
                 {!compact && (
                   <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className="font-semibold text-sm text-[var(--text-primary)]">
-                      {msg.profiles?.username ?? 'Unknown'}
-                    </span>
+                    <button
+                      className="font-semibold text-sm hover:underline focus:outline-none"
+                      style={{ color: (msg.profiles as any)?.username_color ?? 'var(--text-primary)' }}
+                      title={msg.profiles?.display_name ? `@${msg.profiles.username}` : undefined}
+                      onClick={e => setProfileCard({ userId: msg.user_id, anchor: e.currentTarget })}
+                    >
+                      {msg.profiles?.display_name ?? msg.profiles?.username ?? 'Unknown'}
+                    </button>
                     <span className="text-[10px] text-[var(--text-muted)]">
                       {formatTime(msg.created_at)}
                     </span>
@@ -327,6 +341,15 @@ export default function MessageList({
       })}
 
       <div ref={bottomRef} />
+
+      {profileCard && (
+        <ProfileCard
+          userId={profileCard.userId}
+          currentUserId={currentUserId}
+          anchorEl={profileCard.anchor}
+          onClose={() => setProfileCard(null)}
+        />
+      )}
     </div>
   )
 }

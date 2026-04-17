@@ -197,13 +197,17 @@ export default function ChannelsSidebar({
         className="flex items-center gap-2 px-2 py-2 border-t border-black/20 flex-shrink-0"
         style={{ background: 'var(--bg-primary)' }}
       >
-        <Avatar src={profile.avatar_url} username={profile.username} size={32} online />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{profile.username}</p>
-          {userRole && (
-            <p className="text-xs text-[var(--text-muted)] truncate capitalize">{userRole}</p>
-          )}
-        </div>
+        <Link href="/settings/profile" className="flex items-center gap-2 flex-1 min-w-0 rounded hover:bg-white/5 transition-colors px-1 py-0.5 -mx-1">
+          <Avatar src={profile.avatar_url} username={profile.display_name ?? profile.username} size={32} online />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{profile.display_name ?? profile.username}</p>
+            {profile.display_name ? (
+              <p className="text-xs text-[var(--text-muted)] truncate">@{profile.username}</p>
+            ) : userRole ? (
+              <p className="text-xs text-[var(--text-muted)] truncate capitalize">{userRole}</p>
+            ) : null}
+          </div>
+        </Link>
         <form action={logout}>
           <button
             type="submit"

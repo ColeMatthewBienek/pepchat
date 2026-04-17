@@ -14,10 +14,20 @@ create type if not exists public.member_role as enum ('admin', 'moderator', 'use
 -- ────────────────────────────────────────────────────────────
 
 create table if not exists public.profiles (
-  id          uuid references auth.users(id) on delete cascade primary key,
-  username    text unique not null,
-  avatar_url  text,
-  created_at  timestamptz default now() not null
+  id             uuid references auth.users(id) on delete cascade primary key,
+  username       text unique not null,
+  avatar_url     text,
+  display_name   text,
+  bio            text,
+  location       text,
+  website        text,
+  username_color text not null default '#ffffff',
+  banner_color   text not null default '#5865f2',
+  badge          text,
+  pronouns       text,
+  member_since   timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  created_at     timestamptz default now() not null
 );
 
 create table if not exists public.groups (

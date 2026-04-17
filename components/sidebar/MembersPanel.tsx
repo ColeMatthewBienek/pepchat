@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { assignRole, kickMember } from '@/app/(app)/members/actions'
 import Avatar from '@/components/ui/Avatar'
 import { PERMISSIONS, type Role } from '@/lib/permissions'
 import type { GroupMember, Profile } from '@/lib/types'
+
+const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
 
 type MemberWithProfile = GroupMember & { profiles: Pick<Profile, 'username' | 'avatar_url'> }
 
@@ -33,6 +36,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
   const [expanded, setExpanded] = useState(true)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
 
   const canManage = PERMISSIONS.canAssignRoles(currentUserRole)
   const canKick   = PERMISSIONS.canKickMembers(currentUserRole)
@@ -110,13 +114,21 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
 
             return (
               <li key={member.user_id} className="group/member flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded mx-1">
-                <Avatar
-                  src={member.profiles?.avatar_url}
-                  username={member.profiles?.username ?? '?'}
-                  size={28}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{member.profiles?.username ?? member.user_id}</p>
+                <button
+                  className="rounded-full flex-shrink-0 focus:outline-none"
+                  onClick={e => setProfileCard({ userId: member.user_id, anchor: e.currentTarget })}
+                >
+                  <Avatar
+                    src={member.profiles?.avatar_url}
+                    username={(member.profiles as any)?.display_name ?? member.profiles?.username ?? '?'}
+                    size={28}
+                  />
+                </button>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={e => setProfileCard({ userId: member.user_id, anchor: e.currentTarget })}>
+                  <p className="text-sm truncate">{(member.profiles as any)?.display_name ?? member.profiles?.username ?? member.user_id}</p>
+                  {(member.profiles as any)?.display_name && (
+                    <p className="text-xs text-[var(--text-muted)] truncate">@{member.profiles?.username}</p>
+                  )}
                 </div>
 
                 {/* Role badge / dropdown */}
@@ -154,6 +166,15 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
             )
           })}
         </ul>
+      )}
+
+      {profileCard && (
+        <ProfileCard
+          userId={profileCard.userId}
+          currentUserId={currentUserId}
+          anchorEl={profileCard.anchor}
+          onClose={() => setProfileCard(null)}
+        />
       )}
     </div>
   )

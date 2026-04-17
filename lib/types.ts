@@ -25,8 +25,20 @@ export interface Profile {
   id: string
   username: string
   avatar_url: string | null
+  display_name: string | null
+  bio: string | null
+  location: string | null
+  website: string | null
+  username_color: string
+  banner_color: string
+  badge: string | null
+  pronouns: string | null
+  member_since: string
+  updated_at: string
   created_at: string
 }
+
+export type ProfileUpdate = Partial<Omit<Profile, 'id' | 'username' | 'member_since' | 'updated_at' | 'created_at'>>
 
 export interface Group {
   id: string
@@ -92,7 +104,7 @@ export interface Message {
 
 /** Message with the profiles join always present (used in chat components). */
 export type MessageWithProfile = Message & {
-  profiles: Pick<Profile, 'username' | 'avatar_url'>
+  profiles: Pick<Profile, 'username' | 'avatar_url' | 'display_name'>
   replied_to?: QuotedMessage | null
   reactions?: Reaction[]
 }

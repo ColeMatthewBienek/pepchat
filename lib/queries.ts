@@ -4,4 +4,4 @@
  */
 
 export const MESSAGE_SELECT =
-  '*, profiles(username, avatar_url), replied_to:reply_to_id(id, content, user_id, profiles(username, avatar_url)), reactions:message_reactions(id, message_id, user_id, emoji, created_at, profiles(username))'
+  '*, profiles(username, avatar_url, display_name, username_color), replied_to:reply_to_id(id, content, user_id, profiles(username, avatar_url, display_name)), reactions:message_reactions(id, message_id, user_id, emoji, created_at, profiles(username))'
