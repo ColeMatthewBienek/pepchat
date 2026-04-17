@@ -130,7 +130,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--bg-primary)' }}>
+    <div className="p-6" style={{ background: 'var(--bg-primary)' }}>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-xl font-bold text-[var(--text-primary)] mb-6">Edit Profile</h1>
 

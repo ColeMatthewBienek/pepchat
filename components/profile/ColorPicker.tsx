@@ -12,7 +12,8 @@ const PRESETS = [
 
 const DARK_BG = 0x31 / 255 // approx luminance of #313338
 
-function hexToRgb(hex: string): [number, number, number] | null {
+function hexToRgb(hex: string | undefined | null): [number, number, number] | null {
+  if (!hex) return null
   const m = hex.replace('#', '').match(/.{2}/g)
   if (!m || m.length < 3) return null
   return [parseInt(m[0], 16), parseInt(m[1], 16), parseInt(m[2], 16)]
@@ -43,8 +44,9 @@ interface ColorPickerProps {
 }
 
 export default function ColorPicker({ value, onChange, label, previewText }: ColorPickerProps) {
-  const [hex, setHex] = useState(value)
-  const lowContrast = contrastRatio(value) < 3
+  const safeValue = value || '#ffffff'
+  const [hex, setHex] = useState(safeValue)
+  const lowContrast = contrastRatio(safeValue) < 3
 
   function handleHexInput(raw: string) {
     setHex(raw)
@@ -70,7 +72,7 @@ export default function ColorPicker({ value, onChange, label, previewText }: Col
             className="w-6 h-6 rounded-md border-2 transition-transform hover:scale-110 focus:outline-none"
             style={{
               background: color,
-              borderColor: value === color ? 'var(--accent)' : 'transparent',
+              borderColor: safeValue === color ? 'var(--accent)' : 'transparent',
             }}
             title={color}
           />
@@ -79,7 +81,7 @@ export default function ColorPicker({ value, onChange, label, previewText }: Col
 
       {/* Hex input */}
       <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-md border border-white/20 flex-shrink-0" style={{ background: value }} />
+        <div className="w-7 h-7 rounded-md border border-white/20 flex-shrink-0" style={{ background: safeValue }} />
         <input
           type="text"
           value={hex}
@@ -89,7 +91,7 @@ export default function ColorPicker({ value, onChange, label, previewText }: Col
           className="w-28 px-2 py-1 rounded text-xs bg-white/5 border border-white/10 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/50 font-mono"
         />
         {previewText && (
-          <span className="text-sm font-semibold" style={{ color: value }}>{previewText}</span>
+          <span className="text-sm font-semibold" style={{ color: safeValue }}>{previewText}</span>
         )}
       </div>
 

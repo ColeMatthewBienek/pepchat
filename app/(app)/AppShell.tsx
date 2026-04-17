@@ -130,7 +130,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         </div>
 
         <main
-          className="flex flex-col flex-1 min-w-0 overflow-hidden"
+          className="flex flex-col flex-1 min-w-0 overflow-y-auto"
           style={{ background: 'var(--bg-tertiary)' }}
         >
           {/* Mobile hamburger button */}
