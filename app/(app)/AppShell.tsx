@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import GroupsSidebar from '@/components/sidebar/GroupsSidebar'
 import ChannelsSidebar from '@/components/sidebar/ChannelsSidebar'
 import CreateGroupModal from '@/components/modals/CreateGroupModal'
 import JoinGroupModal from '@/components/modals/JoinGroupModal'
 import GroupSettingsModal from '@/components/modals/GroupSettingsModal'
 import CreateChannelModal from '@/components/modals/CreateChannelModal'
+const MobileDrawer = dynamic(() => import('@/components/sidebar/MobileDrawer'), { ssr: false })
+
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
 import { createClient } from '@/lib/supabase/client'
@@ -128,15 +131,32 @@ export default function AppShell({ profile, children }: AppShellProps) {
           />
         )}
 
-        {/* Sidebars: always visible on md+; slide-in overlay on mobile */}
+        {/* Mobile drawer — single unified column */}
         <div
           className={`
-            fixed inset-y-0 left-0 z-30 flex
+            md:hidden fixed inset-y-0 left-0 z-30
+            w-[min(280px,85vw)]
             transform transition-transform duration-200
             ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            md:relative md:translate-x-0 md:z-auto md:flex
           `}
         >
+          <MobileDrawer
+            groups={groups}
+            activeGroupId={activeGroupId}
+            activeGroup={activeGroup}
+            channels={channels}
+            profile={profile}
+            userRole={userRole}
+            onClose={() => setMobileSidebarOpen(false)}
+            onCreateGroup={() => setShowCreate(true)}
+            onJoinGroup={() => setShowJoin(true)}
+            onCreateChannel={() => setShowNewChannel(true)}
+            onGroupSettings={() => setShowSettings(true)}
+          />
+        </div>
+
+        {/* Desktop sidebars — always visible on md+ */}
+        <div className="hidden md:flex flex-shrink-0">
           <GroupsSidebar
             groups={groups}
             currentUserId={profile.id}

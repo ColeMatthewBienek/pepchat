@@ -6,9 +6,10 @@ import DMEntry from './DMEntry'
 
 interface DMSectionProps {
   currentUserId: string
+  onNavigate?: () => void
 }
 
-export default function DMSection({ currentUserId }: DMSectionProps) {
+export default function DMSection({ currentUserId, onNavigate }: DMSectionProps) {
   const { conversations, totalUnread, loading } = useDMConversations(currentUserId)
   const params = useParams()
   const activeConvId = params?.conversationId as string | undefined
@@ -43,6 +44,7 @@ export default function DMSection({ currentUserId }: DMSectionProps) {
               <DMEntry
                 conversation={conv}
                 isActive={conv.id === activeConvId}
+                onNavigate={onNavigate}
               />
             </li>
           ))}
