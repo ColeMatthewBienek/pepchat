@@ -54,7 +54,7 @@ create table if not exists public.messages (
   user_id     uuid references public.profiles(id) on delete cascade not null,
   content     text not null,
   reply_to_id uuid references public.messages(id) on delete set null,
-  attachments jsonb default '[]'::jsonb,
+  attachments jsonb default '[]'::jsonb, -- array of {type:'image',...} or {type:'gif',...} objects
   edited_at   timestamptz,
   created_at  timestamptz default now() not null
 );
