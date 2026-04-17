@@ -20,6 +20,10 @@ interface MessageListProps {
   onLoadMore: () => void
   onReact: (messageId: string, emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
+  allowReactions?: boolean
+  allowReplies?: boolean
+  editAction?: (messageId: string, content: string) => Promise<{ error: string } | { ok: true }>
+  deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
 }
 
 /** Same author within 5 minutes of the previous message = compact (no repeated header). */
@@ -62,6 +66,10 @@ export default function MessageList({
   onLoadMore,
   onReact,
   onReply,
+  allowReactions = true,
+  allowReplies = true,
+  editAction,
+  deleteAction,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -105,7 +113,8 @@ export default function MessageList({
   function submitEdit(messageId: string) {
     setError('')
     startTransition(async () => {
-      const result = await editMessage(messageId, editContent)
+      const action = editAction ?? editMessage
+      const result = await action(messageId, editContent)
       if ('error' in result) {
         setError(result.error)
       } else {
@@ -118,7 +127,8 @@ export default function MessageList({
     if (!confirm('Delete this message?')) return
     setError('')
     startTransition(async () => {
-      const result = await deleteMessage(messageId)
+      const action = deleteAction ?? deleteMessage
+      const result = await action(messageId)
       if ('error' in result) setError(result.error)
     })
   }
@@ -283,6 +293,7 @@ export default function MessageList({
               {editingId !== msg.id && (
                 <div className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0 relative">
                   {/* Emoji reaction */}
+                  {allowReactions && (
                   <button
                     onClick={() => setPickerOpenFor(pickerOpenFor === msg.id ? null : msg.id)}
                     title={atReactionLimit ? 'Max 20 emoji per message' : 'Add reaction'}
@@ -291,8 +302,10 @@ export default function MessageList({
                   >
                     <span className="text-sm leading-none">😊</span>
                   </button>
+                  )}
 
                   {/* Reply */}
+                  {allowReplies && (
                   <button
                     onClick={() => onReply(msg)}
                     title="Reply"
@@ -302,6 +315,7 @@ export default function MessageList({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                     </svg>
                   </button>
+                  )}
 
                   {isOwn && (
                     <>

@@ -114,6 +114,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         >
           <GroupsSidebar
             groups={groups}
+            currentUserId={profile.id}
             onCreateGroup={() => setShowCreate(true)}
             onJoinGroup={() => setShowJoin(true)}
           />

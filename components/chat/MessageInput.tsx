@@ -4,7 +4,7 @@ import { useRef, useState, useTransition, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { sendMessage } from '@/app/(app)/messages/actions'
 import { useImageUpload } from '@/lib/hooks/useImageUpload'
-import type { MessageWithProfile, Profile, GifAttachment } from '@/lib/types'
+import type { MessageWithProfile, Profile, GifAttachment, Attachment } from '@/lib/types'
 import { registerShare } from '@/lib/klipy'
 import type { KlipyGif } from '@/lib/klipy'
 
@@ -20,6 +20,8 @@ interface MessageInputProps {
   onCancelReply?: () => void
   onTyping?: () => void
   onSent?: (message: MessageWithProfile) => void
+  /** When provided, called instead of the default sendMessage server action. */
+  sendAction?: (content: string, replyToId: string | null, attachments: Attachment[]) => Promise<{ error: string } | { ok: true; message: MessageWithProfile }>
 }
 
 export default function MessageInput({
@@ -30,6 +32,7 @@ export default function MessageInput({
   onCancelReply,
   onTyping,
   onSent,
+  sendAction,
 }: MessageInputProps) {
   const [content, setContent] = useState('')
   const [error, setError] = useState('')
@@ -97,7 +100,9 @@ export default function MessageInput({
       source: 'klipy',
     }
     startTransition(async () => {
-      const result = await sendMessage(channelId, '', replyingTo?.id, [gifAttachment])
+      const result = sendAction
+        ? await sendAction('', replyingTo?.id ?? null, [gifAttachment])
+        : await sendMessage(channelId, '', replyingTo?.id, [gifAttachment])
       if ('error' in result) {
         setError(result.error)
       } else {
@@ -163,7 +168,9 @@ export default function MessageInput({
     if (!hasContent || isPending || hasUploading) return
     setError('')
     startTransition(async () => {
-      const result = await sendMessage(channelId, trimmed, replyingTo?.id, attachments)
+      const result = sendAction
+        ? await sendAction(trimmed, replyingTo?.id ?? null, attachments)
+        : await sendMessage(channelId, trimmed, replyingTo?.id, attachments)
       if ('error' in result) {
         setError(result.error)
       } else {

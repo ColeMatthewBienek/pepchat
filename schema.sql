@@ -78,13 +78,27 @@ create table if not exists public.message_reactions (
   unique(message_id, user_id, emoji)
 );
 
+create table if not exists public.dm_conversations (
+  id              uuid primary key default gen_random_uuid(),
+  user_a          uuid references public.profiles(id) on delete cascade not null,
+  user_b          uuid references public.profiles(id) on delete cascade not null,
+  last_message    text,
+  last_message_at timestamptz,
+  created_at      timestamptz default now() not null,
+  constraint unique_pair unique (user_a, user_b),
+  constraint no_self_dm check (user_a != user_b)
+);
+
 create table if not exists public.direct_messages (
-  id           uuid primary key default gen_random_uuid(),
-  sender_id    uuid references public.profiles(id) on delete cascade not null,
-  recipient_id uuid references public.profiles(id) on delete cascade not null,
-  content      text not null,
-  read_at      timestamptz,
-  created_at   timestamptz default now() not null
+  id              uuid primary key default gen_random_uuid(),
+  conversation_id uuid references public.dm_conversations(id) on delete cascade,
+  sender_id       uuid references public.profiles(id) on delete cascade not null,
+  recipient_id    uuid references public.profiles(id) on delete cascade not null,
+  content         text not null,
+  attachments     jsonb default '[]'::jsonb,
+  edited_at       timestamptz,
+  read_at         timestamptz,
+  created_at      timestamptz default now() not null
 );
 
 -- ────────────────────────────────────────────────────────────
