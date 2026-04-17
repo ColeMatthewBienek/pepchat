@@ -1,5 +1,14 @@
 /** TypeScript interfaces matching the Supabase database schema. */
 
+export interface Attachment {
+  url: string
+  type: 'image'
+  name: string
+  size: number
+  width?: number
+  height?: number
+}
+
 export interface Profile {
   id: string
   username: string
@@ -62,6 +71,7 @@ export interface Message {
   reply_to_id: string | null
   edited_at: string | null
   created_at: string
+  attachments?: Attachment[]
   /** Joined from profiles — populated by select queries */
   profiles?: Pick<Profile, 'username' | 'avatar_url'>
   /** Joined quoted message — null when original was deleted */
