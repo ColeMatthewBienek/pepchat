@@ -111,8 +111,8 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
   return (
     <div
-      className="absolute bottom-full mb-2 left-0 z-40 rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
-      style={{ width: 480, height: 380, background: 'var(--bg-secondary)' }}
+      className="fixed bottom-16 left-0 right-0 z-40 rounded-t-xl md:absolute md:bottom-full md:mb-2 md:left-0 md:right-auto md:rounded-xl md:w-[480px] border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+      style={{ height: 360, maxHeight: '60vh', background: 'var(--bg-secondary)' } as React.CSSProperties}
     >
       {/* Search bar */}
       <div className="p-2 border-b border-white/10 flex-shrink-0">
@@ -157,7 +157,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
             </button>
           </div>
         ) : loading && gifs.length === 0 ? (
-          <div style={{ columns: 3, columnGap: 4 }}>
+          <div className="columns-2 min-[380px]:columns-3 gap-1">
             {Array.from({ length: 12 }).map((_, i) => (
               <div
                 key={i}
@@ -179,7 +179,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
           </div>
         ) : (
           <>
-            <div style={{ columns: 3, columnGap: 4 }}>
+            <div className="columns-2 min-[380px]:columns-3 gap-1">
               {gifs.map(gif => (
                 <GifThumbnail key={gif.id} gif={gif} onSelect={onSelect} />
               ))}

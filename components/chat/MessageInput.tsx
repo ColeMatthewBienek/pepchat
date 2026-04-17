@@ -39,6 +39,7 @@ export default function MessageInput({
   const [isPending, startTransition] = useTransition()
   const [isDragging, setIsDragging] = useState(false)
   const [gifPickerOpen, setGifPickerOpen] = useState(false)
+  const [toolbarExpanded, setToolbarExpanded] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const gifPickerRef = useRef<HTMLDivElement>(null)
@@ -188,8 +189,8 @@ export default function MessageInput({
 
   return (
     <div
-      className="flex-shrink-0 px-4 pb-4 pt-2"
-      style={{ background: 'var(--bg-tertiary)' }}
+      className="flex-shrink-0 px-4 pt-2"
+      style={{ background: 'var(--bg-tertiary)', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}
     >
       {/* Full-viewport drag-and-drop overlay */}
       {isDragging && (
@@ -245,12 +246,27 @@ export default function MessageInput({
       >
         {/* Textarea row */}
         <div className="flex items-end gap-2 px-3 py-2.5 relative">
+          {/* Expander button — visible only on very small screens (<380px) */}
+          <button
+            type="button"
+            onClick={() => setToolbarExpanded(o => !o)}
+            title="More options"
+            className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors min-[380px]:hidden"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              {toolbarExpanded
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              }
+            </svg>
+          </button>
+
           {/* Paperclip / attach button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             title="Attach image"
-            className="flex-shrink-0 p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+            className={`flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors ${toolbarExpanded ? 'flex' : 'hidden min-[380px]:flex'}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -267,12 +283,12 @@ export default function MessageInput({
 
           {/* GIF picker button */}
           {KLIPY_ENABLED && (
-            <div ref={gifPickerRef} className="relative flex-shrink-0">
+            <div ref={gifPickerRef} className={`relative flex-shrink-0 ${toolbarExpanded ? 'flex' : 'hidden min-[380px]:flex'}`}>
               <button
                 type="button"
                 onClick={() => setGifPickerOpen(o => !o)}
                 title="Send a GIF"
-                className={`p-1.5 rounded text-xs font-bold leading-none transition-colors ${
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-xs font-bold leading-none transition-colors ${
                   gifPickerOpen
                     ? 'text-[var(--accent)] bg-[var(--accent)]/10'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10'
@@ -302,7 +318,7 @@ export default function MessageInput({
             onClick={submit}
             disabled={!canSend}
             title="Send message"
-            className="flex-shrink-0 p-1.5 rounded text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-30 disabled:cursor-default transition-colors"
+            className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-30 disabled:cursor-default transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

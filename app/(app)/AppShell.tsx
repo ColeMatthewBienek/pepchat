@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import GroupsSidebar from '@/components/sidebar/GroupsSidebar'
 import ChannelsSidebar from '@/components/sidebar/ChannelsSidebar'
@@ -31,6 +31,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
   const [showSettings,   setShowSettings]   = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
 
   // Resolve active group from URL
   useEffect(() => {
@@ -89,12 +90,36 @@ export default function AppShell({ profile, children }: AppShellProps) {
     return () => { supabase.removeChannel(sub) }
   }, [activeGroupId, profile.id])
 
+  // Swipe gestures — open drawer from left edge, close from right edge
+  useEffect(() => {
+    const main = mainRef.current
+    if (!main) return
+    let startX = 0, startY = 0
+    function onTouchStart(e: TouchEvent) {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+    }
+    function onTouchEnd(e: TouchEvent) {
+      const dx = e.changedTouches[0].clientX - startX
+      const dy = e.changedTouches[0].clientY - startY
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 1.5) return
+      if (dx > 0 && startX < 40) setMobileSidebarOpen(true)
+      else if (dx < 0 && startX > window.innerWidth - 40) setMobileSidebarOpen(false)
+    }
+    main.addEventListener('touchstart', onTouchStart, { passive: true })
+    main.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      main.removeEventListener('touchstart', onTouchStart)
+      main.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
   const { channels } = useChannels(activeGroupId)
   const activeGroup  = groups.find((g) => g.id === activeGroupId) ?? null
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-[100dvh] overflow-hidden">
         {/* Mobile sidebar overlay backdrop */}
         {mobileSidebarOpen && (
           <div
@@ -131,19 +156,26 @@ export default function AppShell({ profile, children }: AppShellProps) {
         </div>
 
         <main
+          ref={mainRef}
           className="flex flex-col flex-1 min-w-0 overflow-y-auto"
           style={{ background: 'var(--bg-tertiary)' }}
         >
-          {/* Mobile hamburger button */}
-          <div className="md:hidden flex items-center gap-2 px-3 h-10 border-b border-black/20 flex-shrink-0" style={{ background: 'var(--bg-secondary)' }}>
+          {/* Mobile header bar */}
+          <div className="md:hidden flex items-center gap-2 px-2 h-[44px] border-b border-black/20 flex-shrink-0" style={{ background: 'var(--bg-secondary)' }}>
             <button
-              onClick={() => setMobileSidebarOpen(true)}
-              className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
-              aria-label="Open sidebar"
+              onClick={() => setMobileSidebarOpen(o => !o)}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+              aria-label={mobileSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              {mobileSidebarOpen ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
             {activeGroup && (
               <span className="text-sm font-semibold truncate">{activeGroup.name}</span>

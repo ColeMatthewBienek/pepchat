@@ -77,25 +77,48 @@ export default function MessageList({
   const [isPending, startTransition] = useTransition()
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
+  const prevLengthRef = useRef(0)
+  const initialScrolledRef = useRef(false)
 
   function handleScroll() {
     const el = listRef.current
     if (!el) return
-    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight
+    isAtBottomRef.current = dist < 80
+    setShowScrollBtn(dist > 300)
+    if (dist < 80) setUnreadCount(0)
+  }
+
+  function scrollToBottom() {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setUnreadCount(0)
+    setShowScrollBtn(false)
   }
 
   // Initial scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView()
+    initialScrolledRef.current = true
+    prevLengthRef.current = messages.length
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Scroll to bottom on new messages only if already near bottom
+  // Scroll to bottom on new messages only if already near bottom; track unread otherwise
   useEffect(() => {
+    if (!initialScrolledRef.current) return
+    const newCount = messages.length - prevLengthRef.current
+    prevLengthRef.current = messages.length
+    if (newCount <= 0) return
     if (isAtBottomRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      setUnreadCount(0)
+    } else {
+      setUnreadCount(prev => prev + newCount)
     }
   }, [messages])
 
@@ -139,10 +162,12 @@ export default function MessageList({
   }
 
   return (
+    <div className="relative flex-1 min-h-0 flex flex-col">
     <div
       ref={listRef}
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto px-4 py-4 space-y-0.5"
+      style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
     >
       {/* Pagination trigger */}
       {hasMore && (
@@ -364,6 +389,25 @@ export default function MessageList({
           onClose={() => setProfileCard(null)}
         />
       )}
+    </div>
+
+    {/* Scroll-to-bottom floating button */}
+    {showScrollBtn && (
+      <button
+        onClick={scrollToBottom}
+        className="absolute bottom-4 right-4 z-10 flex items-center justify-center w-11 h-11 rounded-full bg-[var(--accent)] text-white shadow-lg hover:bg-[var(--accent)]/90 transition-colors"
+        aria-label="Scroll to bottom"
+      >
+        {unreadCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-[var(--danger)] text-white text-[10px] font-bold flex items-center justify-center px-1">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    )}
     </div>
   )
 }
