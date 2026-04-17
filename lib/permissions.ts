@@ -46,4 +46,7 @@ export const PERMISSIONS = {
 
   /** Can send images. All roles (noob restricted to welcome channel by RLS). */
   canSendImages: (role: Role) => (['admin', 'moderator', 'user', 'noob'] as Role[]).includes(role),
+
+  /** Can send GIFs. All roles (noob restricted to welcome channel by RLS). */
+  canSendGifs: (role: Role) => (['admin', 'moderator', 'user', 'noob'] as Role[]).includes(role),
 } as const

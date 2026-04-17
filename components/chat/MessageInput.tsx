@@ -1,9 +1,16 @@
 'use client'
 
 import { useRef, useState, useTransition, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { sendMessage } from '@/app/(app)/messages/actions'
 import { useImageUpload } from '@/lib/hooks/useImageUpload'
-import type { MessageWithProfile, Profile } from '@/lib/types'
+import type { MessageWithProfile, Profile, GifAttachment } from '@/lib/types'
+import { registerShare } from '@/lib/klipy'
+import type { KlipyGif } from '@/lib/klipy'
+
+const GifPicker = dynamic(() => import('./GifPicker'), { ssr: false })
+
+const KLIPY_ENABLED = !!process.env.NEXT_PUBLIC_KLIPY_API_KEY
 
 interface MessageInputProps {
   channelId: string
@@ -28,8 +35,10 @@ export default function MessageInput({
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
   const [isDragging, setIsDragging] = useState(false)
+  const [gifPickerOpen, setGifPickerOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const gifPickerRef = useRef<HTMLDivElement>(null)
   const dragCounterRef = useRef(0)
 
   const { pendingImages, inputError, addFiles, removeImage, retryUpload, clearAll, hasUploading, attachments } =
@@ -62,6 +71,42 @@ export default function MessageInput({
       document.removeEventListener('drop', onDocDrop)
     }
   }, [])
+
+  // Close GIF picker on outside click
+  useEffect(() => {
+    if (!gifPickerOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (gifPickerRef.current && !gifPickerRef.current.contains(e.target as Node)) {
+        setGifPickerOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [gifPickerOpen])
+
+  function handleGifSelect(gif: KlipyGif) {
+    setGifPickerOpen(false)
+    registerShare(gif.id, profile.id) // required by Klipy ToS
+    const gifAttachment: GifAttachment = {
+      url: gif.file.hd?.gif?.url ?? gif.file.md?.gif?.url,
+      type: 'gif',
+      name: gif.title ?? gif.slug,
+      preview: gif.file.sm?.gif?.url ?? gif.file.md?.gif?.url ?? gif.file.hd?.gif?.url,
+      width: gif.file.hd?.gif?.width ?? gif.file.md?.gif?.width ?? 0,
+      height: gif.file.hd?.gif?.height ?? gif.file.md?.gif?.height ?? 0,
+      source: 'klipy',
+    }
+    startTransition(async () => {
+      const result = await sendMessage(channelId, '', replyingTo?.id, [gifAttachment])
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        textareaRef.current?.focus()
+        onCancelReply?.()
+        onSent?.(result.message)
+      }
+    })
+  }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
@@ -192,7 +237,7 @@ export default function MessageInput({
         style={{ background: 'var(--bg-secondary)' }}
       >
         {/* Textarea row */}
-        <div className="flex items-end gap-2 px-3 py-2.5">
+        <div className="flex items-end gap-2 px-3 py-2.5 relative">
           {/* Paperclip / attach button */}
           <button
             type="button"
@@ -212,6 +257,27 @@ export default function MessageInput({
             className="hidden"
             onChange={handleFileInput}
           />
+
+          {/* GIF picker button */}
+          {KLIPY_ENABLED && (
+            <div ref={gifPickerRef} className="relative flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setGifPickerOpen(o => !o)}
+                title="Send a GIF"
+                className={`p-1.5 rounded text-xs font-bold leading-none transition-colors ${
+                  gifPickerOpen
+                    ? 'text-[var(--accent)] bg-[var(--accent)]/10'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10'
+                }`}
+              >
+                GIF
+              </button>
+              {gifPickerOpen && (
+                <GifPicker onSelect={handleGifSelect} onClose={() => setGifPickerOpen(false)} />
+              )}
+            </div>
+          )}
 
           <textarea
             ref={textareaRef}

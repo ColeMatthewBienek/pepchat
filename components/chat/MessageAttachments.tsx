@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import type { Attachment } from '@/lib/types'
+import type { Attachment, ImageAttachment, GifAttachment } from '@/lib/types'
 
 const Lightbox = dynamic(() => import('./Lightbox'), { ssr: false })
 
@@ -13,15 +13,17 @@ interface MessageAttachmentsProps {
 
 export default function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [gifLightboxIndex, setGifLightboxIndex] = useState<number | null>(null)
 
-  const images = (attachments ?? []).filter(a => a.type === 'image')
-  if (images.length === 0) return null
+  const images = (attachments ?? []).filter((a): a is ImageAttachment => a.type === 'image')
+  const gifs = (attachments ?? []).filter((a): a is GifAttachment => a.type === 'gif')
 
-  const count = images.length
+  if (images.length === 0 && gifs.length === 0) return null
 
   return (
     <div className="mt-1.5">
-      {count === 1 && (
+      {/* Image attachments */}
+      {images.length === 1 && (
         <button
           className="block cursor-zoom-in rounded-lg overflow-hidden border border-white/10 hover:border-white/25 transition-colors"
           onClick={() => setLightboxIndex(0)}
@@ -39,7 +41,7 @@ export default function MessageAttachments({ attachments }: MessageAttachmentsPr
         </button>
       )}
 
-      {count === 2 && (
+      {images.length === 2 && (
         <div className="grid grid-cols-2 gap-1" style={{ maxWidth: 400 }}>
           {images.map((img, i) => (
             <button
@@ -54,7 +56,7 @@ export default function MessageAttachments({ attachments }: MessageAttachmentsPr
         </div>
       )}
 
-      {count === 3 && (
+      {images.length === 3 && (
         <div className="grid gap-1" style={{ maxWidth: 400 }}>
           <button
             onClick={() => setLightboxIndex(0)}
@@ -78,7 +80,7 @@ export default function MessageAttachments({ attachments }: MessageAttachmentsPr
         </div>
       )}
 
-      {count === 4 && (
+      {images.length === 4 && (
         <div className="grid grid-cols-2 gap-1" style={{ maxWidth: 400 }}>
           {images.map((img, i) => (
             <button
@@ -98,6 +100,37 @@ export default function MessageAttachments({ attachments }: MessageAttachmentsPr
           images={images}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+        />
+      )}
+
+      {/* GIF attachments */}
+      {gifs.map((gif, i) => (
+        <div key={i} className={images.length > 0 ? 'mt-2' : ''}>
+          <button
+            onClick={() => setGifLightboxIndex(i)}
+            className="relative inline-block cursor-zoom-in rounded-lg overflow-hidden border border-white/10 hover:border-white/25 transition-colors"
+            style={{ maxWidth: 300 }}
+          >
+            <img
+              src={gif.url}
+              alt={gif.name}
+              loading="lazy"
+              className="block rounded-lg h-auto"
+              style={{ maxWidth: 400, width: '100%' }}
+            />
+            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-black/60 leading-none">
+              GIF
+            </span>
+          </button>
+          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Powered by Klipy</p>
+        </div>
+      ))}
+
+      {gifLightboxIndex !== null && (
+        <Lightbox
+          images={gifs}
+          initialIndex={gifLightboxIndex}
+          onClose={() => setGifLightboxIndex(null)}
         />
       )}
     </div>
