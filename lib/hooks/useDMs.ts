@@ -44,6 +44,7 @@ interface UseDMConversationsReturn {
 export function useDMConversations(userId: string): UseDMConversationsReturn {
   const [conversations, setConversations] = useState<DMConversation[]>([])
   const [loading, setLoading] = useState(true)
+  const nonceRef = useRef(0)
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -89,7 +90,7 @@ export function useDMConversations(userId: string): UseDMConversationsReturn {
 
     const supabase = createClient()
     const sub = supabase
-      .channel(`dm-conversations-${userId}`)
+      .channel(`dm-conversations-${userId}-${++nonceRef.current}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_conversations' }, fetchAll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, fetchAll)
       .subscribe()
@@ -116,6 +117,7 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
   const [loadingMore, setLoadingMore] = useState(false)
   const loadingRef = useRef(false)
   const hasMoreRef = useRef(false)
+  const msgNonceRef = useRef(0)
 
   useEffect(() => {
     if (!conversationId) return
@@ -141,7 +143,7 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
     fetchInitial()
 
     const sub = supabase
-      .channel(`dm-messages-${conversationId}`)
+      .channel(`dm-messages-${conversationId}-${++msgNonceRef.current}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
