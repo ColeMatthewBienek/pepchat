@@ -1,6 +1,6 @@
 /** TypeScript interfaces matching the Supabase database schema. */
 
-export interface Attachment {
+export interface ImageAttachment {
   url: string
   type: 'image'
   name: string
@@ -8,6 +8,18 @@ export interface Attachment {
   width?: number
   height?: number
 }
+
+export interface GifAttachment {
+  url: string
+  type: 'gif'
+  name: string
+  preview: string
+  width: number
+  height: number
+  source: 'klipy'
+}
+
+export type Attachment = ImageAttachment | GifAttachment
 
 export interface Profile {
   id: string
