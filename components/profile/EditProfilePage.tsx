@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Avatar from '@/components/ui/Avatar'
 import ColorPicker from './ColorPicker'
@@ -49,6 +50,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({})
   const [isPending, startTransition] = useTransition()
   const fileRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(profile) || pendingAvatar !== null
   const isAdmin = userRole === 'admin'
@@ -227,7 +229,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
                 {isPending ? 'Saving…' : 'Save Changes'}
               </button>
               <button
-                onClick={() => { setDraft({ ...profile }); setPendingAvatar(null) }}
+                onClick={() => { setDraft({ ...profile }); setPendingAvatar(null); router.back() }}
                 className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors"
               >
                 Cancel
