@@ -2,20 +2,21 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { MessageWithProfile } from '@/lib/types'
+import type { MessageWithProfile, Attachment } from '@/lib/types'
 import { MESSAGE_SELECT } from '@/lib/queries'
 
 export async function sendMessage(
   channelId: string,
   content: string,
-  replyToId?: string | null
+  replyToId?: string | null,
+  attachments?: Attachment[]
 ): Promise<{ error: string } | { ok: true; message: MessageWithProfile }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
   const trimmed = content.trim()
-  if (!trimmed) return { error: 'Message cannot be empty.' }
+  if (!trimmed && (!attachments || attachments.length === 0)) return { error: 'Message cannot be empty.' }
   if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
 
   const { data: message, error } = await supabase
@@ -25,6 +26,7 @@ export async function sendMessage(
       user_id:     user.id,
       content:     trimmed,
       reply_to_id: replyToId ?? null,
+      attachments: attachments ?? [],
     })
     .select(MESSAGE_SELECT)
     .single()

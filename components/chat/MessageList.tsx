@@ -5,6 +5,7 @@ import Avatar from '@/components/ui/Avatar'
 import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
 import ReactionPills from '@/components/chat/ReactionPills'
 import ReactionPicker from '@/components/chat/ReactionPicker'
+import MessageAttachments from '@/components/chat/MessageAttachments'
 import type { MessageWithProfile } from '@/lib/types'
 
 interface MessageListProps {
@@ -239,12 +240,19 @@ export default function MessageList({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-[var(--text-primary)] break-words whitespace-pre-wrap leading-relaxed">
-                    {msg.content}
-                    {msg.edited_at && (
-                      <span className="text-[10px] text-[var(--text-muted)] ml-1.5">(edited)</span>
+                  <>
+                    {msg.content && (
+                      <p className="text-sm text-[var(--text-primary)] break-words whitespace-pre-wrap leading-relaxed">
+                        {msg.content}
+                        {msg.edited_at && (
+                          <span className="text-[10px] text-[var(--text-muted)] ml-1.5">(edited)</span>
+                        )}
+                      </p>
                     )}
-                  </p>
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <MessageAttachments attachments={msg.attachments} />
+                    )}
+                  </>
                 )}
 
                 {/* Reaction pills */}

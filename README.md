@@ -103,7 +103,8 @@ npm install
 
 1. Create a new project at [supabase.com](https://supabase.com)
 2. Run `schema.sql` in the Supabase **SQL Editor** to create all tables, RLS policies, and indexes
-3. Enable **Email confirmations off** under Authentication → Email (for local dev)
+3. Run `image-paste-migration.sql` in the SQL Editor to add the `attachments` column and create the `chat-images` storage bucket with RLS policies
+4. Enable **Email confirmations off** under Authentication → Email (for local dev)
 
 ### 3. Configure environment
 
