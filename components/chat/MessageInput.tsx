@@ -365,9 +365,18 @@ export default function MessageInput({
         )}
       </div>
 
-      <p className="text-[10px] text-[var(--text-muted)] mt-1 px-1">
-        Enter to send · Shift+Enter for new line{replyingTo ? ' · Esc to cancel reply' : ''}
-      </p>
+      <div className="flex items-center justify-between mt-1 px-1">
+        <p className="text-[10px] text-[var(--text-muted)]">
+          Enter to send · Shift+Enter for new line{replyingTo ? ' · Esc to cancel reply' : ''}
+        </p>
+        <p className="hidden md:flex text-[10px] text-[var(--text-muted)] gap-2 font-mono">
+          <span>**bold**</span>
+          <span>*italic*</span>
+          <span>`code`</span>
+          <span>```block```</span>
+          <span>&gt; quote</span>
+        </p>
+      </div>
     </div>
   )
 }
