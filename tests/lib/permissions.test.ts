@@ -10,7 +10,7 @@ describe('PERMISSIONS.canManageChannels', () => {
     ['moderator', true],
     ['user',      false],
     ['noob',      false],
-  ] as [Role, boolean][])('%s → %s', (role, expected) => {
+  ] as [Role, boolean][])('%s → %s', (role: Role, expected: boolean) => {
     expect(PERMISSIONS.canManageChannels(role)).toBe(expected)
   })
 })
@@ -21,7 +21,7 @@ describe('PERMISSIONS.canGenerateInvite', () => {
     ['moderator', true],
     ['user',      false],
     ['noob',      false],
-  ] as [Role, boolean][])('%s → %s', (role, expected) => {
+  ] as [Role, boolean][])('%s → %s', (role: Role, expected: boolean) => {
     expect(PERMISSIONS.canGenerateInvite(role)).toBe(expected)
   })
 })
@@ -32,7 +32,7 @@ describe('PERMISSIONS.canDeleteAnyMessage', () => {
     ['moderator', true],
     ['user',      false],
     ['noob',      false],
-  ] as [Role, boolean][])('%s → %s', (role, expected) => {
+  ] as [Role, boolean][])('%s → %s', (role: Role, expected: boolean) => {
     expect(PERMISSIONS.canDeleteAnyMessage(role)).toBe(expected)
   })
 })
@@ -43,7 +43,7 @@ describe('PERMISSIONS.canDeleteOwnMessage', () => {
     ['moderator', true],
     ['user',      true],
     ['noob',      false],
-  ] as [Role, boolean][])('%s → %s', (role, expected) => {
+  ] as [Role, boolean][])('%s → %s', (role: Role, expected: boolean) => {
     expect(PERMISSIONS.canDeleteOwnMessage(role)).toBe(expected)
   })
 })
@@ -61,7 +61,7 @@ describe('PERMISSIONS.canKickMembers', () => {
     ['moderator', true],
     ['user',      false],
     ['noob',      false],
-  ] as [Role, boolean][])('%s → %s', (role, expected) => {
+  ] as [Role, boolean][])('%s → %s', (role: Role, expected: boolean) => {
     expect(PERMISSIONS.canKickMembers(role)).toBe(expected)
   })
 })
@@ -79,7 +79,7 @@ describe('PERMISSIONS.canAccessChannel', () => {
 
   it.each(['admin', 'moderator', 'user'] as Role[])(
     '%s can access any channel',
-    (role) => {
+    (role: Role) => {
       expect(PERMISSIONS.canAccessChannel(role, 'general')).toBe(true)
       expect(PERMISSIONS.canAccessChannel(role, 'welcome')).toBe(true)
       expect(PERMISSIONS.canAccessChannel(role, 'private-room')).toBe(true)
@@ -94,30 +94,30 @@ describe('PERMISSIONS.canAccessChannel', () => {
 describe('PERMISSIONS.canManageGroup', () => {
   it('allows admin', () => expect(PERMISSIONS.canManageGroup('admin')).toBe(true))
   it.each(['moderator', 'user', 'noob'] as Role[])(
-    'denies %s', (role) => expect(PERMISSIONS.canManageGroup(role)).toBe(false)
+    'denies %s', (role: Role) => expect(PERMISSIONS.canManageGroup(role)).toBe(false)
   )
 })
 
 describe('PERMISSIONS.canReact', () => {
-  it.each(ALL_ROLES)('allows all roles (%s)', (role) => {
+  it.each(ALL_ROLES)('allows all roles (%s)', (role: Role) => {
     expect(PERMISSIONS.canReact(role)).toBe(true)
   })
 })
 
 describe('PERMISSIONS.canSendImages', () => {
-  it.each(ALL_ROLES)('allows all roles (%s)', (role) => {
+  it.each(ALL_ROLES)('allows all roles (%s)', (role: Role) => {
     expect(PERMISSIONS.canSendImages(role)).toBe(true)
   })
 })
 
 describe('PERMISSIONS.canSendGifs', () => {
-  it.each(ALL_ROLES)('allows all roles (%s)', (role) => {
+  it.each(ALL_ROLES)('allows all roles (%s)', (role: Role) => {
     expect(PERMISSIONS.canSendGifs(role)).toBe(true)
   })
 })
 
 describe('PERMISSIONS.canSendDMs', () => {
-  it.each(ALL_ROLES)('allows all roles (%s)', (role) => {
+  it.each(ALL_ROLES)('allows all roles (%s)', (role: Role) => {
     expect(PERMISSIONS.canSendDMs(role)).toBe(true)
   })
 })
