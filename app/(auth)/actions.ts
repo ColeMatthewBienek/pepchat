@@ -42,17 +42,23 @@ export async function login(
  */
 export async function signup(
   formData: FormData
-): Promise<{ error: string } | never> {
+): Promise<{ error: string } | { email: string }> {
   const supabase = await createClient()
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.signUp({ email, password })
+  const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) return { error: error.message }
 
-  // New user always needs to pick a username
-  redirect('/setup-profile')
+  // Supabase returns a fake-success with an identities array when the email is
+  // already registered. Surface this as a user-facing error instead of silently
+  // sending them to the check-email screen.
+  if (data.user && data.user.identities?.length === 0) {
+    return { error: 'An account with that email already exists.' }
+  }
+
+  return { email }
 }
 
 /**

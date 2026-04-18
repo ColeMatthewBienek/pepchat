@@ -3,10 +3,12 @@
 import { useTransition, useState } from 'react'
 import Link from 'next/link'
 import { signup } from '../actions'
+import { CheckEmailView } from '@/components/auth/CheckEmailView'
 
 export default function SignupPage() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [confirmedEmail, setConfirmedEmail] = useState<string | null>(null)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -23,8 +25,16 @@ export default function SignupPage() {
 
     startTransition(async () => {
       const result = await signup(formData)
-      if (result?.error) setError(result.error)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setConfirmedEmail(result.email)
+      }
     })
+  }
+
+  if (confirmedEmail) {
+    return <CheckEmailView email={confirmedEmail} onBack={() => setConfirmedEmail(null)} />
   }
 
   return (
