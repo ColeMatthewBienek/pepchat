@@ -1,0 +1,19 @@
+# TODO: Manual production deploy gate
+# Trigger: workflow_dispatch (manual button in GitHub Actions UI)
+# Requires: all CI checks green on main
+# Will be implemented when app reaches feature complete
+
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    name: Not Yet Implemented
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remind operator
+        run: |
+          echo "Production deployment is not yet configured."
+          echo "See task brief: implement manual deploy gate when app reaches feature complete."

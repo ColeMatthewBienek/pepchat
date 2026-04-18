@@ -1,0 +1,21 @@
+version: 2
+
+updates:
+  # npm packages — weekly check, skip major version bumps
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 10
+
+  # GitHub Actions — weekly check
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5

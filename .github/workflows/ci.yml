@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same ref when a new push arrives.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Type Check ───────────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: tsc --noEmit
+        run: npx tsc --noEmit
+
+  # ── 2. Tests ────────────────────────────────────────────────────────────────
+  test:
+    name: Tests
+    needs: typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Vitest
+        run: npm run test
+
+  # ── 3. Build ─────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build for Cloudflare Pages
+        run: npx @cloudflare/next-on-pages
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-pages-build
+          path: .vercel/output/static
+          # Keep for 1 day — only needed by the preview job in the same run
+          retention-days: 1
+
+  # ── 4. Preview Deployment (PRs only) ────────────────────────────────────────
+  preview:
+    name: Preview Deployment
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write   # Required for cloudflare/pages-action to post the comment
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cloudflare-pages-build
+          path: .vercel/output/static
+
+      - name: Deploy to Cloudflare Pages (preview)
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: pepchat
+          directory: .vercel/output/static
+          # Posts the preview URL as a PR comment automatically
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.head_ref }}
