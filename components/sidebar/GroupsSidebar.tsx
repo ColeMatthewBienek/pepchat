@@ -52,7 +52,7 @@ export default function GroupsSidebar({
               {unreadGroupIds.has(group.id) && (
                 <span
                   data-testid={`unread-badge-${group.id}`}
-                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1e1f22]"
+                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-red-500 border-2 border-[var(--bg-primary)]"
                 />
               )}
             </div>

@@ -9,27 +9,36 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        'bg-primary': 'var(--bg-primary)',
-        'bg-secondary': 'var(--bg-secondary)',
-        'bg-tertiary': 'var(--bg-tertiary)',
-        accent: 'var(--accent)',
-        'accent-hover': 'var(--accent-hover)',
-        'text-primary': 'var(--text-primary)',
-        'text-muted': 'var(--text-muted)',
-        danger: 'var(--danger)',
+        'bg-deepest':   '#14110e',
+        'bg-primary':   '#1a1613',
+        'bg-secondary': '#221d18',
+        'bg-tertiary':  '#2b2520',
+        'bg-elevated':  '#2f2822',
+        'accent':       '#e6543a',
+        'accent-hover': '#ff6b4a',
+        'text-primary': '#f4ebdd',
+        'text-muted':   '#b8a896',
+        'text-faint':   '#8a7b6c',
+        'text-link':    '#e8a273',
+        'online':       '#6aa08a',
+        'typing':       '#d89a3a',
+        // Keep legacy tokens for any components using var()-based Tailwind classes
+        danger:  'var(--danger)',
         success: 'var(--success)',
       },
-      keyframes: {
-        'fade-in': {
-          '0%': { opacity: '0', transform: 'translateY(4px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
+      borderRadius: {
+        'sm':  '6px',
+        'md':  '8px',
+        'lg':  '12px',
+        'xl':  '14px',
+        '2xl': '16px',
       },
-      animation: {
-        'fade-in': 'fade-in 0.15s ease-out',
+      spacing: {
+        '13': '52px',
+        '14': '56px',
       },
     },
   },
