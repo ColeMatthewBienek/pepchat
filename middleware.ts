@@ -34,7 +34,10 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
-    pathname.startsWith('/setup-profile')
+    pathname.startsWith('/setup-profile') ||
+    pathname.startsWith('/check-email') ||
+    pathname.startsWith('/auth/confirm') ||
+    pathname.startsWith('/auth/callback')
 
   // Unauthenticated user trying to access protected route
   if (!user && !isAuthRoute) {
