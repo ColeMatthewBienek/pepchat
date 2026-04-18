@@ -75,17 +75,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: cloudflare-pages-build
-          path: .vercel/output/static
-          retention-days: 1
 
   # ── 4. Preview Deployment (PRs only) ────────────────────────────────────────
   preview:
     name: Preview Deployment
-    needs: build
+    needs: test
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -94,18 +88,25 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v8
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
         with:
-          name: cloudflare-pages-build
-          path: .vercel/output/static
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Cloudflare Pages
+        run: npx @cloudflare/next-on-pages
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
 
       - name: Deploy to Cloudflare Pages (preview)
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: pepchat
-          directory: .vercel/output/static
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.head_ref }}
+        run: npx wrangler pages deploy .vercel/output/static --project-name=pepchat --branch="${{ github.head_ref }}" --commit-hash="${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

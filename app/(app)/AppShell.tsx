@@ -10,6 +10,7 @@ import GroupSettingsModal from '@/components/modals/GroupSettingsModal'
 import CreateChannelModal from '@/components/modals/CreateChannelModal'
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
+import { useUnreadChannels } from '@/lib/hooks/useUnreadChannels'
 import { createClient } from '@/lib/supabase/client'
 import { PERMISSIONS, type Role } from '@/lib/permissions'
 import type { Profile } from '@/lib/types'
@@ -92,6 +93,14 @@ export default function AppShell({ profile, children }: AppShellProps) {
   const { channels } = useChannels(activeGroupId)
   const activeGroup  = groups.find((g) => g.id === activeGroupId) ?? null
 
+  // Derive active channel ID from URL for unread hook
+  const activeChannelId = (() => {
+    const m = pathname.match(/^\/channels\/([^/]+)$/)
+    return m ? m[1] : null
+  })()
+
+  const { unreadChannelIds, unreadGroupIds } = useUnreadChannels(profile.id, activeChannelId)
+
   return (
     <>
       <div className="flex h-screen overflow-hidden">
@@ -115,6 +124,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
           <GroupsSidebar
             groups={groups}
             currentUserId={profile.id}
+            unreadGroupIds={unreadGroupIds}
             onCreateGroup={() => setShowCreate(true)}
             onJoinGroup={() => setShowJoin(true)}
           />
@@ -124,6 +134,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
             channels={channels}
             profile={profile}
             userRole={userRole}
+            unreadChannelIds={unreadChannelIds}
             onCreateChannel={() => setShowNewChannel(true)}
             onGroupSettings={() => setShowSettings(true)}
             onMobileClose={() => setMobileSidebarOpen(false)}

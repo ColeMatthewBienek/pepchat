@@ -11,6 +11,7 @@ const DMSection = dynamic(() => import('@/components/dm/DMSection'), { ssr: fals
 interface GroupsSidebarProps {
   groups: Group[]
   currentUserId: string
+  unreadGroupIds?: Set<string>
   onCreateGroup: () => void
   onJoinGroup: () => void
 }
@@ -18,6 +19,7 @@ interface GroupsSidebarProps {
 export default function GroupsSidebar({
   groups,
   currentUserId,
+  unreadGroupIds = new Set(),
   onCreateGroup,
   onJoinGroup,
 }: GroupsSidebarProps) {
@@ -47,6 +49,12 @@ export default function GroupsSidebar({
               >
                 <Avatar src={group.icon_url} username={group.name} size={48} className="!rounded-none w-full h-full" />
               </Link>
+              {unreadGroupIds.has(group.id) && (
+                <span
+                  data-testid={`unread-badge-${group.id}`}
+                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1e1f22]"
+                />
+              )}
             </div>
           )
         })}

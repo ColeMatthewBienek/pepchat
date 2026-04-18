@@ -136,6 +136,13 @@ export type DMConversation = {
   unread_count: number
 }
 
+export interface ChannelReadState {
+  id: string
+  user_id: string
+  channel_id: string
+  last_read_at: string
+}
+
 /** Presence payload for a single online user */
 export interface PresenceUser {
   user_id: string

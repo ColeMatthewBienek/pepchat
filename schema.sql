@@ -101,17 +101,26 @@ create table if not exists public.direct_messages (
   created_at      timestamptz default now() not null
 );
 
+create table if not exists public.channel_read_state (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.profiles(id) on delete cascade not null,
+  channel_id   uuid references public.channels(id) on delete cascade not null,
+  last_read_at timestamptz not null default now(),
+  unique(user_id, channel_id)
+);
+
 -- ────────────────────────────────────────────────────────────
 -- 2. ENABLE RLS
 -- ────────────────────────────────────────────────────────────
 
-alter table public.profiles          enable row level security;
-alter table public.groups            enable row level security;
-alter table public.group_members     enable row level security;
-alter table public.channels          enable row level security;
-alter table public.messages          enable row level security;
-alter table public.message_reactions enable row level security;
-alter table public.direct_messages   enable row level security;
+alter table public.profiles            enable row level security;
+alter table public.groups              enable row level security;
+alter table public.group_members       enable row level security;
+alter table public.channels            enable row level security;
+alter table public.messages            enable row level security;
+alter table public.message_reactions   enable row level security;
+alter table public.direct_messages     enable row level security;
+alter table public.channel_read_state  enable row level security;
 
 -- ────────────────────────────────────────────────────────────
 -- 3. SECURITY DEFINER HELPERS
@@ -368,13 +377,31 @@ create index if not exists idx_messages_reply_to     on public.messages(reply_to
 create index if not exists idx_dm_sender             on public.direct_messages(sender_id, created_at desc);
 create index if not exists idx_dm_recipient          on public.direct_messages(recipient_id, created_at desc);
 create index if not exists idx_groups_invite_code    on public.groups(invite_code);
-create index if not exists idx_reactions_message     on public.message_reactions(message_id);
+create index if not exists idx_reactions_message         on public.message_reactions(message_id);
+create index if not exists idx_read_state_user_channel   on public.channel_read_state(user_id, channel_id);
 
 -- ────────────────────────────────────────────────────────────
--- 11. REALTIME
+-- 11. POLICIES — channel_read_state
+-- ────────────────────────────────────────────────────────────
+
+create policy "Users can view their own read states"
+  on public.channel_read_state for select to authenticated
+  using (user_id = auth.uid());
+
+create policy "Users can insert their own read states"
+  on public.channel_read_state for insert to authenticated
+  with check (user_id = auth.uid());
+
+create policy "Users can update their own read states"
+  on public.channel_read_state for update to authenticated
+  using (user_id = auth.uid());
+
+-- ────────────────────────────────────────────────────────────
+-- 12. REALTIME
 -- ────────────────────────────────────────────────────────────
 
 alter publication supabase_realtime add table public.messages;
 alter publication supabase_realtime add table public.direct_messages;
 alter publication supabase_realtime add table public.group_members;
 alter publication supabase_realtime add table public.message_reactions;
+alter publication supabase_realtime add table public.channel_read_state;
