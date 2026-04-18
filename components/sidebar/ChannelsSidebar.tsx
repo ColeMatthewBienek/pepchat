@@ -15,6 +15,7 @@ interface ChannelsSidebarProps {
   channels: Channel[]
   profile: Profile
   userRole: Role | null
+  unreadChannelIds?: Set<string>
   onCreateChannel?: () => void
   onGroupSettings?: () => void
   onMobileClose?: () => void
@@ -25,6 +26,7 @@ export default function ChannelsSidebar({
   channels,
   profile,
   userRole,
+  unreadChannelIds = new Set(),
   onCreateChannel,
   onGroupSettings,
   onMobileClose,
@@ -118,9 +120,9 @@ export default function ChannelsSidebar({
               )}
 
               {visibleChannels.map((channel, idx) => {
-                const isActive    = channel.id === activeChannelId
-                // For reorder, use the index within visible channels
-                const allIdx = channels.findIndex((c) => c.id === channel.id)
+                const isActive  = channel.id === activeChannelId
+                const isUnread  = !isActive && unreadChannelIds.has(channel.id)
+                const allIdx    = channels.findIndex((c) => c.id === channel.id)
 
                 return (
                   <div key={channel.id} className="group/ch flex items-center gap-1">
@@ -130,11 +132,19 @@ export default function ChannelsSidebar({
                       className={`flex items-center gap-1.5 flex-1 min-w-0 px-2 py-1.5 rounded text-sm transition-colors
                         ${isActive
                           ? 'bg-white/10 text-[var(--text-primary)]'
-                          : 'text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-primary)]'
+                          : isUnread
+                            ? 'text-[var(--text-primary)] font-medium hover:bg-white/5'
+                            : 'text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-primary)]'
                         }`}
                     >
                       <span className="text-base leading-none opacity-60 flex-shrink-0">#</span>
-                      <span className="truncate">{channel.name}</span>
+                      <span className="truncate flex-1">{channel.name}</span>
+                      {isUnread && (
+                        <span
+                          data-testid={`unread-dot-${channel.id}`}
+                          className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 group-hover/ch:hidden"
+                        />
+                      )}
                     </Link>
 
                     {canManage && (

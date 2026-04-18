@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMessages } from '@/lib/hooks/useMessages'
+import { markChannelRead } from '@/lib/channelReadState'
 import { usePresence } from '@/lib/hooks/usePresence'
 import MessageList from '@/components/chat/MessageList'
 import MessageInput from '@/components/chat/MessageInput'
@@ -45,6 +46,20 @@ export default function ChannelShell({
   })
 
   const [replyingTo, setReplyingTo] = useState<MessageWithProfile | null>(null)
+
+  // Mark channel as read on mount (channel navigation)
+  useEffect(() => {
+    markChannelRead(channelId, profile.id)
+  }, [channelId, profile.id])
+
+  // Mark channel as read when a new message arrives while viewing
+  const prevLengthRef = useRef(initialMessages.length)
+  useEffect(() => {
+    if (messages.length > prevLengthRef.current) {
+      prevLengthRef.current = messages.length
+      markChannelRead(channelId, profile.id)
+    }
+  }, [messages.length, channelId, profile.id])
 
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
     toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
