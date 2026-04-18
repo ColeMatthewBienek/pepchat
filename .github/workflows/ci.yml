@@ -105,6 +105,20 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_KLIPY_API_KEY: ${{ secrets.NEXT_PUBLIC_KLIPY_API_KEY }}
 
+      - name: Verify Cloudflare credentials and project
+        run: |
+          echo "--- Checking API token ---"
+          curl -s -o token_check.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            https://api.cloudflare.com/client/v4/user/tokens/verify
+          cat token_check.json
+          echo ""
+          echo "--- Checking Pages project exists ---"
+          curl -s \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/pepchat" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('success:', d.get('success')); [print('error:', e) for e in d.get('errors', [])]"
+
       - name: Deploy to Cloudflare Pages (preview)
         uses: cloudflare/pages-action@v1
         with:
