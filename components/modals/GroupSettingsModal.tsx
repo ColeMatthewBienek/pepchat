@@ -16,9 +16,10 @@ interface GroupSettingsModalProps {
   onClose: () => void
   group: Group
   isOwner: boolean
+  onIconChange?: () => void
 }
 
-export default function GroupSettingsModal({ open, onClose, group, isOwner }: GroupSettingsModalProps) {
+export default function GroupSettingsModal({ open, onClose, group, isOwner, onIconChange }: GroupSettingsModalProps) {
   const [nav, setNav] = useState<NavItem>('overview')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -75,6 +76,7 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner }: Gr
       } else {
         setPendingIcon(null)
         setLocalIconUrl(result.icon_url)
+        onIconChange?.()
       }
     })
   }
@@ -88,6 +90,7 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner }: Gr
       } else {
         setPendingIcon(null)
         setLocalIconUrl(null)
+        onIconChange?.()
       }
     })
   }
