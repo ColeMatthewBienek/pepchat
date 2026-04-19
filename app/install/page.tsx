@@ -178,7 +178,8 @@ export default function InstallPage() {
   if (installed) {
     return (
       <div style={{
-        minHeight: '100dvh',
+        height: '100dvh',
+        overflowY: 'auto',
         background: 'var(--bg-primary)',
         display: 'flex',
         alignItems: 'center',
@@ -215,7 +216,8 @@ export default function InstallPage() {
 
   return (
     <div style={{
-      minHeight: '100dvh',
+      height: '100dvh',
+      overflowY: 'auto',
       background: 'var(--bg-primary)',
       display: 'flex',
       flexDirection: 'column',
