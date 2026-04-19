@@ -108,7 +108,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         {/* Mobile sidebar overlay backdrop */}
         {mobileSidebarOpen && (
           <div
-            className="fixed inset-0 z-20 bg-black/60 md:hidden"
+            className="fixed inset-0 z-20 bg-black/60 md:hidden fade-in"
             onClick={() => setMobileSidebarOpen(false)}
           />
         )}
@@ -117,7 +117,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         <div
           className={`
             fixed inset-y-0 left-0 z-30 flex
-            transform transition-transform duration-200
+            transform transition-transform duration-250
             ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             md:relative md:translate-x-0 md:z-auto md:flex
           `}

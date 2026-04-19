@@ -60,7 +60,7 @@
   --shadow-xl: 0 20px 50px rgba(0,0,0,0.4);
 }
 
-/* Global resets */
+/* ── Global resets ───────────────────────────────────────── */
 * { box-sizing: border-box; }
 
 body {
@@ -74,7 +74,13 @@ body {
   overflow: hidden;
 }
 
-/* Scrollbar styling */
+/* dvh fallback for older browsers */
+.layout-root { height: 100dvh; }
+@supports not (height: 100dvh) {
+  .layout-root { height: 100vh; }
+}
+
+/* ── Scrollbars ──────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
@@ -83,7 +89,27 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
 
-/* Animations */
+/* Hide scrollbars on touch devices */
+@media (max-width: 768px) {
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+}
+
+/* ── Focus rings ─────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 2px rgba(230, 84, 58, 0.2);
+}
+
+/* ── Animations ──────────────────────────────────────────── */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -99,10 +125,26 @@ body {
   50%       { transform: translateY(-3px); }
 }
 
-.fade-in { animation: fade-in 180ms ease-out; }
-.pulse   { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-/* Icon button base */
+.fade-in    { animation: fade-in 180ms ease-out; }
+.pulse      { animation: pulse 1.6s ease-in-out infinite; }
+.message-new { animation: message-in 150ms ease-out; }
+
+/* ── Reduced motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Interactive elements ────────────────────────────────── */
+
+/* Base icon button — no transitions by default (added under hover media query) */
 .icon-btn {
   background: transparent;
   border: none;
@@ -113,30 +155,41 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 120ms ease, color 120ms ease;
-}
-.icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
-/* Channel/DM row hover */
-.channel-row:hover {
-  background: var(--bg-hover) !important;
+/* Touch targets: minimum 44×44px on mobile */
+@media (max-width: 768px) {
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
-/* User footer hover */
-.user-footer:hover {
-  background: var(--bg-hover) !important;
+/* Hover states + transitions only on pointer devices */
+@media (hover: hover) {
+  .icon-btn {
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .channel-row:hover {
+    background: var(--bg-hover) !important;
+  }
+  .user-footer:hover {
+    background: var(--bg-hover) !important;
+  }
 }
 
+/* ── Utilities ───────────────────────────────────────────── */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
 }
 
-/* Message content markdown rendering */
+/* ── Message content markdown ────────────────────────────── */
 .message-content p {
   margin: 0;
   line-height: 1.5;
