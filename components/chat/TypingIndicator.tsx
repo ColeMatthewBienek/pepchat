@@ -4,9 +4,8 @@ interface TypingIndicatorProps {
   typingUsernames: string[]
 }
 
-/** Shows "[user] is typing…" below the message list. */
 export default function TypingIndicator({ typingUsernames }: TypingIndicatorProps) {
-  if (typingUsernames.length === 0) return <div className="h-5 flex-shrink-0" />
+  if (typingUsernames.length === 0) return <div style={{ height: 24, flexShrink: 0 }} />
 
   let text: string
   if (typingUsernames.length === 1) {
@@ -18,8 +17,41 @@ export default function TypingIndicator({ typingUsernames }: TypingIndicatorProp
   }
 
   return (
-    <div className="h-5 flex-shrink-0 flex items-center px-4">
-      <span className="text-xs text-[var(--text-muted)] animate-pulse">{text}</span>
+    <div
+      style={{
+        height: 24,
+        flexShrink: 0,
+        padding: '0 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
+        {[0, 1, 2].map(i => (
+          <span
+            key={i}
+            data-testid="typing-dot"
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: 'var(--typing)',
+              animation: `typing-bounce 600ms ease-in-out ${i * 150}ms infinite`,
+            }}
+          />
+        ))}
+      </span>
+      <span
+        data-testid="typing-text"
+        style={{
+          fontSize: 12,
+          color: 'var(--text-muted)',
+          fontStyle: 'italic',
+        }}
+      >
+        {text}
+      </span>
     </div>
   )
 }

@@ -43,25 +43,10 @@ export default async function ChannelPage({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Channel header */}
-      <div
-        className="flex items-center gap-2 px-4 h-12 border-b border-black/20 flex-shrink-0"
-        style={{ background: 'var(--bg-secondary)' }}
-      >
-        <span className="text-[var(--text-muted)] font-bold text-lg leading-none">#</span>
-        <h1 className="font-semibold text-sm">{channel.name}</h1>
-        {channel.description && (
-          <>
-            <span className="text-[var(--text-muted)] text-xs mx-1.5">|</span>
-            <p className="text-xs text-[var(--text-muted)] truncate">{channel.description}</p>
-          </>
-        )}
-      </div>
-
-      {/* Chat area with presence */}
       <ChannelShell
         channelId={params.channelId}
         channelName={channel.name}
+        channelTopic={channel.description}
         initialMessages={initialMessages}
         profile={profile as Profile}
       />
