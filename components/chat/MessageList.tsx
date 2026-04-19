@@ -74,6 +74,11 @@ export default function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
+  const isMounted = useRef(true)
+
+  useEffect(() => {
+    return () => { isMounted.current = false }
+  }, [])
   // Track new messages for entrance animation. New messages appended via
   // Realtime have IDs not seen on mount; loadMore prepends old messages
   // (first ID changes) and should not animate.
@@ -129,11 +134,18 @@ export default function MessageList({
   }
 
   function submitEdit(messageId: string) {
+    if (!editContent.trim()) return
     setError('')
     startTransition(async () => {
-      const action = editAction ?? editMessage
-      const result = await action(messageId, editContent)
-      if ('error' in result) { setError(result.error) } else { setEditingId(null) }
+      try {
+        const action = editAction ?? editMessage
+        const result = await action(messageId, editContent)
+        if (!isMounted.current) return
+        if ('error' in result) { setError(result.error) } else { setEditingId(null) }
+      } catch (err) {
+        if (!isMounted.current) return
+        setError(err instanceof Error ? err.message : 'Failed to save edit.')
+      }
     })
   }
 
