@@ -72,7 +72,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
     setError('')
     startTransition(async () => {
       const result = await assignRole(groupId, member.user_id, newRole)
-      if ('error' in result) setError(result.error)
+      if (result && 'error' in result) setError(result.error)
     })
   }
 
@@ -81,7 +81,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
     setError('')
     startTransition(async () => {
       const result = await kickMember(groupId, member.user_id)
-      if ('error' in result) setError(result.error)
+      if (result && 'error' in result) setError(result.error)
     })
   }
 
