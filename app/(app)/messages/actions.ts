@@ -74,3 +74,22 @@ export async function deleteMessage(
   if (error) return { error: error.message }
   return { ok: true }
 }
+
+export async function pinMessage(
+  messageId: string
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const pinnedAt = new Date().toISOString()
+  const { error } = await supabase
+    .from('messages')
+    .update({ pinned_at: pinnedAt })
+    .eq('id', messageId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/(app)', 'layout')
+  return { ok: true }
+}

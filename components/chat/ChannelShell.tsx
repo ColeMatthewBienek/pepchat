@@ -11,6 +11,7 @@ import TypingIndicator from '@/components/chat/TypingIndicator'
 import PresencePanel from '@/components/chat/PresencePanel'
 import { toggleReaction } from '@/app/(app)/reactions/actions'
 import type { MessageWithProfile, Profile } from '@/lib/types'
+import type { Role } from '@/lib/permissions'
 
 interface ChannelShellProps {
   channelId: string
@@ -18,6 +19,7 @@ interface ChannelShellProps {
   channelTopic?: string | null
   initialMessages: MessageWithProfile[]
   profile: Profile
+  userRole?: Role | null
 }
 
 /**
@@ -30,6 +32,7 @@ export default function ChannelShell({
   channelTopic,
   initialMessages,
   profile,
+  userRole,
 }: ChannelShellProps) {
   const {
     messages,
@@ -93,6 +96,7 @@ export default function ChannelShell({
           onLoadMore={loadMore}
           onReact={handleReact}
           onReply={setReplyingTo}
+          userRole={userRole}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput
