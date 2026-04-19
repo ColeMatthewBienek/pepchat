@@ -48,6 +48,7 @@ export default function GroupsSidebar({
         onMouseEnter={() => setHovered('home')}
         onMouseLeave={() => setHovered(null)}
         onClick={onDMsHome}
+        onPointerDown={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); onDMsHome?.() } }}
         style={{
           position: 'relative',
           display: 'flex',
@@ -55,6 +56,7 @@ export default function GroupsSidebar({
           justifyContent: 'center',
           padding: '4px 0',
           cursor: 'pointer',
+          touchAction: 'manipulation',
         }}
       >
         <AccentBar active={isDMActive} hovered={hovered === 'home'} />
@@ -99,7 +101,7 @@ export default function GroupsSidebar({
             }}
           >
             <AccentBar active={isActive} hovered={hovered === group.id} />
-            <Link href={`/groups/${group.id}`} style={{ display: 'flex', textDecoration: 'none' }}>
+            <Link href={`/groups/${group.id}`} style={{ display: 'flex', textDecoration: 'none', touchAction: 'manipulation' }}>
               <GroupIcon group={group} size={44} active={isActive} />
             </Link>
             {hovered === group.id && (
@@ -126,9 +128,11 @@ export default function GroupsSidebar({
 
       {/* Create / Join group */}
       <div
+        data-testid="create-join-tile"
         onMouseEnter={() => setHovered('create')}
         onMouseLeave={() => setHovered(null)}
         onClick={onCreateGroup}
+        onPointerDown={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); onCreateGroup() } }}
         style={{
           position: 'relative',
           display: 'flex',
@@ -136,6 +140,7 @@ export default function GroupsSidebar({
           justifyContent: 'center',
           padding: '4px 0',
           cursor: 'pointer',
+          touchAction: 'manipulation',
         }}
       >
         <AccentBar active={false} hovered={hovered === 'create'} />

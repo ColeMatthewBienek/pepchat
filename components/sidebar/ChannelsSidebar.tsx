@@ -188,7 +188,7 @@ export default function ChannelsSidebar({
                   <Link
                     href={`/channels/${channel.id}`}
                     onClick={onMobileClose}
-                    className={isUnread ? 'font-medium' : ''}
+                    className={`channel-row${isUnread ? ' font-medium' : ''}`}
                     style={{
                       flex: 1,
                       minWidth: 0,
@@ -202,6 +202,7 @@ export default function ChannelsSidebar({
                       textDecoration: 'none',
                       color: isActive || isUnread ? 'var(--text-primary)' : 'var(--text-muted)',
                       transition: 'background 120ms ease',
+                      touchAction: 'manipulation',
                     }}
                   >
                     {/* Dot indicator */}

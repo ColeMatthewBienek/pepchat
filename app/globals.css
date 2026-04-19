@@ -184,6 +184,10 @@ select:focus-visible {
   .channel-row:hover {
     background: var(--bg-hover) !important;
   }
+  .dm-entry:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+  }
   .user-footer:hover {
     background: var(--bg-hover) !important;
   }
