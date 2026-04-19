@@ -6,9 +6,10 @@ interface AvatarCropModalProps {
   src: string
   onApply: (croppedDataUrl: string, ext: string) => void
   onClose: () => void
+  shape?: 'circle' | 'square'
 }
 
-export default function AvatarCropModal({ src, onApply, onClose }: AvatarCropModalProps) {
+export default function AvatarCropModal({ src, onApply, onClose, shape = 'circle' }: AvatarCropModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement | null>(null)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -31,21 +32,31 @@ export default function AvatarCropModal({ src, onApply, onClose }: AvatarCropMod
     const dh = img.naturalHeight * scale
     ctx.drawImage(img, offset.x, offset.y, dw, dh)
 
-    // Circular mask overlay
+    // Mask overlay
     ctx.save()
     ctx.fillStyle = 'rgba(0,0,0,0.6)'
     ctx.fillRect(0, 0, SIZE, SIZE)
     ctx.globalCompositeOperation = 'destination-out'
     ctx.beginPath()
-    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 4, 0, Math.PI * 2)
+    if (shape === 'square') {
+      const r = SIZE * 0.12
+      ctx.roundRect(4, 4, SIZE - 8, SIZE - 8, r)
+    } else {
+      ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 4, 0, Math.PI * 2)
+    }
     ctx.fill()
     ctx.restore()
 
-    // Circle border
+    // Border
     ctx.strokeStyle = 'rgba(255,255,255,0.6)'
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 4, 0, Math.PI * 2)
+    if (shape === 'square') {
+      const r = SIZE * 0.12
+      ctx.roundRect(4, 4, SIZE - 8, SIZE - 8, r)
+    } else {
+      ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 4, 0, Math.PI * 2)
+    }
     ctx.stroke()
   }, [offset, scale, loaded])
 
@@ -99,14 +110,17 @@ export default function AvatarCropModal({ src, onApply, onClose }: AvatarCropMod
   function handleApply() {
     const img = imgRef.current
     if (!img) return
-    // Render cropped circle to a new canvas
     const out = document.createElement('canvas')
     out.width = 256
     out.height = 256
     const ctx = out.getContext('2d')!
     const factor = 256 / SIZE
     ctx.beginPath()
-    ctx.arc(128, 128, 128, 0, Math.PI * 2)
+    if (shape === 'square') {
+      ctx.roundRect(0, 0, 256, 256, 256 * 0.12)
+    } else {
+      ctx.arc(128, 128, 128, 0, Math.PI * 2)
+    }
     ctx.clip()
     ctx.drawImage(
       img,
@@ -122,7 +136,7 @@ export default function AvatarCropModal({ src, onApply, onClose }: AvatarCropMod
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={onClose}>
       <div className="rounded-xl border border-white/10 p-5 flex flex-col gap-4" style={{ background: 'var(--bg-secondary)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Crop Avatar</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">{shape === 'square' ? 'Crop Photo' : 'Crop Avatar'}</h3>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">✕</button>
         </div>
 

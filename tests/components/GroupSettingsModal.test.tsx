@@ -31,13 +31,15 @@ describe('GroupSettingsModal', () => {
     expect(screen.getByText(GROUP.name)).toBeInTheDocument()
   })
 
-  it('shows Invite Link nav item and invite code by default', () => {
+  it('shows invite code after navigating to Invite Link tab', () => {
     render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={false} />)
+    fireEvent.click(screen.getByTestId('nav-invite'))
     expect(screen.getByText(/TESTCODE/)).toBeInTheDocument()
   })
 
   it('copies invite link when Copy button is clicked', async () => {
     render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={false} />)
+    fireEvent.click(screen.getByTestId('nav-invite'))
     fireEvent.click(screen.getByRole('button', { name: /copy/i }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     expect(await screen.findByText(/copied/i)).toBeInTheDocument()

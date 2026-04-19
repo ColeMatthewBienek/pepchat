@@ -172,6 +172,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
           onClose={() => setShowSettings(false)}
           group={activeGroup}
           isOwner={PERMISSIONS.canManageGroup(userRole ?? 'noob')}
+          onIconChange={refetch}
         />
       )}
 
