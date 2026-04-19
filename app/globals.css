@@ -165,6 +165,13 @@ select:focus-visible {
   }
 }
 
+/* Prevent iOS/Android auto-zoom on input focus (triggers when font-size < 16px) */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 /* Hover states + transitions only on pointer devices */
 @media (hover: hover) {
   .icon-btn {

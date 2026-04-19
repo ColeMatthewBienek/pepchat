@@ -177,7 +177,11 @@ export default function MessageInput({
         setContent('')
         clearAll()
         if (textareaRef.current) textareaRef.current.style.height = 'auto'
-        textareaRef.current?.focus()
+        if (window.innerWidth < 768) {
+          textareaRef.current?.blur()
+        } else {
+          textareaRef.current?.focus()
+        }
         onCancelReply?.()
         onSent?.(result.message)
       }
