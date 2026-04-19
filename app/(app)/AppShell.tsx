@@ -46,12 +46,12 @@ export default function AppShell({ profile, children }: AppShellProps) {
     }
   }, [pathname])
 
-  // Default to first group on load
+  // Default to first group on load — but not when viewing DMs
   useEffect(() => {
-    if (!groupsLoading && groups.length > 0 && !activeGroupId) {
+    if (!groupsLoading && groups.length > 0 && !activeGroupId && !pathname.startsWith('/dm')) {
       setActiveGroupId(groups[0].id)
     }
-  }, [groupsLoading, groups, activeGroupId])
+  }, [groupsLoading, groups, activeGroupId, pathname])
 
   // Fetch current user's role in the active group (filter by user_id to avoid multi-row error)
   useEffect(() => {
@@ -103,7 +103,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex overflow-hidden" style={{ height: '100dvh' }}>
         {/* Mobile sidebar overlay backdrop */}
         {mobileSidebarOpen && (
           <div
@@ -125,8 +125,10 @@ export default function AppShell({ profile, children }: AppShellProps) {
             groups={groups}
             currentUserId={profile.id}
             unreadGroupIds={unreadGroupIds}
+            isDMActive={pathname.startsWith('/dm')}
             onCreateGroup={() => setShowCreate(true)}
             onJoinGroup={() => setShowJoin(true)}
+            onDMsHome={() => setActiveGroupId(null)}
           />
 
           <ChannelsSidebar
@@ -142,7 +144,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         </div>
 
         <main
-          className="flex flex-col flex-1 min-w-0 overflow-y-auto"
+          className="flex flex-col flex-1 min-w-0 overflow-hidden"
           style={{ background: 'var(--bg-tertiary)' }}
         >
           {/* Mobile hamburger button */}
