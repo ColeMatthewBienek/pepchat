@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
 import type { Role } from '@/lib/permissions'
 
 /**
@@ -60,7 +59,6 @@ export async function assignRole(
 
   if (error) return { error: error.message }
 
-  revalidatePath('/(app)', 'layout')
   return { ok: true }
 }
 
@@ -120,6 +118,5 @@ export async function kickMember(
 
   if (error) return { error: error.message }
 
-  revalidatePath('/(app)', 'layout')
   return { ok: true }
 }
