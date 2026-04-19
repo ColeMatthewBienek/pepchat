@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import ModalShell from '@/components/ui/ModalShell'
 import { leaveGroup, deleteGroup } from '@/app/(app)/groups/actions'
 import type { Group } from '@/lib/types'
@@ -21,10 +21,10 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner }: Gr
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const inviteLink =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/join/${group.invite_code}`
-      : group.invite_code
+  const [inviteLink, setInviteLink] = useState(group.invite_code)
+  useEffect(() => {
+    setInviteLink(`${window.location.origin}/join/${group.invite_code}`)
+  }, [group.invite_code])
 
   async function handleCopy() {
     await navigator.clipboard.writeText(inviteLink)
