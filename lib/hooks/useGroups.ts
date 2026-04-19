@@ -39,7 +39,9 @@ export function useGroups() {
     fetchGroups()
 
     const supabase = createClient()
-    const channel = supabase
+
+    // Re-fetch when membership changes (join/leave)
+    const membershipSub = supabase
       .channel('group-membership')
       .on(
         'postgres_changes',
@@ -48,8 +50,23 @@ export function useGroups() {
       )
       .subscribe()
 
+    // Update icon_url (and other group fields) in real time
+    const groupsSub = supabase
+      .channel('group-updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'groups' },
+        (payload) => {
+          setGroups(prev =>
+            prev.map(g => g.id === payload.new.id ? { ...g, ...(payload.new as Group) } : g)
+          )
+        }
+      )
+      .subscribe()
+
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(membershipSub)
+      supabase.removeChannel(groupsSub)
     }
   }, [fetchGroups])
 

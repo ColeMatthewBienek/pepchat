@@ -121,6 +121,88 @@ export async function leaveGroup(
 }
 
 /**
+ * Uploads a group icon for a group the caller owns or admins.
+ * Overwrites any existing icon at the same path.
+ */
+export async function uploadGroupIcon(
+  groupId: string,
+  iconBlob: { dataUrl: string; ext: string }
+): Promise<{ error: string } | { ok: true; icon_url: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!membership || !['admin'].includes(membership.role)) {
+    return { error: 'Only group admins can update the group photo.' }
+  }
+
+  const bytes = Buffer.from(iconBlob.dataUrl.split(',')[1], 'base64')
+  const path = `groups/${groupId}/icon.${iconBlob.ext}`
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, bytes, {
+      contentType: `image/${iconBlob.ext === 'jpg' ? 'jpeg' : iconBlob.ext}`,
+      upsert: true,
+    })
+  if (uploadError) return { error: 'Icon upload failed.' }
+
+  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+  const icon_url = `${urlData.publicUrl}?t=${Date.now()}`
+
+  const { error: updateError } = await supabase
+    .from('groups')
+    .update({ icon_url })
+    .eq('id', groupId)
+
+  if (updateError) return { error: updateError.message }
+  return { ok: true, icon_url }
+}
+
+/**
+ * Removes the group icon, reverting to the colored bubble fallback.
+ */
+export async function removeGroupIcon(
+  groupId: string
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!membership || !['admin'].includes(membership.role)) {
+    return { error: 'Only group admins can remove the group photo.' }
+  }
+
+  const files = await supabase.storage.from('avatars').list(`groups/${groupId}`)
+  if (files.data?.length) {
+    await supabase.storage
+      .from('avatars')
+      .remove(files.data.map(f => `groups/${groupId}/${f.name}`))
+  }
+
+  const { error } = await supabase
+    .from('groups')
+    .update({ icon_url: null })
+    .eq('id', groupId)
+
+  if (error) return { error: error.message }
+  return { ok: true }
+}
+
+/**
  * Deletes a group (admin only). Cascades to channels and messages.
  */
 export async function deleteGroup(

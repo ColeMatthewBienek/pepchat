@@ -3,24 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import GroupIcon from '@/components/ui/GroupIcon'
 import type { Group } from '@/lib/types'
-
-const GROUP_TONES = [
-  '#c94a2a', '#b5623d', '#d89a3a', '#5a7a4a',
-  '#6aa08a', '#4a6a85', '#7a4a6b', '#c070a0',
-]
-
-function getGroupTone(id: string): string {
-  let hash = 0
-  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff
-  return GROUP_TONES[Math.abs(hash) % GROUP_TONES.length]
-}
-
-function getGroupGlyph(name: string): string {
-  const cp = name.codePointAt(0) ?? 0
-  if (cp > 0x2600) return String.fromCodePoint(cp)
-  return name.slice(0, 2).toUpperCase()
-}
 
 interface GroupsSidebarProps {
   groups: Group[]
@@ -99,9 +83,6 @@ export default function GroupsSidebar({
       {/* Group tiles */}
       {groups.map((group) => {
         const isActive = group.id === activeGroupId
-        const tone = getGroupTone(group.id)
-        const glyph = getGroupGlyph(group.name)
-        const isEmoji = (glyph.codePointAt(0) ?? 0) > 0x2600
 
         return (
           <div
@@ -119,24 +100,7 @@ export default function GroupsSidebar({
           >
             <AccentBar active={isActive} hovered={hovered === group.id} />
             <Link href={`/groups/${group.id}`} style={{ display: 'flex', textDecoration: 'none' }}>
-              <div style={{
-                width: 44, height: 44,
-                borderRadius: 12,
-                background: `linear-gradient(145deg, ${tone}, ${tone}cc)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fbf6ee',
-                fontFamily: 'Inter, system-ui, sans-serif',
-                fontSize: isEmoji ? 20 : 16,
-                fontWeight: isEmoji ? 400 : 500,
-                letterSpacing: '0.02em',
-                boxShadow: isActive
-                  ? 'inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.2), 0 0 0 2px var(--accent)'
-                  : 'inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.18)',
-                transform: isActive ? 'scale(1)' : 'scale(0.96)',
-                transition: 'all 180ms ease',
-              }}>
-                {glyph}
-              </div>
+              <GroupIcon group={group} size={44} active={isActive} />
             </Link>
             {hovered === group.id && (
               <Tooltip data-testid={`tooltip-${group.id}`}>{group.name}</Tooltip>
