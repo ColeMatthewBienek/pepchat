@@ -9,6 +9,7 @@ import JoinGroupModal from '@/components/modals/JoinGroupModal'
 import GroupSettingsModal from '@/components/modals/GroupSettingsModal'
 import CreateChannelModal from '@/components/modals/CreateChannelModal'
 import { MobileSidebarContext } from '@/lib/context/MobileSidebarContext'
+import InstallBanner from '@/components/ui/InstallBanner'
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
 import { useUnreadChannels } from '@/lib/hooks/useUnreadChannels'
@@ -157,6 +158,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         <main
           className="flex flex-col flex-1 min-w-0 overflow-hidden"
         >
+          <InstallBanner />
           {children}
         </main>
       </div>
