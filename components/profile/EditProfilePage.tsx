@@ -19,7 +19,7 @@ interface EditProfilePageProps {
 
 function ProfilePreview({ draft }: { draft: Profile }) {
   return (
-    <div className="rounded-xl border border-white/10 overflow-hidden w-[280px]" style={{ background: 'var(--bg-primary)' }}>
+    <div className="rounded-xl border border-white/10 overflow-hidden w-full md:w-[280px]" style={{ background: 'var(--bg-primary)' }}>
       <div style={{ background: draft.banner_color, height: 60 }} className="relative">
         <div className="absolute left-3" style={{ bottom: -28 }}>
           <Avatar user={draft} size={56}
@@ -140,9 +140,15 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
       <div className="flex-1 overflow-y-auto px-6 py-6">
       <div className="max-w-4xl mx-auto">
 
-        <div className="flex gap-8 items-start">
-          {/* Form */}
-          <div className="flex-1 space-y-6">
+        <div className="flex flex-col gap-6 md:flex-row-reverse md:gap-8 md:items-start">
+          {/* Preview FIRST in DOM → top on mobile, right on desktop via flex-row-reverse */}
+          <div className="w-full max-w-[320px] mx-auto md:max-w-none md:w-[280px] md:flex-shrink-0 md:sticky md:top-6">
+            <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-3">Preview</p>
+            <ProfilePreview draft={draft} />
+          </div>
+
+          {/* Form SECOND in DOM → bottom on mobile, left on desktop */}
+          <div className="flex-1 min-w-0 space-y-6">
 
             {/* Avatar */}
             <div className="space-y-2">
@@ -224,28 +230,23 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
             </Field>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 pb-10 md:pb-2">
               <button
                 onClick={handleSave}
                 disabled={!isDirty || isPending}
-                className="px-5 py-2 rounded-lg text-sm font-medium text-white bg-[var(--accent)] hover:bg-[var(--accent)]/90 disabled:opacity-40 disabled:cursor-default transition-colors"
+                className="w-full md:w-auto px-5 py-2 rounded-lg text-sm font-medium text-white bg-[var(--accent)] hover:bg-[var(--accent)]/90 disabled:opacity-40 disabled:cursor-default transition-colors"
               >
                 {isPending ? 'Saving…' : 'Save Changes'}
               </button>
               <button
                 onClick={() => router.back()}
-                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors"
+                className="w-full md:w-auto px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors"
               >
                 Cancel
               </button>
             </div>
           </div>
 
-          {/* Live preview */}
-          <div className="flex-shrink-0 sticky top-6">
-            <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-3">Preview</p>
-            <ProfilePreview draft={draft} />
-          </div>
         </div>
       </div>
       </div>

@@ -27,12 +27,12 @@ export default function BadgeSelector({ value, onChange, isAdmin = false }: Badg
   return (
     <div className="space-y-2">
       <label className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Badge</label>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
         {/* None option */}
         <button
           type="button"
           onClick={() => onChange(null)}
-          className={`px-2 py-1.5 rounded-lg text-xs border transition-colors text-left ${
+          className={`px-2 py-1.5 min-h-[44px] rounded-lg text-xs border transition-colors text-left ${
             value === null
               ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-primary)]'
               : 'border-white/10 text-[var(--text-muted)] hover:border-white/25 hover:bg-white/5'
@@ -45,7 +45,7 @@ export default function BadgeSelector({ value, onChange, isAdmin = false }: Badg
             key={badge.id}
             type="button"
             onClick={() => onChange(badge.id)}
-            className={`px-2 py-1.5 rounded-lg text-xs border transition-colors text-left truncate ${
+            className={`px-2 py-1.5 min-h-[44px] rounded-lg text-xs border transition-colors text-left ${
               value === badge.id
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-primary)]'
                 : 'border-white/10 text-[var(--text-muted)] hover:border-white/25 hover:bg-white/5'
