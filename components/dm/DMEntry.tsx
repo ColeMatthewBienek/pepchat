@@ -17,11 +17,12 @@ export default function DMEntry({ conversation, isActive }: DMEntryProps) {
     <Link
       href={`/dm/${conversation.id}`}
       title={conversation.last_message ? `Last: ${conversation.last_message}` : displayName}
-      className={`flex items-center gap-2 px-3 py-1.5 mx-1 rounded transition-colors ${
+      className={`dm-entry flex items-center gap-2 px-3 py-1.5 mx-1 rounded transition-colors ${
         isActive
           ? 'bg-[var(--accent)]/20 text-[var(--text-primary)]'
-          : 'text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-primary)]'
+          : 'text-[var(--text-muted)]'
       }`}
+      style={{ touchAction: 'manipulation' }}
     >
       <div className="relative flex-shrink-0">
         <Avatar user={other_user} size={28} />

@@ -89,6 +89,37 @@ describe('GroupsSidebar layout', () => {
   })
 })
 
+describe('GroupsSidebar — touch navigation (pointerDown)', () => {
+  it('fires onDMsHome on pointerdown with pointerType=touch (first tap)', () => {
+    const onDMsHome = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onDMsHome={onDMsHome} />)
+    // Fire on the inner button — event bubbles to the outer div's onPointerDown
+    fireEvent.pointerDown(screen.getByTestId('dms-home-button'), { pointerType: 'touch' })
+    expect(onDMsHome).toHaveBeenCalled()
+  })
+
+  it('does NOT fire onDMsHome on pointerdown with pointerType=mouse (onClick handles mouse)', () => {
+    const onDMsHome = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onDMsHome={onDMsHome} />)
+    fireEvent.pointerDown(screen.getByTestId('dms-home-button'), { pointerType: 'mouse' })
+    expect(onDMsHome).not.toHaveBeenCalled()
+  })
+
+  it('fires onCreateGroup on pointerdown with pointerType=touch (first tap)', () => {
+    const onCreateGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
+    fireEvent.pointerDown(screen.getByTestId('create-join-tile'), { pointerType: 'touch' })
+    expect(onCreateGroup).toHaveBeenCalled()
+  })
+
+  it('does NOT fire onCreateGroup on pointerdown with pointerType=mouse (onClick handles mouse)', () => {
+    const onCreateGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
+    fireEvent.pointerDown(screen.getByTestId('create-join-tile'), { pointerType: 'mouse' })
+    expect(onCreateGroup).not.toHaveBeenCalled()
+  })
+})
+
 describe('GroupsSidebar unread badges', () => {
   it('shows unread badge on group that is in unreadGroupIds', () => {
     render(<GroupsSidebar {...BASE_PROPS} unreadGroupIds={new Set(['grp-1'])} />)

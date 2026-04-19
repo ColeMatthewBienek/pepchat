@@ -184,6 +184,10 @@ select:focus-visible {
   .channel-row:hover {
     background: var(--bg-hover) !important;
   }
+  .dm-entry:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+  }
   .user-footer:hover {
     background: var(--bg-hover) !important;
   }
@@ -193,6 +197,27 @@ select:focus-visible {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* ── Composer textarea ───────────────────────────────────── */
+.composer-input,
+.composer-input:focus,
+.composer-input:active,
+.composer-input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .composer-input {
+    font-size: 16px !important;
   }
 }
 
