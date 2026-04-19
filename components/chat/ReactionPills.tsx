@@ -57,12 +57,17 @@ export default function ReactionPills({ reactions, currentUserId, onToggle }: Re
             onClick={() => onToggle(g.emoji)}
             onMouseEnter={() => setTooltip(g.emoji)}
             onMouseLeave={() => setTooltip(null)}
-            className={[
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[13px] transition-colors',
-              g.reacted
-                ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300'
-                : 'bg-transparent border-white/20 text-[var(--text-muted)] hover:border-white/40 hover:text-[var(--text-primary)]',
-            ].join(' ')}
+            data-reacted={g.reacted ? 'true' : undefined}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[13px] transition-colors"
+            style={g.reacted ? {
+              background: 'rgba(230,84,58,0.18)',
+              borderColor: 'var(--accent)',
+              color: 'var(--accent)',
+            } : {
+              background: 'transparent',
+              borderColor: 'var(--border-strong)',
+              color: 'var(--text-muted)',
+            }}
           >
             <span>{g.emoji}</span>
             <span className="text-xs font-medium">{g.count}</span>

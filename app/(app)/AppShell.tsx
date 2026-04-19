@@ -8,6 +8,7 @@ import CreateGroupModal from '@/components/modals/CreateGroupModal'
 import JoinGroupModal from '@/components/modals/JoinGroupModal'
 import GroupSettingsModal from '@/components/modals/GroupSettingsModal'
 import CreateChannelModal from '@/components/modals/CreateChannelModal'
+import { MobileSidebarContext } from '@/lib/context/MobileSidebarContext'
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
 import { useUnreadChannels } from '@/lib/hooks/useUnreadChannels'
@@ -102,7 +103,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
   const { unreadChannelIds, unreadGroupIds } = useUnreadChannels(profile.id, activeChannelId)
 
   return (
-    <>
+    <MobileSidebarContext.Provider value={{ open: () => setMobileSidebarOpen(true) }}>
       <div className="flex overflow-hidden" style={{ height: '100dvh' }}>
         {/* Mobile sidebar overlay backdrop */}
         {mobileSidebarOpen && (
@@ -145,23 +146,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
 
         <main
           className="flex flex-col flex-1 min-w-0 overflow-hidden"
-          style={{ background: 'var(--bg-tertiary)' }}
         >
-          {/* Mobile hamburger button */}
-          <div className="md:hidden flex items-center gap-2 px-3 h-10 border-b border-black/20 flex-shrink-0" style={{ background: 'var(--bg-secondary)' }}>
-            <button
-              onClick={() => setMobileSidebarOpen(true)}
-              className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
-              aria-label="Open sidebar"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            {activeGroup && (
-              <span className="text-sm font-semibold truncate">{activeGroup.name}</span>
-            )}
-          </div>
           {children}
         </main>
       </div>
@@ -185,6 +170,6 @@ export default function AppShell({ profile, children }: AppShellProps) {
           groupId={activeGroupId}
         />
       )}
-    </>
+    </MobileSidebarContext.Provider>
   )
 }

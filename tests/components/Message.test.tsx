@@ -1,0 +1,161 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import Message from '@/components/chat/Message'
+import type { MessageWithProfile } from '@/lib/types'
+
+vi.mock('next/dynamic', () => ({ default: () => () => null }))
+vi.mock('@/components/chat/ReactionPicker', () => ({ default: () => null }))
+vi.mock('@/components/chat/ReactionPills', () => ({ default: () => null }))
+vi.mock('@/components/chat/MessageAttachments', () => ({ default: () => null }))
+vi.mock('@/components/chat/MessageContent', () => ({
+  MessageContent: ({ content }: { content: string }) => <span>{content}</span>,
+}))
+
+const BASE_MSG: MessageWithProfile = {
+  id: 'msg-1',
+  user_id: 'u1',
+  channel_id: 'ch-1',
+  content: 'Hello world',
+  created_at: '2024-01-15T10:00:00Z',
+  edited_at: null,
+  reply_to_id: null,
+  replied_to: null,
+  attachments: [],
+  reactions: [],
+  profiles: {
+    username: 'alice',
+    display_name: 'Alice Smith',
+    avatar_url: null,
+  },
+}
+
+const NOOP = vi.fn()
+
+const BASE_PROPS = {
+  msg: BASE_MSG,
+  isCompact: false,
+  isOwn: false,
+  currentUserId: 'u2',
+  editingId: null as string | null,
+  editContent: '',
+  pickerOpenFor: null as string | null,
+  onStartEdit: NOOP,
+  onCancelEdit: NOOP,
+  onEditContentChange: NOOP,
+  onSubmitEdit: NOOP,
+  onDelete: NOOP,
+  onOpenProfile: NOOP,
+  onPickerToggle: NOOP,
+  onPickerClose: NOOP,
+  onEmojiSelect: NOOP,
+  onReact: NOOP,
+  onReply: NOOP,
+  allowReactions: true,
+  allowReplies: true,
+  isPending: false,
+  atReactionLimit: false,
+}
+
+describe('Message — ungrouped', () => {
+  it('shows message header', () => {
+    render(<Message {...BASE_PROPS} />)
+    expect(screen.getByTestId('message-header')).toBeInTheDocument()
+  })
+
+  it('shows display name in header', () => {
+    render(<Message {...BASE_PROPS} />)
+    expect(screen.getByTestId('message-author-name')).toHaveTextContent('Alice Smith')
+  })
+
+  it('falls back to username when no display name', () => {
+    const msg: MessageWithProfile = { ...BASE_MSG, profiles: { ...BASE_MSG.profiles, display_name: null } }
+    render(<Message {...BASE_PROPS} msg={msg} />)
+    expect(screen.getByTestId('message-author-name')).toHaveTextContent('alice')
+  })
+
+  it('applies username_color when present', () => {
+    const msg = { ...BASE_MSG, profiles: { ...BASE_MSG.profiles } } as any
+    msg.profiles.username_color = '#e6543a'
+    render(<Message {...BASE_PROPS} msg={msg} />)
+    expect(screen.getByTestId('message-author-name')).toHaveStyle({ color: '#e6543a' })
+  })
+
+  it('renders message content', () => {
+    render(<Message {...BASE_PROPS} />)
+    expect(screen.getByText('Hello world')).toBeInTheDocument()
+  })
+})
+
+describe('Message — grouped / compact', () => {
+  it('does not show message header when isCompact=true', () => {
+    render(<Message {...BASE_PROPS} isCompact />)
+    expect(screen.queryByTestId('message-header')).not.toBeInTheDocument()
+  })
+
+  it('renders message content even when compact', () => {
+    render(<Message {...BASE_PROPS} isCompact />)
+    expect(screen.getByText('Hello world')).toBeInTheDocument()
+  })
+})
+
+describe('Message — reply quote', () => {
+  const msgWithReply: MessageWithProfile = {
+    ...BASE_MSG,
+    replied_to: {
+      id: 'msg-0',
+      content: 'Original message',
+      user_id: 'u3',
+      profiles: { username: 'bob', avatar_url: null },
+    },
+  }
+
+  it('shows reply quote when replied_to is set', () => {
+    render(<Message {...BASE_PROPS} msg={msgWithReply} />)
+    expect(screen.getByTestId('message-reply-quote')).toBeInTheDocument()
+  })
+
+  it('shows quoted username in reply quote', () => {
+    render(<Message {...BASE_PROPS} msg={msgWithReply} />)
+    expect(screen.getByTestId('message-reply-quote')).toHaveTextContent('@bob')
+  })
+
+  it('does not show reply quote when replied_to is null', () => {
+    render(<Message {...BASE_PROPS} />)
+    expect(screen.queryByTestId('message-reply-quote')).not.toBeInTheDocument()
+  })
+})
+
+describe('Message — edit mode', () => {
+  it('shows edit textarea when editingId matches msg.id', () => {
+    render(<Message {...BASE_PROPS} editingId="msg-1" editContent="Hello world" />)
+    expect(screen.getByTestId('message-edit-textarea')).toBeInTheDocument()
+  })
+
+  it('edit textarea has current editContent value', () => {
+    render(<Message {...BASE_PROPS} editingId="msg-1" editContent="Edited text" />)
+    expect(screen.getByTestId('message-edit-textarea')).toHaveValue('Edited text')
+  })
+
+  it('hides edit textarea when editingId is null', () => {
+    render(<Message {...BASE_PROPS} editingId={null} />)
+    expect(screen.queryByTestId('message-edit-textarea')).not.toBeInTheDocument()
+  })
+
+  it('hides edit textarea when editingId does not match', () => {
+    render(<Message {...BASE_PROPS} editingId="msg-other" />)
+    expect(screen.queryByTestId('message-edit-textarea')).not.toBeInTheDocument()
+  })
+})
+
+describe('Message — edited marker', () => {
+  it('shows (edited) marker when edited_at is set', () => {
+    const msg: MessageWithProfile = { ...BASE_MSG, edited_at: '2024-01-15T10:05:00Z' }
+    render(<Message {...BASE_PROPS} msg={msg} />)
+    expect(screen.getByText('(edited)')).toBeInTheDocument()
+  })
+
+  it('does not show (edited) marker when edited_at is null', () => {
+    render(<Message {...BASE_PROPS} />)
+    expect(screen.queryByText('(edited)')).not.toBeInTheDocument()
+  })
+})

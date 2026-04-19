@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMessages } from '@/lib/hooks/useMessages'
 import { markChannelRead } from '@/lib/channelReadState'
 import { usePresence } from '@/lib/hooks/usePresence'
+import ChatHeader from '@/components/chat/ChatHeader'
 import MessageList from '@/components/chat/MessageList'
 import MessageInput from '@/components/chat/MessageInput'
 import TypingIndicator from '@/components/chat/TypingIndicator'
@@ -14,6 +15,7 @@ import type { MessageWithProfile, Profile } from '@/lib/types'
 interface ChannelShellProps {
   channelId: string
   channelName: string
+  channelTopic?: string | null
   initialMessages: MessageWithProfile[]
   profile: Profile
 }
@@ -25,6 +27,7 @@ interface ChannelShellProps {
 export default function ChannelShell({
   channelId,
   channelName,
+  channelTopic,
   initialMessages,
   profile,
 }: ChannelShellProps) {
@@ -76,7 +79,11 @@ export default function ChannelShell({
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Main column */}
-      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+      <div
+        className="flex flex-col flex-1 min-w-0 min-h-0"
+        style={{ background: 'var(--bg-chat)' }}
+      >
+        <ChatHeader channelName={channelName} channelTopic={channelTopic} />
         <MessageList
           messages={messages}
           hasMore={hasMore}
