@@ -305,7 +305,7 @@ export default function MessageInput({
             placeholder={replyingTo ? `Reply to @${replyingTo.profiles?.username}…` : `Message #${channelName}`}
             disabled={isPending}
             rows={1}
-            className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none focus:outline-none leading-relaxed disabled:opacity-50"
+            className="composer-input flex-1 text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none leading-relaxed disabled:opacity-50"
             style={{ maxHeight: 200 }}
           />
           <button

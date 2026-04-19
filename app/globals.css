@@ -200,6 +200,27 @@ select:focus-visible {
   }
 }
 
+/* ── Composer textarea ───────────────────────────────────── */
+.composer-input,
+.composer-input:focus,
+.composer-input:active,
+.composer-input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .composer-input {
+    font-size: 16px !important;
+  }
+}
+
 /* ── Message content markdown ────────────────────────────── */
 .message-content p {
   margin: 0;
