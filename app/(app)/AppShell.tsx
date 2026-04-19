@@ -34,6 +34,16 @@ export default function AppShell({ profile, children }: AppShellProps) {
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
+  // On first load, auto-open the sidebar on mobile when no channel is selected
+  // so users aren't stuck on the blank empty state with no navigation.
+  useEffect(() => {
+    const onEmptyState = pathname === '/channels' || pathname === '/'
+    if (onEmptyState && window.innerWidth < 768) {
+      const t = setTimeout(() => setMobileSidebarOpen(true), 300)
+      return () => clearTimeout(t)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Resolve active group from URL
   useEffect(() => {
     const groupMatch = pathname.match(/^\/groups\/([^/]+)/)
