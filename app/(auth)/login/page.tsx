@@ -83,6 +83,12 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
+
+      <p className="text-center mt-4">
+        <Link href="/install" className="text-xs hover:underline" style={{ color: 'var(--text-faint)' }}>
+          Install as app
+        </Link>
+      </p>
     </div>
   )
 }
