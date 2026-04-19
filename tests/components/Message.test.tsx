@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import Message from '@/components/chat/Message'
 import type { MessageWithProfile } from '@/lib/types'
 
@@ -157,5 +157,29 @@ describe('Message — edited marker', () => {
   it('does not show (edited) marker when edited_at is null', () => {
     render(<Message {...BASE_PROPS} />)
     expect(screen.queryByText('(edited)')).not.toBeInTheDocument()
+  })
+})
+
+describe('Message — edit keyboard shortcuts', () => {
+  it('calls onSubmitEdit with msg.id when Enter pressed in edit textarea', () => {
+    const onSubmitEdit = vi.fn()
+    render(<Message {...BASE_PROPS} isOwn editingId="msg-1" editContent="edited text" onSubmitEdit={onSubmitEdit} />)
+    fireEvent.keyDown(screen.getByTestId('message-edit-textarea'), { key: 'Enter', shiftKey: false })
+    expect(onSubmitEdit).toHaveBeenCalledWith('msg-1')
+    expect(onSubmitEdit).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onSubmitEdit when Shift+Enter pressed', () => {
+    const onSubmitEdit = vi.fn()
+    render(<Message {...BASE_PROPS} isOwn editingId="msg-1" editContent="edited text" onSubmitEdit={onSubmitEdit} />)
+    fireEvent.keyDown(screen.getByTestId('message-edit-textarea'), { key: 'Enter', shiftKey: true })
+    expect(onSubmitEdit).not.toHaveBeenCalled()
+  })
+
+  it('calls onCancelEdit when Escape pressed', () => {
+    const onCancelEdit = vi.fn()
+    render(<Message {...BASE_PROPS} isOwn editingId="msg-1" editContent="edited text" onCancelEdit={onCancelEdit} />)
+    fireEvent.keyDown(screen.getByTestId('message-edit-textarea'), { key: 'Escape' })
+    expect(onCancelEdit).toHaveBeenCalled()
   })
 })
