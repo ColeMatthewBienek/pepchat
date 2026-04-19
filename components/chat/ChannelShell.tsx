@@ -20,6 +20,8 @@ interface ChannelShellProps {
   initialMessages: MessageWithProfile[]
   profile: Profile
   userRole?: Role | null
+  /** Auth user ID — used for message ownership checks. Defaults to profile.id. */
+  userId?: string
 }
 
 /**
@@ -33,6 +35,7 @@ export default function ChannelShell({
   initialMessages,
   profile,
   userRole,
+  userId,
 }: ChannelShellProps) {
   const {
     messages,
@@ -43,6 +46,7 @@ export default function ChannelShell({
     broadcastNewMessage,
     toggleReactionOptimistic,
     broadcastReactionChange,
+    updateMessageContent,
   } = useMessages(channelId, initialMessages, profile.id)
 
   const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(channelId, {
@@ -91,12 +95,13 @@ export default function ChannelShell({
           messages={messages}
           hasMore={hasMore}
           loadingMore={loadingMore}
-          currentUserId={profile.id}
+          currentUserId={userId ?? profile.id}
           currentUsername={profile.username}
           onLoadMore={loadMore}
           onReact={handleReact}
           onReply={setReplyingTo}
           userRole={userRole}
+          onEditSuccess={updateMessageContent}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput

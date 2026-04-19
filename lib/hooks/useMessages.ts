@@ -17,6 +17,7 @@ interface UseMessagesReturn {
   broadcastNewMessage: (msg: MessageWithProfile) => void
   toggleReactionOptimistic: (messageId: string, emoji: string, userId: string, username: string) => void
   broadcastReactionChange: (messageId: string, emoji: string, userId: string, action: 'added' | 'removed') => void
+  updateMessageContent: (messageId: string, content: string) => void
 }
 
 /**
@@ -179,6 +180,17 @@ export function useMessages(
     []
   )
 
+  /** Optimistically update a message's content in local state after a successful edit. */
+  const updateMessageContent = useCallback((messageId: string, content: string) => {
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? { ...m, content, edited_at: new Date().toISOString() }
+          : m
+      )
+    )
+  }, [])
+
   /** Prepend older messages (pagination). */
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return
@@ -203,5 +215,5 @@ export function useMessages(
     setLoadingMore(false)
   }, [channelId, hasMore, loadingMore, messages])
 
-  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange }
+  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange, updateMessageContent }
 }

@@ -55,7 +55,6 @@ export async function editMessage(
 
   if (error) return { error: error.message }
 
-  revalidatePath('/(app)', 'layout')
   return { ok: true }
 }
 

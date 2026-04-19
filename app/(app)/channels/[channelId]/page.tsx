@@ -60,6 +60,7 @@ export default async function ChannelPage({
         initialMessages={initialMessages}
         profile={profile as Profile}
         userRole={userRole}
+        userId={user.id}
       />
     </div>
   )

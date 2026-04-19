@@ -27,6 +27,7 @@ interface MessageListProps {
   editAction?: (messageId: string, content: string) => Promise<{ error: string } | { ok: true }>
   deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
+  onEditSuccess?: (messageId: string, content: string) => void
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -70,6 +71,7 @@ export default function MessageList({
   editAction,
   deleteAction,
   pinAction,
+  onEditSuccess,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -145,7 +147,12 @@ export default function MessageList({
         const action = editAction ?? editMessage
         const result = await action(messageId, editContent)
         if (!isMounted.current) return
-        if ('error' in result) { setError(result.error) } else { setEditingId(null) }
+        if ('error' in result) {
+          setError(result.error)
+        } else {
+          setEditingId(null)
+          onEditSuccess?.(messageId, editContent)
+        }
       } catch (err) {
         if (!isMounted.current) return
         setError(err instanceof Error ? err.message : 'Failed to save edit.')
