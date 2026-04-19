@@ -24,7 +24,7 @@ export default function DMEntry({ conversation, isActive }: DMEntryProps) {
       }`}
     >
       <div className="relative flex-shrink-0">
-        <Avatar src={other_user.avatar_url} username={displayName} size={28} />
+        <Avatar user={other_user} size={28} />
         {unread_count > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-[var(--bg-primary)]" />
         )}

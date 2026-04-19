@@ -3,41 +3,131 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #1e1f22;
-  --bg-secondary: #2b2d31;
-  --bg-tertiary: #313338;
-  --accent: #5865f2;
-  --accent-hover: #4752c4;
-  --text-primary: #f2f3f5;
-  --text-muted: #949ba4;
-  --text-link: #00aff4;
-  --danger: #ed4245;
-  --success: #23a55a;
-  --border: #1e1f22;
+  --bg-deepest:    #14110e;
+  --bg-primary:    #1a1613;
+  --bg-secondary:  #221d18;
+  --bg-tertiary:   #2b2520;
+  --bg-elevated:   #2f2822;
+  --bg-chat:       #1a1613;
+  --bg-chat-header: #1d1916;
+  --bg-composer:   #221d18;
+  --bg-hover:      rgba(255, 240, 220, 0.04);
+  --channel-active-bg: rgba(255, 240, 220, 0.06);
+
+  --border-soft:   rgba(255, 240, 220, 0.06);
+  --border-strong: rgba(255, 240, 220, 0.14);
+
+  --text-primary:  #f4ebdd;
+  --text-muted:    #b8a896;
+  --text-faint:    #8a7b6c;
+  --text-link:     #e8a273;
+
+  --accent:        #e6543a;
+  --accent-hover:  #ff6b4a;
+
+  --danger:        #ed4245;
+  --success:       #6aa08a;
+  --online:        #6aa08a;
+  --typing:        #d89a3a;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  --text-xs:   10px;
+  --text-sm:   11px;
+  --text-base: 13px;
+  --text-md:   14px;
+  --text-lg:   16px;
+  --text-xl:   20px;
+  --text-2xl:  22px;
+  --text-3xl:  28px;
+
+  --radius-sm:  6px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  14px;
+  --radius-2xl: 16px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.25);
+  --shadow-xl: 0 20px 50px rgba(0,0,0,0.4);
 }
 
+/* Global resets */
+* { box-sizing: border-box; }
+
 body {
-  color: var(--text-primary);
   background: var(--bg-primary);
-  font-family: var(--font-inter), Inter, sans-serif;
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #1a1b1e;
+  background: var(--border-strong);
   border-radius: 4px;
 }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #111214;
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+@keyframes typing-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
+.fade-in { animation: fade-in 180ms ease-out; }
+.pulse   { animation: pulse 1.6s ease-in-out infinite; }
+
+/* Icon button base */
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Channel/DM row hover */
+.channel-row:hover {
+  background: var(--bg-hover) !important;
+}
+
+/* User footer hover */
+.user-footer:hover {
+  background: var(--bg-hover) !important;
 }
 
 @layer utilities {
@@ -58,17 +148,17 @@ body {
 
 .message-content strong {
   font-weight: 600;
-  color: #f2f3f5;
+  color: var(--text-primary);
 }
 
 .message-content em {
   font-style: italic;
-  color: #d4d7dc;
+  color: var(--text-muted);
 }
 
 .message-content del {
   text-decoration: line-through;
-  color: #72767d;
+  color: var(--text-faint);
 }
 
 .message-content pre {
@@ -78,7 +168,7 @@ body {
 }
 
 .message-content code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: 'Fira Code', 'Consolas', monospace;
 }
 
 .message-content blockquote {

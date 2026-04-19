@@ -21,7 +21,7 @@ function ProfilePreview({ draft }: { draft: Profile }) {
     <div className="rounded-xl border border-white/10 overflow-hidden w-[280px]" style={{ background: 'var(--bg-primary)' }}>
       <div style={{ background: draft.banner_color, height: 60 }} className="relative">
         <div className="absolute left-3" style={{ bottom: -28 }}>
-          <Avatar src={draft.avatar_url} username={draft.display_name ?? draft.username} size={56}
+          <Avatar user={draft} size={56}
             className="ring-4 ring-[var(--bg-primary)] rounded-full" />
         </div>
       </div>
@@ -143,7 +143,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
               <label className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Avatar</label>
               <div className="flex items-center gap-4">
                 <button type="button" onClick={() => fileRef.current?.click()} className="rounded-full focus:outline-none">
-                  <Avatar src={draft.avatar_url} username={draft.display_name ?? draft.username} size={80}
+                  <Avatar user={draft} size={80}
                     className="ring-2 ring-white/10 hover:ring-[var(--accent)] transition-all rounded-full" />
                 </button>
                 <div className="space-y-1">

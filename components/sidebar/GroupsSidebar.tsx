@@ -1,89 +1,247 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
-import Avatar from '@/components/ui/Avatar'
 import type { Group } from '@/lib/types'
 
-const DMSection = dynamic(() => import('@/components/dm/DMSection'), { ssr: false })
+const GROUP_TONES = [
+  '#c94a2a', '#b5623d', '#d89a3a', '#5a7a4a',
+  '#6aa08a', '#4a6a85', '#7a4a6b', '#c070a0',
+]
+
+function getGroupTone(id: string): string {
+  let hash = 0
+  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff
+  return GROUP_TONES[Math.abs(hash) % GROUP_TONES.length]
+}
+
+function getGroupGlyph(name: string): string {
+  const cp = name.codePointAt(0) ?? 0
+  if (cp > 0x2600) return String.fromCodePoint(cp)
+  return name.slice(0, 2).toUpperCase()
+}
 
 interface GroupsSidebarProps {
   groups: Group[]
   currentUserId: string
   unreadGroupIds?: Set<string>
+  isDMActive?: boolean
   onCreateGroup: () => void
   onJoinGroup: () => void
+  onDMsHome?: () => void
 }
 
 export default function GroupsSidebar({
   groups,
-  currentUserId,
+  currentUserId: _currentUserId,
   unreadGroupIds = new Set(),
+  isDMActive = false,
   onCreateGroup,
-  onJoinGroup,
+  onDMsHome,
 }: GroupsSidebarProps) {
   const params = useParams()
   const activeGroupId = params?.groupId as string | undefined
+  const [hovered, setHovered] = useState<string | null>(null)
 
   return (
     <nav
-      className="flex flex-col py-3 overflow-y-auto"
-      style={{ width: 220, minWidth: 220, background: 'var(--bg-primary)' }}
+      data-testid="groups-sidebar"
+      style={{
+        width: 72,
+        flexShrink: 0,
+        background: 'var(--bg-deepest)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '12px 0',
+        gap: 4,
+        borderRight: '1px solid var(--border-soft)',
+        overflowY: 'auto',
+      }}
     >
-      {/* Groups section — icons centered in the wider column */}
-      <div className="flex flex-col items-center gap-2">
-        {/* Group icons */}
-        {groups.map((group) => {
-          const isActive = group.id === activeGroupId
-          return (
-            <div key={group.id} className="relative flex items-center">
-              {isActive && (
-                <span className="absolute -left-3 w-1 h-8 rounded-r-full bg-white" />
-              )}
-              <Link
-                href={`/groups/${group.id}`}
-                title={group.name}
-                className={`flex items-center justify-center w-12 h-12 transition-all duration-200 overflow-hidden
-                  ${isActive ? 'rounded-[16px]' : 'rounded-[24px] hover:rounded-[16px]'}`}
-              >
-                <Avatar src={group.icon_url} username={group.name} size={48} className="!rounded-none w-full h-full" />
-              </Link>
-              {unreadGroupIds.has(group.id) && (
-                <span
-                  data-testid={`unread-badge-${group.id}`}
-                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1e1f22]"
-                />
-              )}
-            </div>
-          )
-        })}
-
-        {/* Add group */}
-        <button
-          onClick={onCreateGroup}
-          title="Create a Group"
-          className="flex items-center justify-center w-12 h-12 rounded-[24px] hover:rounded-[16px] transition-all duration-200 bg-[var(--bg-secondary)] hover:bg-[var(--success)] text-[var(--success)] hover:text-white"
+      {/* DMs home */}
+      <div
+        onMouseEnter={() => setHovered('home')}
+        onMouseLeave={() => setHovered(null)}
+        onClick={onDMsHome}
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4px 0',
+          cursor: 'pointer',
+        }}
+      >
+        <AccentBar active={isDMActive} hovered={hovered === 'home'} />
+        <div
+          data-testid="dms-home-button"
+          style={{
+            width: 44, height: 44,
+            borderRadius: 12,
+            background: isDMActive
+              ? 'linear-gradient(145deg, #e08452, #c94a2a)'
+              : 'var(--bg-tertiary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: isDMActive ? '#fbf6ee' : 'var(--text-muted)',
+            transition: 'all 180ms ease',
+          }}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-        </button>
-
-        {/* Join group */}
-        <button
-          onClick={onJoinGroup}
-          title="Join a Group"
-          className="flex items-center justify-center w-12 h-12 rounded-[24px] hover:rounded-[16px] transition-all duration-200 bg-[var(--bg-secondary)] hover:bg-[var(--accent)] text-[var(--text-muted)] hover:text-white"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-          </svg>
-        </button>
+        </div>
+        {hovered === 'home' && <Tooltip>Direct Messages</Tooltip>}
       </div>
 
-      {/* DM section */}
-      <DMSection currentUserId={currentUserId} />
+      <Divider />
+
+      {/* Group tiles */}
+      {groups.map((group) => {
+        const isActive = group.id === activeGroupId
+        const tone = getGroupTone(group.id)
+        const glyph = getGroupGlyph(group.name)
+        const isEmoji = (glyph.codePointAt(0) ?? 0) > 0x2600
+
+        return (
+          <div
+            key={group.id}
+            data-testid={`group-tile-${group.id}`}
+            onMouseEnter={() => setHovered(group.id)}
+            onMouseLeave={() => setHovered(null)}
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px 0',
+            }}
+          >
+            <AccentBar active={isActive} hovered={hovered === group.id} />
+            <Link href={`/groups/${group.id}`} style={{ display: 'flex', textDecoration: 'none' }}>
+              <div style={{
+                width: 44, height: 44,
+                borderRadius: 12,
+                background: `linear-gradient(145deg, ${tone}, ${tone}cc)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fbf6ee',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontSize: isEmoji ? 20 : 16,
+                fontWeight: isEmoji ? 400 : 500,
+                letterSpacing: '0.02em',
+                boxShadow: isActive
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.2), 0 0 0 2px var(--accent)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.18)',
+                transform: isActive ? 'scale(1)' : 'scale(0.96)',
+                transition: 'all 180ms ease',
+              }}>
+                {glyph}
+              </div>
+            </Link>
+            {hovered === group.id && (
+              <Tooltip data-testid={`tooltip-${group.id}`}>{group.name}</Tooltip>
+            )}
+            {unreadGroupIds.has(group.id) && (
+              <span
+                data-testid={`unread-badge-${group.id}`}
+                style={{
+                  position: 'absolute', bottom: 4, right: 6,
+                  width: 12, height: 12,
+                  borderRadius: '50%',
+                  background: '#ef4444',
+                  border: '2px solid var(--bg-deepest)',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      <Divider />
+
+      {/* Create / Join group */}
+      <div
+        onMouseEnter={() => setHovered('create')}
+        onMouseLeave={() => setHovered(null)}
+        onClick={onCreateGroup}
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4px 0',
+          cursor: 'pointer',
+        }}
+      >
+        <AccentBar active={false} hovered={hovered === 'create'} />
+        <div
+          data-testid="create-join-button"
+          style={{
+            width: 44, height: 44,
+            borderRadius: 12,
+            background: 'transparent',
+            border: '1.5px dashed var(--border-strong)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--accent)',
+            fontSize: 22, fontWeight: 300,
+            transition: 'all 180ms ease',
+          }}
+        >+</div>
+        {hovered === 'create' && <Tooltip>Create or Join Group</Tooltip>}
+      </div>
     </nav>
+  )
+}
+
+function AccentBar({ active, hovered }: { active: boolean; hovered: boolean }) {
+  return (
+    <div
+      style={{
+        position: 'absolute', left: 0, top: '50%',
+        transform: `translateY(-50%) scaleY(${active ? 1 : hovered ? 0.4 : 0})`,
+        width: 4,
+        height: active ? 28 : 12,
+        background: 'var(--accent)',
+        borderRadius: '0 3px 3px 0',
+        transition: 'all 180ms ease',
+        pointerEvents: 'none',
+      }}
+    />
+  )
+}
+
+function Divider() {
+  return (
+    <div style={{
+      height: 1,
+      margin: '4px 14px',
+      background: 'var(--border-soft)',
+      flexShrink: 0,
+    }} />
+  )
+}
+
+function Tooltip({ children, ...props }: { children: React.ReactNode; 'data-testid'?: string }) {
+  return (
+    <div
+      {...props}
+      style={{
+        position: 'absolute', left: '100%', marginLeft: 8,
+        top: '50%', transform: 'translateY(-50%)',
+        padding: '6px 10px',
+        background: 'var(--bg-deepest)',
+        border: '1px solid var(--border-soft)',
+        borderRadius: 6,
+        fontSize: 12, fontWeight: 500,
+        color: 'var(--text-primary)',
+        whiteSpace: 'nowrap',
+        zIndex: 100,
+        pointerEvents: 'none',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+      }}
+    >
+      {children}
+    </div>
   )
 }
