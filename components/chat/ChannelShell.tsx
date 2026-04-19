@@ -10,6 +10,7 @@ import MessageInput from '@/components/chat/MessageInput'
 import TypingIndicator from '@/components/chat/TypingIndicator'
 import PresencePanel from '@/components/chat/PresencePanel'
 import { toggleReaction } from '@/app/(app)/reactions/actions'
+import { createClient } from '@/lib/supabase/client'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
@@ -71,6 +72,22 @@ export default function ChannelShell({
     }
   }, [messages.length, channelId, profile.id])
 
+  const handleEdit = useCallback(async (
+    messageId: string,
+    content: string
+  ): Promise<{ error: string } | { ok: true }> => {
+    const trimmed = content.trim()
+    if (!trimmed) return { error: 'Message cannot be empty.' }
+    if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: trimmed, edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+    if (error) return { error: error.message }
+    return { ok: true }
+  }, [])
+
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
     toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
 
@@ -98,6 +115,7 @@ export default function ChannelShell({
           currentUserId={userId ?? profile.id}
           currentUsername={profile.username}
           onLoadMore={loadMore}
+          editAction={handleEdit}
           onReact={handleReact}
           onReply={setReplyingTo}
           userRole={userRole}

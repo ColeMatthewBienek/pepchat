@@ -76,6 +76,7 @@ export default function MessageList({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [error, setError] = useState('')
+  const [editPending, setEditPending] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
@@ -139,25 +140,26 @@ export default function MessageList({
     setEditContent('')
   }
 
-  function submitEdit(messageId: string) {
-    if (!editContent.trim()) return
+  async function submitEdit(messageId: string) {
+    if (!editContent.trim() || editPending) return
     setError('')
-    startTransition(async () => {
-      try {
-        const action = editAction ?? editMessage
-        const result = await action(messageId, editContent)
-        if (!isMounted.current) return
-        if ('error' in result) {
-          setError(result.error)
-        } else {
-          setEditingId(null)
-          onEditSuccess?.(messageId, editContent)
-        }
-      } catch (err) {
-        if (!isMounted.current) return
-        setError(err instanceof Error ? err.message : 'Failed to save edit.')
+    setEditPending(true)
+    try {
+      const action = editAction ?? editMessage
+      const result = await action(messageId, editContent)
+      if (!isMounted.current) return
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setEditingId(null)
+        onEditSuccess?.(messageId, editContent)
       }
-    })
+    } catch (err) {
+      if (!isMounted.current) return
+      setError(err instanceof Error ? err.message : 'Failed to save edit.')
+    } finally {
+      if (isMounted.current) setEditPending(false)
+    }
   }
 
   function handleDelete(messageId: string) {
@@ -274,7 +276,7 @@ export default function MessageList({
                 onPin={handlePin}
                 allowReactions={allowReactions}
                 allowReplies={allowReplies}
-                isPending={isPending}
+                isPending={editPending || isPending}
                 atReactionLimit={atReactionLimit}
               />
             </div>
