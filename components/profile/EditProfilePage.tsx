@@ -2,6 +2,7 @@
 
 import { useState, useRef, useTransition } from 'react'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import Avatar from '@/components/ui/Avatar'
 import ColorPicker from './ColorPicker'
 import BadgeSelector from './BadgeSelector'
@@ -52,6 +53,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(profile) || pendingAvatar !== null
   const isAdmin = userRole === 'admin'
+  const router = useRouter()
 
   function set<K extends keyof Profile>(key: K, value: Profile[K]) {
     setDraft(prev => ({ ...prev, [key]: value }))
@@ -130,9 +132,13 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
   }
 
   return (
-    <div className="p-6" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex flex-col overflow-hidden" style={{ background: 'var(--bg-primary)', height: '100%' }}>
+      <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10">
+        <h1 className="text-xl font-bold text-[var(--text-primary)]">Edit Profile</h1>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 py-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-xl font-bold text-[var(--text-primary)] mb-6">Edit Profile</h1>
 
         <div className="flex gap-8 items-start">
           {/* Form */}
@@ -227,7 +233,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
                 {isPending ? 'Saving…' : 'Save Changes'}
               </button>
               <button
-                onClick={() => { setDraft({ ...profile }); setPendingAvatar(null) }}
+                onClick={() => router.back()}
                 className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors"
               >
                 Cancel
@@ -241,6 +247,7 @@ export default function EditProfilePage({ profile, userRole }: EditProfilePagePr
             <ProfilePreview draft={draft} />
           </div>
         </div>
+      </div>
       </div>
 
       {/* Crop modal */}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Avatar from '@/components/ui/Avatar'
 import { createClient } from '@/lib/supabase/client'
@@ -22,6 +23,7 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [openingDM, setOpeningDM] = useState(false)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const isOwn = userId === currentUserId
@@ -39,7 +41,6 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
     }
   }
 
-  // If own profile, redirect to settings instead
   useEffect(() => {
     if (isOwn) { onClose(); router.push('/settings/profile'); return }
     getProfile(userId).then(p => { setProfile(p); setLoading(false) })
@@ -56,8 +57,7 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
     let top = rect.top
     if (left + 300 > vw) left = rect.left - 308
     if (top + 420 > vh) top = vh - 428
-    card.style.left = `${Math.max(8, left)}px`
-    card.style.top = `${Math.max(8, top)}px`
+    setPos({ left: Math.max(8, left), top: Math.max(8, top) })
   }, [anchorEl, loading])
 
   // Close on outside click / Escape
@@ -74,13 +74,17 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
     }
   }, [onClose])
 
-  if (isOwn) return null
+  if (isOwn || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       ref={cardRef}
       className="fixed z-50 w-[300px] rounded-xl border border-white/10 shadow-2xl overflow-hidden"
-      style={{ background: 'var(--bg-secondary)' }}
+      style={{
+        background: 'var(--bg-secondary)',
+        left: pos?.left ?? -9999,
+        top: pos?.top ?? -9999,
+      }}
     >
       {loading ? (
         <div className="p-6 animate-pulse space-y-3">
@@ -94,7 +98,6 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
         <>
           {/* Banner */}
           <div className="relative" style={{ background: profile.banner_color, height: 72 }}>
-            {/* Avatar overlapping banner */}
             <div className="absolute left-4" style={{ bottom: -36 }}>
               <Avatar user={profile} size={72}
                 className="ring-4 ring-[var(--bg-secondary)] rounded-full" />
@@ -157,14 +160,15 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
               <button
                 className="px-3 py-1.5 rounded-lg text-sm text-[var(--text-muted)] border border-white/10 hover:bg-white/5 transition-colors"
                 onClick={onClose}
-                title="More options"
+                title="Close"
               >
-                ···
+                ✕
               </button>
             </div>
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }
