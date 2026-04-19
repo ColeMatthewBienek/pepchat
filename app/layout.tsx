@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
@@ -10,7 +10,15 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'PepChat',
-  description: 'A real-time chat application',
+  description: 'Your crew, your channels',
+  manifest: '/manifest.json',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#e6543a',
 }
 
 export default function RootLayout({

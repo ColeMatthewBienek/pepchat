@@ -74,6 +74,25 @@ export default function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
+  // Track new messages for entrance animation. New messages appended via
+  // Realtime have IDs not seen on mount; loadMore prepends old messages
+  // (first ID changes) and should not animate.
+  const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
+  const prevFirstIdRef = useRef(messages[0]?.id)
+  const newIdsRef = useRef(new Set<string>())
+
+  useEffect(() => {
+    const currentFirstId = messages[0]?.id
+    if (currentFirstId === prevFirstIdRef.current) {
+      // First message unchanged → messages appended at bottom (realtime)
+      for (const m of messages) {
+        if (!knownIdsRef.current.has(m.id)) newIdsRef.current.add(m.id)
+      }
+    }
+    // Always update known IDs and first-ID tracker after each change
+    for (const m of messages) knownIdsRef.current.add(m.id)
+    prevFirstIdRef.current = currentFirstId
+  }, [messages])
 
   function handleScroll() {
     const el = listRef.current
@@ -167,8 +186,9 @@ export default function MessageList({
           const uniqueEmojiCount = new Set((msg.reactions ?? []).map(r => r.emoji)).size
           const atReactionLimit = uniqueEmojiCount >= 20
 
+          const isNewMsg = newIdsRef.current.has(msg.id)
           return (
-            <div key={msg.id}>
+            <div key={msg.id} className={isNewMsg ? 'message-new' : undefined}>
               {showDateSep && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 16px' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border-soft)' }} />

@@ -10,7 +10,7 @@ const PRESETS = [
   '#f9a8d4', '#e9d5ff',
 ]
 
-const DARK_BG = 0x31 / 255 // approx luminance of #313338
+const DARK_BG = 0x31 / 255 // luminance threshold (~0.19) for dark background detection
 
 function hexToRgb(hex: string | undefined | null): [number, number, number] | null {
   if (!hex) return null
