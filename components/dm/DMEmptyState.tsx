@@ -12,7 +12,7 @@ export default function DMEmptyState({ otherUser }: DMEmptyStateProps) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
-      <Avatar src={otherUser.avatar_url} username={displayName} size={80}
+      <Avatar user={otherUser} size={80}
         className="ring-4 ring-[var(--bg-tertiary)] rounded-full" />
       <div>
         <p className="text-lg font-bold">{displayName}</p>

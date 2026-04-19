@@ -208,7 +208,7 @@ export default function ChannelsSidebar({
         style={{ background: 'var(--bg-primary)' }}
       >
         <Link href="/settings/profile" className="flex items-center gap-2 flex-1 min-w-0 rounded hover:bg-white/5 transition-colors px-1 py-0.5 -mx-1">
-          <Avatar src={profile.avatar_url} username={profile.display_name ?? profile.username} size={32} online />
+          <Avatar user={profile} size={32} showStatus status="online" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{profile.display_name ?? profile.username}</p>
             {profile.display_name ? (

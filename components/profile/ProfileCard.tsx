@@ -96,7 +96,7 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
           <div className="relative" style={{ background: profile.banner_color, height: 72 }}>
             {/* Avatar overlapping banner */}
             <div className="absolute left-4" style={{ bottom: -36 }}>
-              <Avatar src={profile.avatar_url} username={profile.display_name ?? profile.username} size={72}
+              <Avatar user={profile} size={72}
                 className="ring-4 ring-[var(--bg-secondary)] rounded-full" />
             </div>
           </div>

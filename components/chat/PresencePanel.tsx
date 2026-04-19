@@ -58,7 +58,7 @@ export default function PresencePanel({ onlineUsers }: PresencePanelProps) {
             key={user.user_id}
             className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 transition-colors"
           >
-            <Avatar src={user.avatar_url} username={user.username} size={28} online />
+            <Avatar user={{ avatar_url: user.avatar_url, username: user.username }} size={28} showStatus status="online" />
             <span className="text-sm truncate">{user.username}</span>
           </div>
         ))}

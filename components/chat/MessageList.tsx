@@ -204,8 +204,12 @@ export default function MessageList({
                     onClick={e => setProfileCard({ userId: msg.user_id, anchor: e.currentTarget })}
                   >
                     <Avatar
-                      src={msg.profiles?.avatar_url}
-                      username={msg.profiles?.display_name ?? msg.profiles?.username ?? '?'}
+                      user={{
+                        avatar_url: msg.profiles?.avatar_url,
+                        username: msg.profiles?.username ?? '?',
+                        display_name: msg.profiles?.display_name,
+                        username_color: (msg.profiles as any)?.username_color,
+                      }}
                       size={32}
                     />
                   </button>

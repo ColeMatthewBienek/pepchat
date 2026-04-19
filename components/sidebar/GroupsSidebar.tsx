@@ -47,7 +47,7 @@ export default function GroupsSidebar({
                 className={`flex items-center justify-center w-12 h-12 transition-all duration-200 overflow-hidden
                   ${isActive ? 'rounded-[16px]' : 'rounded-[24px] hover:rounded-[16px]'}`}
               >
-                <Avatar src={group.icon_url} username={group.name} size={48} className="!rounded-none w-full h-full" />
+                <Avatar user={{ avatar_url: group.icon_url, username: group.name }} size={48} className="!rounded-none w-full h-full" />
               </Link>
               {unreadGroupIds.has(group.id) && (
                 <span

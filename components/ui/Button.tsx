@@ -1,13 +1,10 @@
 import { ButtonHTMLAttributes } from 'react'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'ghost' | 'danger'
-  size?: 'sm' | 'md'
+  variant?: 'primary' | 'ghost' | 'icon' | 'danger'
+  size?: 'sm' | 'md' | 'lg'
 }
 
-/**
- * Base button component used throughout the app.
- */
 export default function Button({
   variant = 'primary',
   size = 'md',
@@ -15,26 +12,26 @@ export default function Button({
   children,
   ...props
 }: ButtonProps) {
-  const base =
-    'inline-flex items-center justify-center font-semibold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+  const base = 'inline-flex items-center justify-center font-semibold rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
 
-  const variants = {
-    primary:
-      'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white',
-    ghost:
-      'bg-transparent hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-    danger:
-      'bg-[var(--danger)] hover:bg-[var(--danger)]/80 text-white',
+  const variants: Record<string, string> = {
+    primary: 'primary bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-none',
+    ghost:   'ghost bg-transparent text-[var(--text-muted)] border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+    icon:    'icon bg-transparent text-[var(--text-muted)] border-none hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] p-[6px]',
+    danger:  'bg-[var(--danger)] hover:bg-[var(--danger)]/80 text-white border-none',
   }
 
-  const sizes = {
-    sm: 'text-xs px-2.5 py-1.5 gap-1',
-    md: 'text-sm px-3 py-2 gap-1.5',
+  const sizes: Record<string, string> = {
+    sm: 'btn-sm text-[12px] px-3 py-1.5 gap-1',
+    md: 'btn-md text-[13px] px-4 py-2 gap-1.5',
+    lg: 'btn-lg text-[14px] px-5 py-2.5 gap-2',
   }
+
+  const sizeClass = variant === 'icon' ? '' : sizes[size]
 
   return (
     <button
-      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${base} ${variants[variant] ?? variants.primary} ${sizeClass} ${className}`}
       {...props}
     >
       {children}

@@ -6,19 +6,13 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { assignRole, kickMember } from '@/app/(app)/members/actions'
 import Avatar from '@/components/ui/Avatar'
+import RolePill from '@/components/ui/RolePill'
 import { PERMISSIONS, type Role } from '@/lib/permissions'
 import type { GroupMember, Profile } from '@/lib/types'
 
 const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
 
 type MemberWithProfile = GroupMember & { profiles: Pick<Profile, 'username' | 'avatar_url'> }
-
-const ROLE_BADGE: Record<Role, { label: string; className: string }> = {
-  admin:     { label: 'admin',     className: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
-  moderator: { label: 'mod',       className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  user:      { label: 'user',      className: 'bg-white/10 text-[var(--text-muted)] border-white/10' },
-  noob:      { label: 'noob',      className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-}
 
 const ASSIGNABLE_ROLES: Role[] = ['moderator', 'user', 'noob']
 
@@ -116,7 +110,6 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
       {expanded && (
         <ul className="pb-2 space-y-0.5">
           {members.map((member) => {
-            const badge  = ROLE_BADGE[member.role as Role] ?? ROLE_BADGE.user
             const isSelf = member.user_id === currentUserId
             const isTargetAdmin = member.role === 'admin'
 
@@ -127,8 +120,11 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                   onClick={e => setProfileCard({ userId: member.user_id, anchor: e.currentTarget })}
                 >
                   <Avatar
-                    src={member.profiles?.avatar_url}
-                    username={(member.profiles as any)?.display_name ?? member.profiles?.username ?? '?'}
+                    user={{
+                      avatar_url: member.profiles?.avatar_url,
+                      username: member.profiles?.username ?? '?',
+                      display_name: (member.profiles as any)?.display_name,
+                    }}
                     size={28}
                   />
                 </button>
@@ -152,9 +148,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                     ))}
                   </select>
                 ) : (
-                  <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${badge.className}`}>
-                    {badge.label}
-                  </span>
+                  <RolePill role={member.role as Role} />
                 )}
 
                 {/* Message button */}

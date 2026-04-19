@@ -1,59 +1,112 @@
-interface AvatarProps {
-  src?: string | null
+const AVATAR_PALETTE = [
+  '#c94a2a', '#b5623d', '#d89a3a', '#5a7a4a',
+  '#6aa08a', '#4a6a85', '#7a4a6b', '#c070a0',
+]
+
+export function getAvatarColor(username: string): string {
+  let hash = 0
+  for (const ch of username) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  online:  '#6aa08a',
+  away:    '#d89a3a',
+  dnd:     '#e6543a',
+  offline: '#6b6158',
+}
+
+interface AvatarUser {
+  avatar_url?: string | null
   username: string
+  display_name?: string | null
+  username_color?: string
+}
+
+interface AvatarProps {
+  user: AvatarUser
   size?: number
-  online?: boolean
+  showStatus?: boolean
+  status?: 'online' | 'away' | 'dnd' | 'offline'
+  onClick?: () => void
   className?: string
 }
 
-/**
- * Round avatar with image or generated initials fallback.
- * Optionally shows a green online-status dot.
- */
 export default function Avatar({
-  src,
-  username,
+  user,
   size = 40,
-  online,
+  showStatus,
+  status = 'offline',
+  onClick,
   className = '',
 }: AvatarProps) {
-  const initials = username.slice(0, 2).toUpperCase()
+  const radius = Math.round(size * 0.34)
+  const dotSize = Math.max(10, Math.round(size * 0.32))
+  const fontSize = Math.max(11, Math.round(size * 0.42))
 
-  // Generate a stable hue from the username string
-  const hue =
-    username.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 360
+  const initials = user.display_name
+    ? (user.display_name[0] + user.username[0]).toUpperCase()
+    : user.username.slice(0, 2).toUpperCase()
+
+  const bgColor = user.username_color || getAvatarColor(user.username)
+
+  const inner = user.avatar_url ? (
+    <div
+      data-testid="avatar-photo"
+      style={{
+        width: '100%',
+        height: '100%',
+        borderRadius: radius,
+        backgroundImage: `url(${user.avatar_url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.18)',
+      }}
+    />
+  ) : (
+    <div
+      data-testid="avatar-initials"
+      style={{
+        width: '100%',
+        height: '100%',
+        borderRadius: radius,
+        background: bgColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize,
+        fontWeight: 600,
+        color: '#fff',
+        userSelect: 'none',
+        letterSpacing: '0.02em',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.18)',
+      }}
+    >
+      {initials}
+    </div>
+  )
 
   return (
     <div
       className={`relative flex-shrink-0 ${className}`}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, borderRadius: radius }}
+      onClick={onClick}
     >
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={username}
-          className="rounded-full w-full h-full object-cover"
-        />
-      ) : (
-        <div
-          className="rounded-full w-full h-full flex items-center justify-center text-white font-semibold select-none"
-          style={{
-            background: `hsl(${hue} 60% 45%)`,
-            fontSize: size * 0.38,
-          }}
-        >
-          {initials}
-        </div>
-      )}
+      {inner}
 
-      {online !== undefined && (
+      {showStatus && (
         <span
-          className="absolute bottom-0 right-0 rounded-full border-2 border-[var(--bg-secondary)]"
+          data-testid="avatar-status"
           style={{
-            width: size * 0.3,
-            height: size * 0.3,
-            background: online ? 'var(--success)' : 'var(--text-muted)',
+            position: 'absolute',
+            bottom: -2,
+            right: -2,
+            width: dotSize,
+            height: dotSize,
+            borderRadius: '50%',
+            background: STATUS_COLORS[status] ?? STATUS_COLORS.offline,
+            border: '2px solid var(--bg-primary)',
+            boxShadow: status === 'online' ? '0 0 6px #6aa08a66' : undefined,
           }}
         />
       )}
