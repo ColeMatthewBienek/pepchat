@@ -37,10 +37,31 @@ export function useChannels(groupId: string | null) {
     const supabase = createClient()
     const sub = supabase
       .channel(`channels-${groupId}`)
+      // INSERT and UPDATE carry group_id in the payload — filter works.
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'channels', filter: `group_id=eq.${groupId}` },
+        { event: 'INSERT', schema: 'public', table: 'channels', filter: `group_id=eq.${groupId}` },
         fetchChannels
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'channels', filter: `group_id=eq.${groupId}` },
+        fetchChannels
+      )
+      // DELETE payload only contains the PK (id) with default REPLICA IDENTITY,
+      // so the group_id filter never matches. Handle it without a filter and
+      // remove by ID client-side — safe because we only remove if the channel
+      // is already in our list.
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'channels' },
+        (payload) => {
+          const deletedId = (payload.old as { id: string }).id
+          setChannels(prev => {
+            const next = prev.filter(c => c.id !== deletedId)
+            return next.length === prev.length ? prev : next
+          })
+        }
       )
       .subscribe()
 
