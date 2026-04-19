@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import ReactDOM from 'react-dom'
+import dynamic from 'next/dynamic'
 import type { MessageWithProfile } from '@/lib/types'
+
+const EmojiPickerPopover = dynamic(
+  () => import('@/components/chat/EmojiPickerPopover'),
+  { ssr: false }
+)
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢']
 
@@ -38,6 +44,7 @@ export default function MessageModal({
   onEmojiSelect,
 }: MessageModalProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [showFullPicker, setShowFullPicker] = useState(false)
 
   if (!open || !msg) return null
 
@@ -146,6 +153,25 @@ export default function MessageModal({
                 {emoji}
               </button>
             ))}
+            <button
+              data-testid="quick-react-more"
+              onClick={() => setShowFullPicker(true)}
+              style={{
+                fontSize: 20,
+                background: 'var(--bg-tertiary)',
+                border: 'none',
+                borderRadius: 8,
+                width: 48,
+                height: 48,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+              }}
+            >
+              +
+            </button>
           </div>
         )}
 
@@ -234,6 +260,42 @@ export default function MessageModal({
           )}
         </div>
       </div>
+
+      {/* Full emoji picker overlay */}
+      {showFullPicker && (
+        <div
+          data-testid="full-emoji-picker-overlay"
+          onClick={() => setShowFullPicker(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              background: 'var(--bg-elevated)',
+              borderRadius: 'var(--radius-2xl) var(--radius-2xl) 0 0',
+              padding: '16px 16px 32px',
+            }}
+          >
+            <EmojiPickerPopover
+              onSelect={emoji => {
+                onEmojiSelect(msg!.id, emoji)
+                setShowFullPicker(false)
+                onClose()
+              }}
+              onClose={() => setShowFullPicker(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 

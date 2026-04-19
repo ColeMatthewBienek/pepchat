@@ -3,6 +3,16 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import MessageModal from '@/components/chat/MessageModal'
 import type { MessageWithProfile } from '@/lib/types'
 
+vi.mock('next/dynamic', () => ({
+  default: (_fn: unknown, _opts?: unknown) => {
+    const MockPicker = ({ onSelect }: { onSelect: (emoji: string) => void; onClose: () => void }) => (
+      <button data-testid="mock-full-picker-emoji" onClick={() => onSelect('🔥')}>🔥</button>
+    )
+    MockPicker.displayName = 'MockEmojiPickerPopover'
+    return MockPicker
+  },
+}))
+
 const MSG: MessageWithProfile = {
   id: 'msg-1',
   channel_id: 'ch-1',
@@ -200,5 +210,39 @@ describe('MessageModal — delete confirmation', () => {
     fireEvent.click(screen.getByTestId('modal-delete-cancel'))
     expect(screen.queryByTestId('modal-delete-confirm')).not.toBeInTheDocument()
     expect(screen.getByTestId('modal-action-delete')).toBeInTheDocument()
+  })
+})
+
+describe('MessageModal — full emoji picker', () => {
+  it('renders a "+" more-emoji button in quick reactions', () => {
+    render(<MessageModal {...BASE} />)
+    expect(screen.getByTestId('quick-react-more')).toBeInTheDocument()
+  })
+
+  it('hides the "+" button when allowReactions=false', () => {
+    render(<MessageModal {...BASE} allowReactions={false} />)
+    expect(screen.queryByTestId('quick-react-more')).not.toBeInTheDocument()
+  })
+
+  it('clicking "+" shows the full picker overlay', () => {
+    render(<MessageModal {...BASE} />)
+    fireEvent.click(screen.getByTestId('quick-react-more'))
+    expect(screen.getByTestId('full-emoji-picker-overlay')).toBeInTheDocument()
+  })
+
+  it('selecting emoji from full picker calls onEmojiSelect', () => {
+    const onEmojiSelect = vi.fn()
+    render(<MessageModal {...BASE} onEmojiSelect={onEmojiSelect} />)
+    fireEvent.click(screen.getByTestId('quick-react-more'))
+    fireEvent.click(screen.getByTestId('mock-full-picker-emoji'))
+    expect(onEmojiSelect).toHaveBeenCalledWith('msg-1', '🔥')
+  })
+
+  it('selecting emoji from full picker closes modal', () => {
+    const onClose = vi.fn()
+    render(<MessageModal {...BASE} onClose={onClose} />)
+    fireEvent.click(screen.getByTestId('quick-react-more'))
+    fireEvent.click(screen.getByTestId('mock-full-picker-emoji'))
+    expect(onClose).toHaveBeenCalled()
   })
 })

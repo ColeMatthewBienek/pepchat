@@ -44,11 +44,12 @@ export default function MessageActionBar({
 
   return (
     <div
-      className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0"
+      className="hidden md:group-hover/msg:flex items-center gap-0.5 flex-shrink-0"
       style={{
         position: 'absolute',
-        top: -10,
+        top: -18,
         right: 8,
+        zIndex: 10,
         background: 'var(--bg-elevated)',
         border: '1px solid var(--border-soft)',
         borderRadius: 'var(--radius-md)',
@@ -96,7 +97,7 @@ export default function MessageActionBar({
       {isOwn && (
         <button
           data-testid="action-edit"
-          onClick={() => onStartEdit(msg)}
+          onClick={e => { e.stopPropagation(); onStartEdit(msg) }}
           title="Edit"
           className="icon-btn"
           style={{ padding: 6 }}
