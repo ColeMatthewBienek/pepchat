@@ -69,7 +69,7 @@ export default function ColorPicker({ value, onChange, label, previewText }: Col
             key={color}
             type="button"
             onClick={() => handlePresetClick(color)}
-            className="w-6 h-6 rounded-md border-2 transition-transform hover:scale-110 focus:outline-none"
+            className="w-8 h-8 md:w-6 md:h-6 rounded-md border-2 transition-transform hover:scale-110 focus:outline-none"
             style={{
               background: color,
               borderColor: safeValue === color ? 'var(--accent)' : 'transparent',
