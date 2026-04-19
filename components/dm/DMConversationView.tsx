@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePresence } from '@/lib/hooks/usePresence'
@@ -19,6 +19,9 @@ interface DMConversationViewProps {
 
 export default function DMConversationView({ conversationId }: DMConversationViewProps) {
   const router = useRouter()
+  const swipeRef = useRef<HTMLDivElement>(null)
+  const touchStartX = useRef<number | null>(null)
+
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [otherUser, setOtherUser]     = useState<Profile | null>(null)
   const [recipientId, setRecipientId] = useState<string>('')
@@ -71,6 +74,31 @@ export default function DMConversationView({ conversationId }: DMConversationVie
     init()
   }, [conversationId, router])
 
+  // Swipe right from left edge to go back
+  useEffect(() => {
+    const el = swipeRef.current
+    if (!el) return
+
+    function onTouchStart(e: TouchEvent) {
+      const t = e.touches[0]
+      touchStartX.current = t.clientX <= 40 ? t.clientX : null
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (touchStartX.current === null) return
+      const dx = e.changedTouches[0].clientX - touchStartX.current
+      if (dx > 50) router.back()
+      touchStartX.current = null
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [router])
+
   const { typingUsernames, broadcastTyping } = usePresence(
     currentUser ? `dm-presence:${conversationId}` : '__noop__',
     currentUser
@@ -106,8 +134,8 @@ export default function DMConversationView({ conversationId }: DMConversationVie
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <DMHeader otherUser={otherUser} />
+    <div ref={swipeRef} className="flex flex-col flex-1 min-h-0">
+      <DMHeader otherUser={otherUser} onBack={() => router.back()} />
       {messages.length === 0 ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1">
