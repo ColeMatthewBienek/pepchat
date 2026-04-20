@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { PinnedMessage } from '@/lib/types'
 
@@ -15,41 +15,35 @@ const PINNED_SELECT = `
 interface UsePinnedMessagesReturn {
   pinnedMessages: PinnedMessage[]
   pinnedCount: number
+  refetch: () => Promise<void>
 }
 
 export function usePinnedMessages(channelId: string): UsePinnedMessagesReturn {
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([])
+  const supabase = useRef(createClient()).current
 
-  useEffect(() => {
-    const supabase = createClient()
-
-    supabase
+  const refetch = useCallback(async () => {
+    const { data } = await supabase
       .from('pinned_messages')
       .select(PINNED_SELECT)
       .eq('channel_id', channelId)
       .order('pinned_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setPinnedMessages(data as unknown as PinnedMessage[])
-      })
+    if (data) setPinnedMessages(data as unknown as PinnedMessage[])
+  }, [channelId, supabase])
+
+  useEffect(() => {
+    refetch()
 
     const room = supabase
       .channel(`pinned-${channelId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'pinned_messages', filter: `channel_id=eq.${channelId}` },
-        async ({ new: row }) => {
-          // Raw INSERT payload has no joins — refetch the full record
-          const { data } = await supabase
-            .from('pinned_messages')
-            .select(PINNED_SELECT)
-            .eq('id', row.id)
-            .single()
-          if (!data) return
-          const pin = data as unknown as PinnedMessage
-          setPinnedMessages(prev => {
-            if (prev.some(p => p.id === pin.id)) return prev
-            return [pin, ...prev]
-          })
+        { event: 'INSERT', schema: 'public', table: 'pinned_messages' },
+        ({ new: row }) => {
+          // No server-side filter (requires REPLICA IDENTITY FULL); filter client-side
+          if ((row as any).channel_id !== channelId) return
+          // Refetch to get the full record with message + profile joins
+          refetch()
         }
       )
       .on(
@@ -62,7 +56,7 @@ export function usePinnedMessages(channelId: string): UsePinnedMessagesReturn {
       .subscribe()
 
     return () => { supabase.removeChannel(room) }
-  }, [channelId])
+  }, [channelId, supabase, refetch])
 
-  return { pinnedMessages, pinnedCount: pinnedMessages.length }
+  return { pinnedMessages, pinnedCount: pinnedMessages.length, refetch }
 }

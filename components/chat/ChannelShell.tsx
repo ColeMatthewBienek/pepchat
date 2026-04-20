@@ -52,9 +52,10 @@ export default function ChannelShell({
     toggleReactionOptimistic,
     broadcastReactionChange,
     updateMessageContent,
+    updateMessagePinnedAt,
   } = useMessages(channelId, initialMessages, profile.id)
 
-  const { pinnedMessages, pinnedCount } = usePinnedMessages(channelId)
+  const { pinnedMessages, pinnedCount, refetch: refetchPins } = usePinnedMessages(channelId)
 
   const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(channelId, {
     user_id:    profile.id,
@@ -99,12 +100,19 @@ export default function ChannelShell({
   }, [])
 
   const handlePin = useCallback(async (messageId: string) => {
-    return pinMessage(messageId, channelId)
-  }, [channelId])
+    const result = await pinMessage(messageId, channelId)
+    if ('ok' in result) {
+      updateMessagePinnedAt(messageId, new Date().toISOString())
+      refetchPins()
+    }
+    return result
+  }, [channelId, updateMessagePinnedAt, refetchPins])
 
   const handleUnpin = useCallback(async (pinnedId: string) => {
+    const pin = pinnedMessages.find(p => p.id === pinnedId)
     await unpinMessage(pinnedId)
-  }, [])
+    if (pin) updateMessagePinnedAt(pin.message_id, null)
+  }, [pinnedMessages, updateMessagePinnedAt])
 
   const handleJump = useCallback((messageId: string) => {
     setPinnedPanelOpen(false)

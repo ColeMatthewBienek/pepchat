@@ -97,11 +97,11 @@ export async function pinMessage(
     .maybeSingle()
   if (existing) return { ok: true }
 
-  // Mark the message itself as pinned
-  await supabase
-    .from('messages')
-    .update({ pinned_at: new Date().toISOString() })
-    .eq('id', messageId)
+  // Mark the message itself as pinned (RPC bypasses ownership RLS)
+  await supabase.rpc('set_message_pinned_at', {
+    p_message_id: messageId,
+    p_pinned_at:  new Date().toISOString(),
+  })
 
   // Insert the system message
   const pinnedBy = profile?.display_name ?? profile?.username ?? 'Someone'
@@ -154,11 +154,11 @@ export async function unpinMessage(
   if (error) return { error: error.message }
 
   if (pin) {
-    // Clear pinned_at on the original message
-    await supabase
-      .from('messages')
-      .update({ pinned_at: null })
-      .eq('id', pin.message_id)
+    // Clear pinned_at on the original message (RPC bypasses ownership RLS)
+    await supabase.rpc('set_message_pinned_at', {
+      p_message_id: pin.message_id,
+      p_pinned_at:  null,
+    })
 
     // Delete the system message
     if (pin.system_message_id) {

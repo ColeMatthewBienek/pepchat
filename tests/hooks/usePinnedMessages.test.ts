@@ -88,21 +88,27 @@ describe('usePinnedMessages — initial fetch', () => {
 })
 
 describe('usePinnedMessages — realtime INSERT', () => {
-  it('adds new pin to state when INSERT fires', async () => {
+  it('triggers a refetch when INSERT fires for the same channel', async () => {
+    const PIN2: PinnedMessage = { ...PIN, id: 'pin-2', message_id: 'msg-2' }
+    // After INSERT, refetch returns both pins
+    mockSelect
+      .mockReturnValueOnce({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue({ data: [PIN], error: null }) }) })
+      .mockReturnValueOnce({ eq: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue({ data: [PIN2, PIN], error: null }) }) })
+
     const { result } = renderHook(() => usePinnedMessages('ch-1'))
     await waitFor(() => expect(result.current.pinnedMessages).toHaveLength(1))
 
-    const newPin: PinnedMessage = { ...PIN, id: 'pin-2', message_id: 'msg-2' }
-    act(() => { insertHandler?.({ new: newPin }) })
-    expect(result.current.pinnedMessages).toHaveLength(2)
+    act(() => { insertHandler?.({ new: { ...PIN2, channel_id: 'ch-1' } }) })
+    await waitFor(() => expect(result.current.pinnedMessages).toHaveLength(2))
     expect(result.current.pinnedMessages[0].id).toBe('pin-2')
   })
 
-  it('does not duplicate on repeated INSERT of same id', async () => {
+  it('ignores INSERT events for other channels', async () => {
     const { result } = renderHook(() => usePinnedMessages('ch-1'))
     await waitFor(() => expect(result.current.pinnedMessages).toHaveLength(1))
 
-    act(() => { insertHandler?.({ new: PIN }) })
+    act(() => { insertHandler?.({ new: { ...PIN, id: 'pin-2', channel_id: 'ch-other' } }) })
+    // State unchanged — no refetch triggered
     expect(result.current.pinnedMessages).toHaveLength(1)
   })
 })
