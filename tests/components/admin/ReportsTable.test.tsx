@@ -3,6 +3,19 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import ReportsTable from '@/components/admin/ReportsTable'
 import type { AdminReport } from '@/lib/types'
 
+vi.mock('@/app/admin/actions', () => ({
+  markReportReviewed: vi.fn().mockResolvedValue({ ok: true }),
+  dismissReport: vi.fn().mockResolvedValue({ ok: true }),
+}))
+
+vi.mock('@/app/(app)/messages/actions', () => ({
+  deleteMessage: vi.fn().mockResolvedValue({ ok: true }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
+
 const REPORTS: AdminReport[] = [
   {
     id: 'r1',

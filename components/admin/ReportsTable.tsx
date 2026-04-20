@@ -7,6 +7,9 @@ import type { AdminReport } from '@/lib/types'
 
 interface ReportsTableProps {
   reports: AdminReport[]
+  onMarkReviewed?: (reportId: string) => Promise<void>
+  onDismiss?: (reportId: string) => Promise<void>
+  onDeleteMessage?: (messageId: string) => Promise<void>
 }
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
@@ -15,20 +18,23 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
   dismissed:  { color: 'var(--text-faint)', background: 'var(--bg-tertiary)' },
 }
 
-export default function ReportsTable({ reports }: ReportsTableProps) {
+export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDeleteMessage }: ReportsTableProps) {
   const router = useRouter()
 
   async function handleMarkReviewed(reportId: string) {
+    if (onMarkReviewed) { await onMarkReviewed(reportId); return }
     await markReportReviewed(reportId)
     router.refresh()
   }
 
   async function handleDismiss(reportId: string) {
+    if (onDismiss) { await onDismiss(reportId); return }
     await dismissReport(reportId)
     router.refresh()
   }
 
   async function handleDeleteMessage(messageId: string) {
+    if (onDeleteMessage) { await onDeleteMessage(messageId); return }
     await deleteMessage(messageId)
     router.refresh()
   }

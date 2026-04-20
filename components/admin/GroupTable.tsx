@@ -3,28 +3,33 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import GroupIcon from '@/components/ui/GroupIcon'
-import { deleteGroup, transferOwnership } from '@/app/admin/actions'
+import { deleteGroup } from '@/app/admin/actions'
 import type { AdminGroup } from '@/lib/types'
 
 interface GroupTableProps {
   groups: AdminGroup[]
+  onDelete?: (groupId: string) => Promise<void>
 }
 
-export default function GroupTable({ groups }: GroupTableProps) {
+export default function GroupTable({ groups, onDelete }: GroupTableProps) {
   const router = useRouter()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function doDelete(groupId: string) {
-    const group = groups.find(g => g.id === groupId)
     setPending(groupId)
     setError(null)
-    const result = await deleteGroup(groupId, group?.name ?? groupId)
+    if (onDelete) {
+      await onDelete(groupId)
+    } else {
+      const group = groups.find(g => g.id === groupId)
+      const result = await deleteGroup(groupId, group?.name ?? groupId)
+      if ('error' in result) { setError(result.error); setPending(null); return }
+      router.refresh()
+    }
     setPending(null)
     setConfirmDelete(null)
-    if ('error' in result) setError(result.error)
-    else router.refresh()
   }
 
   function formatDate(iso: string) {
@@ -101,7 +106,6 @@ export default function GroupTable({ groups }: GroupTableProps) {
       </table>
       </div>
 
-      {/* Delete confirmation dialog */}
       {confirmDelete && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200,

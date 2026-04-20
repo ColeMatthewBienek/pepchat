@@ -3,6 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import GroupTable from '@/components/admin/GroupTable'
 import type { AdminGroup } from '@/lib/types'
 
+vi.mock('@/app/admin/actions', () => ({
+  deleteGroup: vi.fn().mockResolvedValue({ ok: true }),
+  transferOwnership: vi.fn().mockResolvedValue({ ok: true }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
+
 const GROUPS: AdminGroup[] = [
   {
     id: 'g1',
