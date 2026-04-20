@@ -21,23 +21,22 @@ create index if not exists idx_pinned_messages_channel
 -- Row Level Security
 alter table pinned_messages enable row level security;
 
--- Any authenticated user can read pinned messages in any channel they can access
+-- Any authenticated user can read pinned messages
 create policy "authenticated users can read pinned messages"
   on pinned_messages for select
   to authenticated
   using (true);
 
--- Only service role (server-side actions) can insert/delete pinned messages
--- The pin/unpin logic runs in server actions with the service key, so no
--- client-side insert/delete policy is needed.
-create policy "service role can insert pinned messages"
+-- Authenticated users can insert pin records (role enforcement happens in server actions)
+create policy "authenticated users can insert pinned messages"
   on pinned_messages for insert
-  to service_role
+  to authenticated
   with check (true);
 
-create policy "service role can delete pinned messages"
+-- Authenticated users can delete pin records (role enforcement happens in server actions)
+create policy "authenticated users can delete pinned messages"
   on pinned_messages for delete
-  to service_role
+  to authenticated
   using (true);
 
 -- Enable realtime for pinned_messages
