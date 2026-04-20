@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { PinnedMessage } from '@/lib/types'
 
@@ -37,8 +37,15 @@ export function usePinnedMessages(channelId: string): UsePinnedMessagesReturn {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pinned_messages', filter: `channel_id=eq.${channelId}` },
-        ({ new: row }) => {
-          const pin = row as PinnedMessage
+        async ({ new: row }) => {
+          // Raw INSERT payload has no joins — refetch the full record
+          const { data } = await supabase
+            .from('pinned_messages')
+            .select(PINNED_SELECT)
+            .eq('id', row.id)
+            .single()
+          if (!data) return
+          const pin = data as unknown as PinnedMessage
           setPinnedMessages(prev => {
             if (prev.some(p => p.id === pin.id)) return prev
             return [pin, ...prev]
