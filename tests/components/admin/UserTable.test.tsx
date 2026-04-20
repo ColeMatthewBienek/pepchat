@@ -3,6 +3,16 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import UserTable from '@/components/admin/UserTable'
 import type { AdminUser } from '@/lib/types'
 
+vi.mock('@/app/admin/actions', () => ({
+  changeRole: vi.fn().mockResolvedValue({ ok: true }),
+  banUser: vi.fn().mockResolvedValue({ ok: true }),
+  unbanUser: vi.fn().mockResolvedValue({ ok: true }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
+
 const USERS: AdminUser[] = [
   {
     id: 'u1',
@@ -10,6 +20,7 @@ const USERS: AdminUser[] = [
     display_name: 'PanicMonkey',
     avatar_url: null,
     role: 'admin',
+    group_id: 'g1',
     joined_at: '2024-01-01T00:00:00Z',
     last_active: '2024-04-19T10:00:00Z',
     is_banned: false,
@@ -20,6 +31,7 @@ const USERS: AdminUser[] = [
     display_name: null,
     avatar_url: null,
     role: 'moderator',
+    group_id: 'g1',
     joined_at: '2024-02-01T00:00:00Z',
     last_active: '2024-04-18T09:00:00Z',
     is_banned: false,
@@ -30,6 +42,7 @@ const USERS: AdminUser[] = [
     display_name: 'New Guy',
     avatar_url: null,
     role: 'user',
+    group_id: 'g1',
     joined_at: '2024-03-01T00:00:00Z',
     last_active: null,
     is_banned: false,
@@ -40,6 +53,7 @@ const USERS: AdminUser[] = [
     display_name: null,
     avatar_url: null,
     role: 'user',
+    group_id: 'g1',
     joined_at: '2024-03-10T00:00:00Z',
     last_active: null,
     is_banned: true,
@@ -49,10 +63,6 @@ const USERS: AdminUser[] = [
 const defaultProps = {
   users: USERS,
   currentUserId: 'u1',
-  onRoleChange: vi.fn().mockResolvedValue(undefined),
-  onBan: vi.fn().mockResolvedValue(undefined),
-  onUnban: vi.fn().mockResolvedValue(undefined),
-  onResetPassword: vi.fn().mockResolvedValue(undefined),
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -163,8 +173,8 @@ describe('UserTable — access control', () => {
   it('does not allow demoting another admin', () => {
     // If all users passed are admins but current is also admin, cannot demote
     const adminUsers: AdminUser[] = [
-      { ...USERS[0], id: 'u1', username: 'me', role: 'admin' },
-      { ...USERS[0], id: 'u2', username: 'other_admin', role: 'admin' },
+      { ...USERS[0], id: 'u1', username: 'me', role: 'admin', group_id: 'g1' },
+      { ...USERS[0], id: 'u2', username: 'other_admin', role: 'admin', group_id: 'g1' },
     ]
     render(<UserTable {...defaultProps} users={adminUsers} currentUserId="u1" />)
     expect(screen.queryByText('Change Role')).toBeNull()

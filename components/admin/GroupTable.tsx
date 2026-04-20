@@ -35,6 +35,7 @@ export default function GroupTable({ groups, onDelete, onTransferOwnership }: Gr
 
   return (
     <div>
+      <div className="table-scroll-wrapper">
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-soft)' }}>
@@ -87,6 +88,7 @@ export default function GroupTable({ groups, onDelete, onTransferOwnership }: Gr
           ))}
         </tbody>
       </table>
+      </div>
 
       {/* Delete confirmation dialog */}
       {confirmDelete && (

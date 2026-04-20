@@ -43,7 +43,7 @@ export default async function OverviewPage() {
       </h1>
 
       {/* Metric cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32, maxWidth: 640 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 32 }}>
         <MetricCard label="Total Users"    value={totalUsers ?? null} />
         <MetricCard label="Active Today"   value={activeToday ?? null} />
         <MetricCard label="Total Groups"   value={totalGroups ?? null} />

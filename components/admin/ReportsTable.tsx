@@ -34,6 +34,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
   }
 
   return (
+    <div className="table-scroll-wrapper">
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '1px solid var(--border-soft)' }}>
@@ -77,6 +78,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 

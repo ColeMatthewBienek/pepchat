@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Avatar from '@/components/ui/Avatar'
 import RolePill from '@/components/ui/RolePill'
+import { changeRole, banUser, unbanUser } from '@/app/admin/actions'
 import type { AdminUser } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
@@ -13,26 +15,17 @@ const ROLES: Role[] = ['admin', 'moderator', 'user', 'noob']
 interface UserTableProps {
   users: AdminUser[]
   currentUserId: string
-  onRoleChange: (userId: string, role: Role) => Promise<void>
-  onBan: (userId: string, reason: string) => Promise<void>
-  onUnban: (userId: string) => Promise<void>
-  onResetPassword: (userId: string) => Promise<void>
 }
 
-export default function UserTable({
-  users,
-  currentUserId,
-  onRoleChange,
-  onBan,
-  onUnban,
-  onResetPassword,
-}: UserTableProps) {
+export default function UserTable({ users, currentUserId }: UserTableProps) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [banTarget, setBanTarget] = useState<string | null>(null)
   const [banReason, setBanReason] = useState('')
   const [pending, setPending] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const filtered = users.filter(u => {
     const q = search.toLowerCase()
@@ -45,26 +38,39 @@ export default function UserTable({
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageUsers = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  async function doRoleChange(userId: string, role: Role) {
-    setPending(userId)
-    await onRoleChange(userId, role)
+  async function doRoleChange(user: AdminUser, role: Role) {
+    setPending(user.id)
+    setError(null)
+    const result = await changeRole(user.id, user.group_id, role, user.username, user.role)
     setPending(null)
     setOpenMenuId(null)
+    if ('error' in result) setError(result.error)
+    else router.refresh()
   }
 
   async function doBan() {
     if (!banTarget) return
+    const user = users.find(u => u.id === banTarget)
+    if (!user) return
     setPending(banTarget)
-    await onBan(banTarget, banReason)
+    setError(null)
+    const result = await banUser(banTarget, user.username, banReason)
     setPending(null)
     setBanTarget(null)
     setBanReason('')
+    if ('error' in result) setError(result.error)
+    else router.refresh()
   }
 
   async function doUnban(userId: string) {
+    const user = users.find(u => u.id === userId)
+    if (!user) return
     setPending(userId)
-    await onUnban(userId)
+    setError(null)
+    const result = await unbanUser(userId, user.username)
     setPending(null)
+    if ('error' in result) setError(result.error)
+    else router.refresh()
   }
 
   function formatDate(iso: string) {
@@ -73,6 +79,11 @@ export default function UserTable({
 
   return (
     <div>
+      {error && (
+        <p style={{ fontSize: 13, color: 'var(--danger)', background: 'rgba(201,74,42,0.1)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: 12 }}>
+          {error}
+        </p>
+      )}
       <input
         className="user-search"
         type="text"
@@ -97,6 +108,7 @@ export default function UserTable({
           No users found.
         </p>
       ) : (
+        <div className="table-scroll-wrapper">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-soft)' }}>
@@ -177,7 +189,7 @@ export default function UserTable({
                                 {ROLES.map(r => (
                                   <button
                                     key={r}
-                                    onClick={() => doRoleChange(user.id, r)}
+                                    onClick={() => doRoleChange(user, r)}
                                     style={{
                                       display: 'block',
                                       width: '100%',
@@ -198,9 +210,6 @@ export default function UserTable({
                                 <button onClick={() => { setBanTarget(user.id); setOpenMenuId(null) }} style={actionStyle(true)}>
                                   Ban User
                                 </button>
-                                <button onClick={() => { onResetPassword(user.id); setOpenMenuId(null) }} style={actionStyle(false)}>
-                                  Reset Password
-                                </button>
                               </div>
                             )}
                           </div>
@@ -213,6 +222,7 @@ export default function UserTable({
             })}
           </tbody>
         </table>
+        </div>
       )}
 
       {/* Pagination */}

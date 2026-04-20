@@ -176,6 +176,7 @@ export interface AdminUser {
   display_name: string | null
   avatar_url: string | null
   role: 'admin' | 'moderator' | 'user' | 'noob'
+  group_id: string
   joined_at: string
   last_active: string | null
   is_banned: boolean
