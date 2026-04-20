@@ -203,6 +203,27 @@ describe('MessageContextMenu — actions', () => {
   })
 })
 
+describe('MessageContextMenu — report', () => {
+  it('shows Report Message when onReport is provided', () => {
+    render(<MessageContextMenu {...defaultProps} onReport={vi.fn()} />)
+    expect(screen.getByText('Report Message')).toBeTruthy()
+  })
+
+  it('hides Report Message when onReport is not provided', () => {
+    render(<MessageContextMenu {...defaultProps} />)
+    expect(screen.queryByText('Report Message')).toBeNull()
+  })
+
+  it('calls onReport with message id and onClose when clicked', () => {
+    const onReport = vi.fn()
+    const onClose = vi.fn()
+    render(<MessageContextMenu {...defaultProps} onReport={onReport} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Report Message'))
+    expect(onReport).toHaveBeenCalledWith(MSG.id)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+})
+
 describe('MessageContextMenu — positioning', () => {
   it('renders at the given x/y position', () => {
     render(<MessageContextMenu {...defaultProps} position={{ x: 200, y: 300 }} />)

@@ -27,6 +27,7 @@ export interface MessageContextMenuProps {
   onPin?: (msgId: string) => void
   onReply: (msg: MessageWithProfile) => void
   onEmojiSelect: (msgId: string, emoji: string) => void
+  onReport?: (msgId: string) => void
 }
 
 export default function MessageContextMenu({
@@ -43,6 +44,7 @@ export default function MessageContextMenu({
   onPin,
   onReply,
   onEmojiSelect,
+  onReport,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -192,6 +194,12 @@ export default function MessageContextMenu({
             <MarkUnreadIcon />
           </MenuItem>
 
+          {onReport && (
+            <MenuItem label="Report Message" onClick={() => { onReport(message.id); onClose() }}>
+              <FlagIcon />
+            </MenuItem>
+          )}
+
           {canDelete && (
             <>
               <div style={{ height: 1, background: 'var(--border-soft)', margin: '4px 0' }} />
@@ -338,4 +346,7 @@ function MarkUnreadIcon() {
 }
 function TrashIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+}
+function FlagIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>
 }

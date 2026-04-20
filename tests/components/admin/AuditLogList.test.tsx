@@ -1,0 +1,112 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import AuditLogList from '@/components/admin/AuditLogList'
+import type { AuditEntry } from '@/lib/types'
+
+const ENTRIES: AuditEntry[] = [
+  {
+    id: 'a1',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'role_change',
+    target_type: 'user',
+    target_id: 'u2',
+    metadata: { from_role: 'user', to_role: 'moderator', target_username: 'cool42' },
+    created_at: '2026-04-19T10:32:00Z',
+  },
+  {
+    id: 'a2',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'ban',
+    target_type: 'user',
+    target_id: 'u4',
+    metadata: { reason: 'spam', target_username: 'banned_user' },
+    created_at: '2026-04-19T09:00:00Z',
+  },
+  {
+    id: 'a3',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'delete_message',
+    target_type: 'message',
+    target_id: 'msg-1',
+    metadata: { channel_id: 'ch-1', message_preview: 'bad content' },
+    created_at: '2026-04-18T15:00:00Z',
+  },
+]
+
+const defaultProps = {
+  entries: ENTRIES,
+}
+
+describe('AuditLogList — rendering', () => {
+  it('renders an .audit-entry for each log entry', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(ENTRIES.length)
+  })
+
+  it('shows admin username in each entry', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getAllByText(/panicmonkey/i).length).toBeGreaterThan(0)
+  })
+
+  it('shows human-readable role change description', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/role.*user.*moderator|user.*→.*moderator/i)).toBeTruthy()
+  })
+
+  it('shows human-readable ban description', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/banned.*banned_user|banned_user.*banned/i)).toBeTruthy()
+  })
+
+  it('renders entries in reverse chronological order', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const entries = document.querySelectorAll('.audit-entry')
+    // First entry should be the most recent (a1)
+    expect(entries[0].textContent).toContain('cool42')
+  })
+
+  it('shows empty state when no entries', () => {
+    render(<AuditLogList entries={[]} />)
+    expect(screen.getByText(/no audit entries/i)).toBeTruthy()
+  })
+})
+
+describe('AuditLogList — filtering', () => {
+  it('has a filter by action type select', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(document.querySelector('[data-testid="audit-filter-action"]')).toBeTruthy()
+  })
+
+  it('filters entries by action type', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+    fireEvent.change(filter, { target: { value: 'ban' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+  })
+
+  it('shows all entries when filter reset to "all"', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+    fireEvent.change(filter, { target: { value: 'ban' } })
+    fireEvent.change(filter, { target: { value: 'all' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(ENTRIES.length)
+  })
+})
+
+describe('AuditLogList — CSV export', () => {
+  it('renders a CSV export button', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/export.*csv|csv.*export/i)).toBeTruthy()
+  })
+
+  it('CSV export button has data-testid="export-csv"', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(document.querySelector('[data-testid="export-csv"]')).toBeTruthy()
+  })
+})

@@ -26,6 +26,7 @@ export interface MessageModalProps {
   onPin?: (msgId: string) => void
   onReply: (msg: MessageWithProfile) => void
   onEmojiSelect: (msgId: string, emoji: string) => void
+  onReport?: (msgId: string) => void
 }
 
 export default function MessageModal({
@@ -42,6 +43,7 @@ export default function MessageModal({
   onPin,
   onReply,
   onEmojiSelect,
+  onReport,
 }: MessageModalProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [showFullPicker, setShowFullPicker] = useState(false)
@@ -204,6 +206,14 @@ export default function MessageModal({
               testId="modal-action-pin"
               label="Pin Message"
               onClick={() => { onPin?.(msg.id); onClose() }}
+            />
+          )}
+
+          {onReport && (
+            <ActionRow
+              testId="modal-action-report"
+              label="Report Message"
+              onClick={() => { onReport(msg.id); onClose() }}
             />
           )}
 
