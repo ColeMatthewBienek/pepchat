@@ -85,7 +85,7 @@ export function useMessages(
           setMessages((prev) =>
             prev.map((m) =>
               m.id === payload.new.id
-                ? { ...m, content: payload.new.content as string, edited_at: payload.new.edited_at as string | null }
+                ? { ...m, content: payload.new.content as string, edited_at: payload.new.edited_at as string | null, pinned_at: payload.new.pinned_at as string | null }
                 : m
             )
           )
