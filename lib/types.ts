@@ -95,6 +95,9 @@ export interface Message {
   reply_to_id: string | null
   edited_at: string | null
   pinned_at?: string | null
+  is_system?: boolean
+  system_type?: string | null
+  system_data?: Record<string, any> | null
   created_at: string
   attachments?: Attachment[]
   /** Joined from profiles — populated by select queries */
@@ -108,6 +111,27 @@ export type MessageWithProfile = Message & {
   profiles: Pick<Profile, 'username' | 'avatar_url' | 'display_name'>
   replied_to?: QuotedMessage | null
   reactions?: Reaction[]
+}
+
+export interface PinnedMessage {
+  id: string
+  channel_id: string
+  message_id: string
+  pinned_by_id: string | null
+  system_message_id: string | null
+  pinned_at: string
+  message: {
+    id: string
+    content: string
+    created_at: string
+    user_id: string
+    profiles: {
+      username: string
+      display_name: string | null
+      avatar_url: string | null
+      username_color: string
+    }
+  } | null
 }
 
 export interface DirectMessage {

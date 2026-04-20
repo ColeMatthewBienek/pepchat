@@ -5,9 +5,12 @@ import { useMobileSidebar } from '@/lib/context/MobileSidebarContext'
 interface ChatHeaderProps {
   channelName: string
   channelTopic?: string | null
+  pinnedCount?: number
+  pinnedPanelOpen?: boolean
+  onTogglePinnedPanel?: () => void
 }
 
-export default function ChatHeader({ channelName, channelTopic }: ChatHeaderProps) {
+export default function ChatHeader({ channelName, channelTopic, pinnedCount = 0, pinnedPanelOpen = false, onTogglePinnedPanel }: ChatHeaderProps) {
   const { open } = useMobileSidebar()
 
   return (
@@ -67,6 +70,44 @@ export default function ChatHeader({ channelName, channelTopic }: ChatHeaderProp
           </>
         )}
       </div>
+
+      {/* Right actions */}
+      {onTogglePinnedPanel && (
+        <button
+          data-testid="pin-header-btn"
+          onClick={onTogglePinnedPanel}
+          className="icon-btn relative"
+          title="Pinned messages"
+          style={{ color: pinnedCount > 0 ? 'var(--accent)' : 'var(--text-muted)' }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="17" x2="12" y2="22" />
+            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+          </svg>
+          {pinnedCount > 0 && (
+            <span
+              data-testid="pin-header-badge"
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {pinnedCount}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   )
 }
