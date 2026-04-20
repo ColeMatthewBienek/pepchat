@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
-import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
+import { editMessage, deleteMessage, pinMessage } from '@/app/(app)/messages/actions'
 import Message from '@/components/chat/Message'
+import MessageModal from '@/components/chat/MessageModal'
+import { PERMISSIONS } from '@/lib/permissions'
 import type { MessageWithProfile } from '@/lib/types'
+import type { Role } from '@/lib/permissions'
 
 const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
 
@@ -15,6 +18,7 @@ interface MessageListProps {
   currentUserId: string
   currentUsername: string
   channelName?: string
+  userRole?: Role | null
   onLoadMore: () => void
   onReact: (messageId: string, emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
@@ -22,6 +26,8 @@ interface MessageListProps {
   allowReplies?: boolean
   editAction?: (messageId: string, content: string) => Promise<{ error: string } | { ok: true }>
   deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
+  pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
+  onEditSuccess?: (messageId: string, content: string) => void
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -61,27 +67,25 @@ export default function MessageList({
   onReply,
   allowReactions = true,
   allowReplies = true,
+  userRole,
   editAction,
   deleteAction,
+  pinAction,
+  onEditSuccess,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [error, setError] = useState('')
+  const [editPending, setEditPending] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [modalMsg, setModalMsg] = useState<MessageWithProfile | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
-  const isMounted = useRef(true)
 
-  useEffect(() => {
-    return () => { isMounted.current = false }
-  }, [])
-  // Track new messages for entrance animation. New messages appended via
-  // Realtime have IDs not seen on mount; loadMore prepends old messages
-  // (first ID changes) and should not animate.
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
   const newIdsRef = useRef(new Set<string>())
@@ -89,12 +93,10 @@ export default function MessageList({
   useEffect(() => {
     const currentFirstId = messages[0]?.id
     if (currentFirstId === prevFirstIdRef.current) {
-      // First message unchanged → messages appended at bottom (realtime)
       for (const m of messages) {
         if (!knownIdsRef.current.has(m.id)) newIdsRef.current.add(m.id)
       }
     }
-    // Always update known IDs and first-ID tracker after each change
     for (const m of messages) knownIdsRef.current.add(m.id)
     prevFirstIdRef.current = currentFirstId
   }, [messages])
@@ -133,20 +135,24 @@ export default function MessageList({
     setEditContent('')
   }
 
-  function submitEdit(messageId: string) {
-    if (!editContent.trim()) return
+  async function submitEdit(messageId: string) {
+    if (!editContent.trim() || editPending) return
     setError('')
-    startTransition(async () => {
-      try {
-        const action = editAction ?? editMessage
-        const result = await action(messageId, editContent)
-        if (!isMounted.current) return
-        if ('error' in result) { setError(result.error) } else { setEditingId(null) }
-      } catch (err) {
-        if (!isMounted.current) return
-        setError(err instanceof Error ? err.message : 'Failed to save edit.')
+    setEditPending(true)
+    try {
+      const action = editAction ?? editMessage
+      const result = await action(messageId, editContent)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setEditingId(null)
+        onEditSuccess?.(messageId, editContent)
       }
-    })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save edit.')
+    } finally {
+      setEditPending(false)
+    }
   }
 
   function handleDelete(messageId: string) {
@@ -158,6 +164,27 @@ export default function MessageList({
       if ('error' in result) setError(result.error)
     })
   }
+
+  function handleModalDelete(messageId: string) {
+    setError('')
+    startTransition(async () => {
+      const action = deleteAction ?? deleteMessage
+      const result = await action(messageId)
+      if ('error' in result) setError(result.error)
+    })
+  }
+
+  function handlePin(messageId: string) {
+    setError('')
+    startTransition(async () => {
+      const action = pinAction ?? pinMessage
+      const result = await action(messageId)
+      if ('error' in result) setError(result.error)
+    })
+  }
+
+  const canDeleteAny = userRole ? PERMISSIONS.canDeleteAnyMessage(userRole) : false
+  const canPin = userRole ? PERMISSIONS.canPinMessages(userRole) : false
 
   return (
     <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -222,6 +249,8 @@ export default function MessageList({
                 isCompact={compact}
                 isOwn={isOwn}
                 currentUserId={currentUserId}
+                canDeleteAny={canDeleteAny}
+                canPin={canPin}
                 editingId={editingId}
                 editContent={editContent}
                 pickerOpenFor={pickerOpenFor}
@@ -236,9 +265,11 @@ export default function MessageList({
                 onEmojiSelect={(msgId, emoji) => { setPickerOpenFor(null); onReact(msgId, emoji) }}
                 onReact={emoji => onReact(msg.id, emoji)}
                 onReply={onReply}
+                onOpenActions={setModalMsg}
+                onPin={handlePin}
                 allowReactions={allowReactions}
                 allowReplies={allowReplies}
-                isPending={isPending}
+                isPending={editPending || isPending}
                 atReactionLimit={atReactionLimit}
               />
             </div>
@@ -285,6 +316,22 @@ export default function MessageList({
           onClose={() => setProfileCard(null)}
         />
       )}
+
+      <MessageModal
+        open={modalMsg !== null}
+        msg={modalMsg}
+        isOwn={modalMsg?.user_id === currentUserId}
+        canDeleteAny={canDeleteAny}
+        canPin={canPin}
+        allowReactions={allowReactions}
+        allowReplies={allowReplies}
+        onClose={() => setModalMsg(null)}
+        onStartEdit={msg => { startEdit(msg); setModalMsg(null) }}
+        onDelete={handleModalDelete}
+        onPin={handlePin}
+        onReply={msg => { onReply(msg); setModalMsg(null) }}
+        onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
+      />
     </div>
   )
 }

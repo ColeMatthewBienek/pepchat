@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import ChannelShell from '@/components/chat/ChannelShell'
 import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile, Profile } from '@/lib/types'
+import type { Role } from '@/lib/permissions'
 
 export default async function ChannelPage({
   params,
@@ -31,6 +32,15 @@ export default async function ChannelPage({
 
   if (!profile) redirect('/login')
 
+  // Fetch current user's role in the group that owns this channel
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', channel.group_id)
+    .eq('user_id', user.id)
+    .single()
+  const userRole = (membership?.role ?? null) as Role | null
+
   // Fetch last 50 messages (descending, then reverse for chronological display)
   const { data: messages } = await supabase
     .from('messages')
@@ -49,6 +59,8 @@ export default async function ChannelPage({
         channelTopic={channel.description}
         initialMessages={initialMessages}
         profile={profile as Profile}
+        userRole={userRole}
+        userId={user.id}
       />
     </div>
   )

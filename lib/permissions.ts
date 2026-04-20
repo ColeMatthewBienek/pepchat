@@ -52,4 +52,8 @@ export const PERMISSIONS = {
 
   /** Can send direct messages. All roles. */
   canSendDMs: (_role: Role) => true,
+
+  /** Can pin/unpin messages in a channel. */
+  canPinMessages: (role: Role) =>
+    (['admin', 'moderator'] as Role[]).includes(role),
 } as const

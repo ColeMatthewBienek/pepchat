@@ -3,9 +3,10 @@
 import dynamic from 'next/dynamic'
 import Avatar from '@/components/ui/Avatar'
 import ReactionPills from '@/components/chat/ReactionPills'
-import ReactionPicker from '@/components/chat/ReactionPicker'
 import MessageAttachments from '@/components/chat/MessageAttachments'
 import { MessageContent } from '@/components/chat/MessageContent'
+import MessageActionBar from '@/components/chat/MessageActionBar'
+import { useLongPress } from '@/lib/hooks/useLongPress'
 import type { MessageWithProfile } from '@/lib/types'
 
 const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
@@ -19,6 +20,8 @@ export interface MessageProps {
   isCompact: boolean
   isOwn: boolean
   currentUserId: string
+  canDeleteAny?: boolean
+  canPin?: boolean
   editingId: string | null
   editContent: string
   pickerOpenFor: string | null
@@ -33,6 +36,8 @@ export interface MessageProps {
   onEmojiSelect: (msgId: string, emoji: string) => void
   onReact: (emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
+  onOpenActions?: (msg: MessageWithProfile) => void
+  onPin?: (msgId: string) => void
   allowReactions?: boolean
   allowReplies?: boolean
   isPending?: boolean
@@ -44,6 +49,8 @@ export default function Message({
   isCompact,
   isOwn,
   currentUserId,
+  canDeleteAny = false,
+  canPin = false,
   editingId,
   editContent,
   pickerOpenFor,
@@ -58,6 +65,8 @@ export default function Message({
   onEmojiSelect,
   onReact,
   onReply,
+  onOpenActions,
+  onPin,
   allowReactions = true,
   allowReplies = true,
   isPending = false,
@@ -67,6 +76,8 @@ export default function Message({
   const displayName = msg.profiles?.display_name ?? msg.profiles?.username ?? 'Unknown'
   const usernameColor = (msg.profiles as any)?.username_color ?? 'var(--text-primary)'
 
+  const longPress = useLongPress(() => onOpenActions?.(msg))
+
   return (
     <div
       className="group/msg flex items-start gap-3 rounded px-2 hover:bg-[var(--bg-hover)] transition-colors"
@@ -75,6 +86,12 @@ export default function Message({
         paddingBottom: 2,
         position: 'relative',
       }}
+      {...(!isEditing && onOpenActions ? {
+        onPointerDown: longPress.onPointerDown,
+        onPointerUp: longPress.onPointerUp,
+        onPointerMove: longPress.onPointerMove,
+        onPointerLeave: longPress.onPointerLeave,
+      } : {})}
     >
       {/* Avatar column — 36px */}
       <div style={{ width: 36, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
@@ -172,6 +189,7 @@ export default function Message({
               value={editContent}
               onChange={e => onEditContentChange(e.target.value)}
               onKeyDown={e => {
+                e.stopPropagation()
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmitEdit(msg.id) }
                 if (e.key === 'Escape') onCancelEdit()
               }}
@@ -208,81 +226,26 @@ export default function Message({
         )}
       </div>
 
-      {/* Hover action toolbar */}
+      {/* Hover action bar (desktop only) */}
       {!isEditing && (
-        <div
-          className="hidden group-hover/msg:flex items-center gap-0.5 flex-shrink-0"
-          style={{
-            position: 'absolute',
-            top: -10,
-            right: 8,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: 'var(--radius-md)',
-            padding: '2px 4px',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
-          }}
-        >
-          {allowReactions && (
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => onPickerToggle(msg.id)}
-                title={atReactionLimit ? 'Max 20 emoji per message' : 'Add reaction'}
-                disabled={atReactionLimit && !(msg.reactions ?? []).some(r => r.user_id === currentUserId)}
-                className="icon-btn disabled:opacity-30 disabled:cursor-default"
-                style={{ padding: 6 }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" />
-                </svg>
-              </button>
-              {pickerOpenFor === msg.id && (
-                <ReactionPicker
-                  onSelect={emoji => onEmojiSelect(msg.id, emoji)}
-                  onClose={onPickerClose}
-                />
-              )}
-            </div>
-          )}
-
-          {allowReplies && (
-            <button
-              onClick={() => onReply(msg)}
-              title="Reply"
-              className="icon-btn"
-              style={{ padding: 6 }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M9 17l-5-5 5-5M4 12h11a5 5 0 0 1 0 10h-2" />
-              </svg>
-            </button>
-          )}
-
-          {isOwn && (
-            <>
-              <button
-                onClick={() => onStartEdit(msg)}
-                title="Edit"
-                className="icon-btn"
-                style={{ padding: 6 }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => onDelete(msg.id)}
-                title="Delete"
-                className="icon-btn hover:text-[var(--danger)] hover:bg-[var(--danger)]/10"
-                style={{ padding: 6 }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
+        <MessageActionBar
+          msg={msg}
+          isOwn={isOwn}
+          canDeleteAny={canDeleteAny}
+          canPin={canPin}
+          allowReactions={allowReactions}
+          allowReplies={allowReplies}
+          atReactionLimit={atReactionLimit}
+          currentUserId={currentUserId}
+          pickerOpenFor={pickerOpenFor}
+          onPickerToggle={onPickerToggle}
+          onPickerClose={onPickerClose}
+          onEmojiSelect={onEmojiSelect}
+          onReply={onReply}
+          onStartEdit={onStartEdit}
+          onDelete={onDelete}
+          onPin={onPin}
+        />
       )}
     </div>
   )

@@ -10,7 +10,9 @@ import MessageInput from '@/components/chat/MessageInput'
 import TypingIndicator from '@/components/chat/TypingIndicator'
 import PresencePanel from '@/components/chat/PresencePanel'
 import { toggleReaction } from '@/app/(app)/reactions/actions'
+import { createClient } from '@/lib/supabase/client'
 import type { MessageWithProfile, Profile } from '@/lib/types'
+import type { Role } from '@/lib/permissions'
 
 interface ChannelShellProps {
   channelId: string
@@ -18,6 +20,9 @@ interface ChannelShellProps {
   channelTopic?: string | null
   initialMessages: MessageWithProfile[]
   profile: Profile
+  userRole?: Role | null
+  /** Auth user ID — used for message ownership checks. Defaults to profile.id. */
+  userId?: string
 }
 
 /**
@@ -30,6 +35,8 @@ export default function ChannelShell({
   channelTopic,
   initialMessages,
   profile,
+  userRole,
+  userId,
 }: ChannelShellProps) {
   const {
     messages,
@@ -40,6 +47,7 @@ export default function ChannelShell({
     broadcastNewMessage,
     toggleReactionOptimistic,
     broadcastReactionChange,
+    updateMessageContent,
   } = useMessages(channelId, initialMessages, profile.id)
 
   const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(channelId, {
@@ -63,6 +71,22 @@ export default function ChannelShell({
       markChannelRead(channelId, profile.id)
     }
   }, [messages.length, channelId, profile.id])
+
+  const handleEdit = useCallback(async (
+    messageId: string,
+    content: string
+  ): Promise<{ error: string } | { ok: true }> => {
+    const trimmed = content.trim()
+    if (!trimmed) return { error: 'Message cannot be empty.' }
+    if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: trimmed, edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+    if (error) return { error: error.message }
+    return { ok: true }
+  }, [])
 
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
     toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
@@ -88,11 +112,14 @@ export default function ChannelShell({
           messages={messages}
           hasMore={hasMore}
           loadingMore={loadingMore}
-          currentUserId={profile.id}
+          currentUserId={userId ?? profile.id}
           currentUsername={profile.username}
           onLoadMore={loadMore}
+          editAction={handleEdit}
           onReact={handleReact}
           onReply={setReplyingTo}
+          userRole={userRole}
+          onEditSuccess={updateMessageContent}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput

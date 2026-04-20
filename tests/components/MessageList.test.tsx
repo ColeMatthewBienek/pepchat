@@ -142,4 +142,29 @@ describe('MessageList — submitEdit', () => {
     fireEvent.keyDown(screen.getByTestId('edit-textarea'), { key: 'Escape' })
     expect(screen.queryByTestId('edit-textarea')).not.toBeInTheDocument()
   })
+
+  it('calls onEditSuccess with messageId and trimmed content when edit succeeds', async () => {
+    const editAction = vi.fn().mockResolvedValue({ ok: true })
+    const onEditSuccess = vi.fn()
+    render(<MessageList {...BASE_PROPS} editAction={editAction} onEditSuccess={onEditSuccess} />)
+
+    fireEvent.click(screen.getByTestId('edit-btn-msg-1'))
+    fireEvent.change(screen.getByTestId('edit-textarea'), { target: { value: '  New content  ' } })
+    fireEvent.keyDown(screen.getByTestId('edit-textarea'), { key: 'Enter', shiftKey: false })
+
+    await waitFor(() => expect(onEditSuccess).toHaveBeenCalledWith('msg-1', '  New content  '))
+  })
+
+  it('does not call onEditSuccess when edit returns an error', async () => {
+    const editAction = vi.fn().mockResolvedValue({ error: 'Failed' })
+    const onEditSuccess = vi.fn()
+    render(<MessageList {...BASE_PROPS} editAction={editAction} onEditSuccess={onEditSuccess} />)
+
+    fireEvent.click(screen.getByTestId('edit-btn-msg-1'))
+    fireEvent.change(screen.getByTestId('edit-textarea'), { target: { value: 'New content' } })
+    fireEvent.keyDown(screen.getByTestId('edit-textarea'), { key: 'Enter', shiftKey: false })
+
+    await waitFor(() => expect(screen.getByText('Failed')).toBeInTheDocument())
+    expect(onEditSuccess).not.toHaveBeenCalled()
+  })
 })
