@@ -146,7 +146,6 @@ export async function transferOwnership(
   groupName: string,
   newOwnerId: string,
   fromUsername: string,
-  toUsername: string,
 ): Promise<ActionResult> {
   const adminId = await getAdminUserId()
   if (!adminId) return { error: 'Unauthorized' }
@@ -159,10 +158,16 @@ export async function transferOwnership(
 
   if (error) return { error: error.message }
 
+  const { data: newOwner } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', newOwnerId)
+    .single()
+
   await logAudit(adminId, 'transfer_ownership', 'group', groupId, {
     group_name: groupName,
     from_user: fromUsername,
-    to_user: toUsername,
+    to_user: (newOwner as any)?.username ?? newOwnerId,
   })
   return { ok: true }
 }

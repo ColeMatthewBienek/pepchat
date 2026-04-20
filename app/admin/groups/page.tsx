@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import GroupTable from '@/components/admin/GroupTable'
-import { deleteGroup, transferOwnership } from '@/app/admin/actions'
 import type { AdminGroup } from '@/lib/types'
 
 export const runtime = 'edge'
@@ -37,31 +36,12 @@ export default async function GroupsPage() {
     created_at: g.created_at,
   }))
 
-  async function handleDelete(groupId: string) {
-    'use server'
-    const group = groups.find(g => g.id === groupId)
-    await deleteGroup(groupId, group?.name ?? groupId)
-  }
-
-  async function handleTransfer(groupId: string, newOwnerId: string) {
-    'use server'
-    const group = groups.find(g => g.id === groupId)
-    if (!group) return
-    const supabase2 = await createClient()
-    const { data: newOwner } = await supabase2.from('profiles').select('username').eq('id', newOwnerId).single()
-    await transferOwnership(groupId, group.name, newOwnerId, group.owner_username, (newOwner as any)?.username ?? newOwnerId)
-  }
-
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 24 }}>
         Groups
       </h1>
-      <GroupTable
-        groups={groups}
-        onDelete={handleDelete}
-        onTransferOwnership={handleTransfer}
-      />
+      <GroupTable groups={groups} />
     </div>
   )
 }

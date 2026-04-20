@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import ReportsTable from '@/components/admin/ReportsTable'
-import { markReportReviewed, dismissReport } from '@/app/admin/actions'
-import { deleteMessage } from '@/app/(app)/messages/actions'
 import type { AdminReport } from '@/lib/types'
 
 export const runtime = 'edge'
@@ -30,32 +28,12 @@ export default async function ReportsPage() {
     created_at: r.created_at,
   }))
 
-  async function handleMarkReviewed(reportId: string) {
-    'use server'
-    await markReportReviewed(reportId)
-  }
-
-  async function handleDismiss(reportId: string) {
-    'use server'
-    await dismissReport(reportId)
-  }
-
-  async function handleDeleteMessage(messageId: string) {
-    'use server'
-    await deleteMessage(messageId)
-  }
-
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 24 }}>
         Reports
       </h1>
-      <ReportsTable
-        reports={reports}
-        onMarkReviewed={handleMarkReviewed}
-        onDismiss={handleDismiss}
-        onDeleteMessage={handleDeleteMessage}
-      />
+      <ReportsTable reports={reports} />
     </div>
   )
 }

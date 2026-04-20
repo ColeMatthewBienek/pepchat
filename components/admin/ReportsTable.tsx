@@ -1,12 +1,12 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+import { markReportReviewed, dismissReport } from '@/app/admin/actions'
+import { deleteMessage } from '@/app/(app)/messages/actions'
 import type { AdminReport } from '@/lib/types'
 
 interface ReportsTableProps {
   reports: AdminReport[]
-  onMarkReviewed: (reportId: string) => Promise<void>
-  onDismiss: (reportId: string) => Promise<void>
-  onDeleteMessage: (messageId: string) => Promise<void>
 }
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
@@ -15,7 +15,24 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
   dismissed:  { color: 'var(--text-faint)', background: 'var(--bg-tertiary)' },
 }
 
-export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDeleteMessage }: ReportsTableProps) {
+export default function ReportsTable({ reports }: ReportsTableProps) {
+  const router = useRouter()
+
+  async function handleMarkReviewed(reportId: string) {
+    await markReportReviewed(reportId)
+    router.refresh()
+  }
+
+  async function handleDismiss(reportId: string) {
+    await dismissReport(reportId)
+    router.refresh()
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    await deleteMessage(messageId)
+    router.refresh()
+  }
+
   if (reports.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '48px 32px' }}>
@@ -69,9 +86,9 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
             </td>
             <td style={{ padding: '10px 12px' }}>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button title="mark reviewed" onClick={() => onMarkReviewed(report.id)} style={actionBtn('#6aa08a')}>✓</button>
-                <button title="dismiss" onClick={() => onDismiss(report.id)} style={actionBtn('var(--text-faint)')}>✕</button>
-                <button title="delete message" onClick={() => onDeleteMessage(report.message_id)} style={actionBtn('var(--danger)')}>🗑</button>
+                <button title="mark reviewed" onClick={() => handleMarkReviewed(report.id)} style={actionBtn('#6aa08a')}>✓</button>
+                <button title="dismiss" onClick={() => handleDismiss(report.id)} style={actionBtn('var(--text-faint)')}>✕</button>
+                <button title="delete message" onClick={() => handleDeleteMessage(report.message_id)} style={actionBtn('var(--danger)')}>🗑</button>
               </div>
             </td>
           </tr>

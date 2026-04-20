@@ -1,24 +1,30 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import GroupIcon from '@/components/ui/GroupIcon'
+import { deleteGroup, transferOwnership } from '@/app/admin/actions'
 import type { AdminGroup } from '@/lib/types'
 
 interface GroupTableProps {
   groups: AdminGroup[]
-  onDelete: (groupId: string) => Promise<void>
-  onTransferOwnership: (groupId: string, newOwnerId: string) => Promise<void>
 }
 
-export default function GroupTable({ groups, onDelete, onTransferOwnership }: GroupTableProps) {
+export default function GroupTable({ groups }: GroupTableProps) {
+  const router = useRouter()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function doDelete(groupId: string) {
+    const group = groups.find(g => g.id === groupId)
     setPending(groupId)
-    await onDelete(groupId)
+    setError(null)
+    const result = await deleteGroup(groupId, group?.name ?? groupId)
     setPending(null)
     setConfirmDelete(null)
+    if ('error' in result) setError(result.error)
+    else router.refresh()
   }
 
   function formatDate(iso: string) {
@@ -35,6 +41,11 @@ export default function GroupTable({ groups, onDelete, onTransferOwnership }: Gr
 
   return (
     <div>
+      {error && (
+        <p style={{ fontSize: 13, color: 'var(--danger)', background: 'rgba(201,74,42,0.1)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: 12 }}>
+          {error}
+        </p>
+      )}
       <div className="table-scroll-wrapper">
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
