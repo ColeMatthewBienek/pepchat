@@ -30,6 +30,14 @@ vi.mock('@/components/chat/Message', () => ({
   },
 }))
 
+vi.mock('@/components/chat/SystemMessage', () => ({
+  default: ({ msg, onOpenPinnedPanel }: any) => (
+    <div data-testid={`system-msg-${msg.id}`}>
+      <button data-testid="system-see-all" onClick={onOpenPinnedPanel}>See all</button>
+    </div>
+  ),
+}))
+
 vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/app/(app)/messages/actions', () => ({
   editMessage: vi.fn(),
@@ -166,5 +174,51 @@ describe('MessageList — submitEdit', () => {
 
     await waitFor(() => expect(screen.getByText('Failed')).toBeInTheDocument())
     expect(onEditSuccess).not.toHaveBeenCalled()
+  })
+})
+
+const SYS_MSG: MessageWithProfile = {
+  id: 'sys-1',
+  user_id: 'u1',
+  channel_id: 'ch-1',
+  content: '',
+  created_at: new Date().toISOString(),
+  edited_at: null,
+  reply_to_id: null,
+  replied_to: null,
+  attachments: [],
+  reactions: [],
+  profiles: { username: 'alice', display_name: null, avatar_url: null },
+  is_system: true,
+  system_type: 'pin',
+  system_data: { pinned_by: 'Alice', message_id: 'msg-1' },
+}
+
+describe('MessageList — system messages', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renders SystemMessage instead of Message for is_system=true', () => {
+    render(<MessageList {...BASE_PROPS} messages={[SYS_MSG]} />)
+    expect(screen.getByTestId('system-msg-sys-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('msg-sys-1')).not.toBeInTheDocument()
+  })
+
+  it('still renders normal Message for regular messages', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG]} />)
+    expect(screen.getByTestId('msg-msg-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('system-msg-msg-1')).not.toBeInTheDocument()
+  })
+
+  it('passes onOpenPinnedPanel to SystemMessage', () => {
+    const onOpenPinnedPanel = vi.fn()
+    render(<MessageList {...BASE_PROPS} messages={[SYS_MSG]} onOpenPinnedPanel={onOpenPinnedPanel} />)
+    fireEvent.click(screen.getByTestId('system-see-all'))
+    expect(onOpenPinnedPanel).toHaveBeenCalledOnce()
+  })
+
+  it('can render a mix of regular and system messages', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SYS_MSG]} />)
+    expect(screen.getByTestId('msg-msg-1')).toBeInTheDocument()
+    expect(screen.getByTestId('system-msg-sys-1')).toBeInTheDocument()
   })
 })

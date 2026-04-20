@@ -267,3 +267,13 @@ select:focus-visible {
 .message-content > *:last-child {
   margin-bottom: 0;
 }
+
+@keyframes message-highlight {
+  0%   { background: rgba(230, 84, 58, 0.2); }
+  100% { background: transparent; }
+}
+
+.message-highlighted {
+  animation: message-highlight 1.5s ease-out forwards;
+  border-radius: var(--radius-md);
+}
