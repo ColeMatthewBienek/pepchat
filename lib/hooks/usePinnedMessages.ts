@@ -6,7 +6,7 @@ import type { PinnedMessage } from '@/lib/types'
 
 const PINNED_SELECT = `
   id, channel_id, message_id, pinned_by_id, system_message_id, pinned_at,
-  message:messages(
+  message:messages!pinned_messages_message_id_fkey(
     id, content, created_at, user_id,
     profiles(username, display_name, avatar_url, username_color)
   )
