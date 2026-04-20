@@ -85,11 +85,6 @@ export default function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
-  const isMounted = useRef(true)
-
-  useEffect(() => {
-    return () => { isMounted.current = false }
-  }, [])
 
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
@@ -147,7 +142,6 @@ export default function MessageList({
     try {
       const action = editAction ?? editMessage
       const result = await action(messageId, editContent)
-      if (!isMounted.current) return
       if ('error' in result) {
         setError(result.error)
       } else {
@@ -155,10 +149,9 @@ export default function MessageList({
         onEditSuccess?.(messageId, editContent)
       }
     } catch (err) {
-      if (!isMounted.current) return
       setError(err instanceof Error ? err.message : 'Failed to save edit.')
     } finally {
-      if (isMounted.current) setEditPending(false)
+      setEditPending(false)
     }
   }
 
