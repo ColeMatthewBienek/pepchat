@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
 import Message from '@/components/chat/Message'
 import MessageModal from '@/components/chat/MessageModal'
+import MessageContextMenu from '@/components/chat/MessageContextMenu'
 import SystemMessage from '@/components/chat/SystemMessage'
 import { PERMISSIONS } from '@/lib/permissions'
 import type { MessageWithProfile } from '@/lib/types'
@@ -87,6 +88,7 @@ export default function MessageList({
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [modalMsg, setModalMsg] = useState<MessageWithProfile | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ msg: MessageWithProfile; x: number; y: number } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -284,6 +286,7 @@ export default function MessageList({
                   onReact={emoji => onReact(msg.id, emoji)}
                   onReply={onReply}
                   onOpenActions={setModalMsg}
+                  onOpenContextMenu={(msg, x, y) => setContextMenu({ msg, x, y })}
                   onPin={handlePin}
                   allowReactions={allowReactions}
                   allowReplies={allowReplies}
@@ -351,6 +354,25 @@ export default function MessageList({
         onReply={msg => { onReply(msg); setModalMsg(null) }}
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
       />
+
+      {contextMenu && (
+        <MessageContextMenu
+          message={contextMenu.msg}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          isOwn={contextMenu.msg.user_id === currentUserId}
+          canDeleteAny={canDeleteAny}
+          canPin={canPin}
+          allowReactions={allowReactions}
+          allowReplies={allowReplies}
+          currentUserId={currentUserId}
+          onClose={() => setContextMenu(null)}
+          onStartEdit={msg => { startEdit(msg); setContextMenu(null) }}
+          onDelete={msgId => { handleDelete(msgId); setContextMenu(null) }}
+          onPin={handlePin}
+          onReply={msg => { onReply(msg); setContextMenu(null) }}
+          onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
+        />
+      )}
     </div>
   )
 }
