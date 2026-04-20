@@ -345,17 +345,32 @@ export default function ChannelsSidebar({
             </div>
           </div>
         </Link>
-        <form action={logout}>
-          <button
-            type="submit"
-            title="Log out"
-            className="icon-btn"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </button>
-        </form>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          {userRole === 'admin' && (
+            <a
+              href="/admin"
+              style={{
+                fontSize: 11,
+                color: 'var(--accent)',
+                textDecoration: 'none',
+                fontWeight: 600,
+              }}
+            >
+              Admin
+            </a>
+          )}
+          <form action={logout}>
+            <button
+              type="submit"
+              title="Log out"
+              className="icon-btn"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

@@ -246,3 +246,24 @@ describe('MessageModal — full emoji picker', () => {
     expect(onClose).toHaveBeenCalled()
   })
 })
+
+describe('MessageModal — report', () => {
+  it('shows Report Message action when onReport is provided', () => {
+    render(<MessageModal {...BASE} onReport={vi.fn()} />)
+    expect(screen.getByTestId('modal-action-report')).toBeInTheDocument()
+  })
+
+  it('hides Report Message action when onReport is not provided', () => {
+    render(<MessageModal {...BASE} />)
+    expect(screen.queryByTestId('modal-action-report')).not.toBeInTheDocument()
+  })
+
+  it('calls onReport with message id and onClose when Report clicked', () => {
+    const onReport = vi.fn()
+    const onClose = vi.fn()
+    render(<MessageModal {...BASE} onReport={onReport} onClose={onClose} />)
+    fireEvent.click(screen.getByTestId('modal-action-report'))
+    expect(onReport).toHaveBeenCalledWith('msg-1')
+    expect(onClose).toHaveBeenCalled()
+  })
+})

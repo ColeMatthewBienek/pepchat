@@ -168,6 +168,54 @@ export interface ChannelReadState {
   last_read_at: string
 }
 
+/** Admin dashboard types */
+
+export interface AdminUser {
+  id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  role: 'admin' | 'moderator' | 'user' | 'noob'
+  group_id: string
+  joined_at: string
+  last_active: string | null
+  is_banned: boolean
+}
+
+export interface AdminGroup {
+  id: string
+  name: string
+  icon_url: string | null
+  owner_id: string
+  owner_username: string
+  member_count: number
+  channel_count: number
+  created_at: string
+}
+
+export interface AdminReport {
+  id: string
+  message_id: string
+  message_content: string
+  reported_by: string
+  reporter_username: string
+  reason: string | null
+  status: 'pending' | 'reviewed' | 'dismissed'
+  created_at: string
+}
+
+export interface AuditEntry {
+  id: string
+  admin_id: string
+  admin_username: string
+  admin_avatar_url: string | null
+  action: string
+  target_type: string | null
+  target_id: string | null
+  metadata: Record<string, any> | null
+  created_at: string
+}
+
 /** Presence payload for a single online user */
 export interface PresenceUser {
   user_id: string
