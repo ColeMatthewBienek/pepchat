@@ -37,6 +37,7 @@ export interface MessageProps {
   onReact: (emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
   onOpenActions?: (msg: MessageWithProfile) => void
+  onOpenContextMenu?: (msg: MessageWithProfile, x: number, y: number) => void
   onPin?: (msgId: string) => void
   allowReactions?: boolean
   allowReplies?: boolean
@@ -66,6 +67,7 @@ export default function Message({
   onReact,
   onReply,
   onOpenActions,
+  onOpenContextMenu,
   onPin,
   allowReactions = true,
   allowReplies = true,
@@ -80,12 +82,22 @@ export default function Message({
 
   return (
     <div
-      className="group/msg flex items-start gap-3 rounded px-2 hover:bg-[var(--bg-hover)] transition-colors"
+      className={`message-row group/msg flex items-start gap-3 rounded px-2 hover:bg-[var(--bg-hover)] transition-colors${isOwn ? ' own-message' : ''}`}
       style={{
         paddingTop: isCompact ? 2 : 16,
         paddingBottom: 2,
         position: 'relative',
       }}
+      onContextMenu={onOpenContextMenu ? (e) => {
+        e.preventDefault()
+        const vw = window.innerWidth
+        const menuWidth = 220
+        const x = e.clientX + menuWidth > vw ? vw - menuWidth - 8 : e.clientX
+        const vh = window.innerHeight
+        const menuHeight = 320
+        const y = e.clientY + menuHeight > vh ? vh - menuHeight - 8 : e.clientY
+        onOpenContextMenu(msg, x, y)
+      } : undefined}
       {...(!isEditing && onOpenActions ? {
         onPointerDown: longPress.onPointerDown,
         onPointerUp: longPress.onPointerUp,
