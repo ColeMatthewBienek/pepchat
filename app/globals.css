@@ -283,6 +283,17 @@ select:focus-visible {
   to   { opacity: 1; transform: scale(1); }
 }
 
+/* Remove 300ms tap delay and grey flash on interactive elements */
+a, button, [role="button"], .channel-row, .dm-entry {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS callout menu (Copy/Look Up/Translate) on long-press targets */
+.message-row {
+  -webkit-touch-callout: none;
+}
+
 /* Admin dashboard nav — desktop sidebar */
 .admin-nav {
   width: 220px;
