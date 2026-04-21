@@ -267,3 +267,106 @@ select:focus-visible {
 .message-content > *:last-child {
   margin-bottom: 0;
 }
+
+@keyframes message-highlight {
+  0%   { background: rgba(230, 84, 58, 0.2); }
+  100% { background: transparent; }
+}
+
+.message-highlighted {
+  animation: message-highlight 1.5s ease-out forwards;
+  border-radius: var(--radius-md);
+}
+
+@keyframes ctx-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Remove 300ms tap delay and grey flash on interactive elements */
+a, button, [role="button"], .channel-row, .dm-entry {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS callout menu (Copy/Look Up/Translate) on long-press targets */
+.message-row {
+  -webkit-touch-callout: none;
+}
+
+/* Admin dashboard nav — desktop sidebar */
+.admin-nav {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-soft);
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: background 80ms ease;
+}
+
+.admin-nav-link[data-active="true"] {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border-left-color: var(--accent);
+}
+
+/* Admin dashboard responsive layout */
+@media (max-width: 640px) {
+  .admin-shell {
+    flex-direction: column;
+  }
+  .admin-nav {
+    width: auto;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--border-soft);
+    padding: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-nav-link {
+    display: inline-flex;
+    padding: 12px 16px;
+    font-size: 13px;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    white-space: nowrap;
+  }
+  .admin-nav-link[data-active="true"] {
+    color: var(--accent);
+    background: transparent;
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+  }
+  .admin-shell > main {
+    padding: 16px !important;
+  }
+  /* Tables: allow horizontal scroll on mobile */
+  .admin-shell table {
+    min-width: 520px;
+  }
+  .admin-shell .table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

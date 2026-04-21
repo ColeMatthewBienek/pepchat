@@ -11,6 +11,16 @@ interface LongPressHandlers {
   onPointerLeave: () => void
 }
 
+function disableSelection() {
+  document.body.style.userSelect = 'none'
+  ;(document.body.style as any).webkitUserSelect = 'none'
+}
+
+function enableSelection() {
+  document.body.style.userSelect = ''
+  ;(document.body.style as any).webkitUserSelect = ''
+}
+
 export function useLongPress(
   onLongPress: () => void,
   { delay = 500 }: UseLongPressOptions = {}
@@ -21,14 +31,17 @@ export function useLongPress(
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
       timerRef.current = null
+      enableSelection()
     }
   }, [])
 
   const onPointerDown = useCallback((e: PointerEvent | React.PointerEvent) => {
     if (e.pointerType !== 'touch') return
+    disableSelection()
     clear()
     timerRef.current = setTimeout(() => {
       timerRef.current = null
+      enableSelection()
       onLongPress()
     }, delay)
   }, [onLongPress, delay, clear])
