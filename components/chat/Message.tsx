@@ -199,30 +199,52 @@ export default function Message({
 
         {/* Edit mode */}
         {isEditing ? (
-          <div>
-            <textarea
-              data-testid="message-edit-textarea"
-              className="w-full rounded border text-sm text-[var(--text-primary)] px-3 py-2 resize-none focus:outline-none focus:border-[var(--accent)]"
-              style={{
-                background: 'var(--bg-tertiary)',
-                borderColor: 'var(--border-strong)',
-                borderRadius: 'var(--radius-md)',
-              }}
-              rows={3}
-              value={editContent}
-              onChange={e => onEditContentChange(e.target.value)}
-              onKeyDown={e => {
-                e.stopPropagation()
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmitEdit(msg.id) }
-                if (e.key === 'Escape') onCancelEdit()
-              }}
-              autoFocus
-              disabled={isPending}
+          <>
+            {/* Backdrop — tap outside to cancel */}
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+              onPointerDown={() => onCancelEdit()}
             />
-            <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4 }}>
-              escape to cancel · enter to save
-            </p>
-          </div>
+            <div style={{ position: 'relative', zIndex: 11 }}>
+              <textarea
+                data-testid="message-edit-textarea"
+                className="w-full rounded border text-sm text-[var(--text-primary)] px-3 py-2 resize-none focus:outline-none focus:border-[var(--accent)]"
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  borderColor: 'var(--border-strong)',
+                  borderRadius: 'var(--radius-md)',
+                }}
+                rows={3}
+                value={editContent}
+                onChange={e => onEditContentChange(e.target.value)}
+                onKeyDown={e => {
+                  e.stopPropagation()
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmitEdit(msg.id) }
+                  if (e.key === 'Escape') onCancelEdit()
+                }}
+                autoFocus
+                disabled={isPending}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, justifyContent: 'flex-end' }}>
+                <button
+                  onPointerDown={e => { e.stopPropagation(); onCancelEdit() }}
+                  style={{ padding: '6px 14px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onPointerDown={e => { e.stopPropagation(); onSubmitEdit(msg.id) }}
+                  disabled={isPending}
+                  style={{ padding: '6px 14px', background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Save
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4, textAlign: 'right' }}>
+                escape to cancel · enter to save
+              </p>
+            </div>
+          </>
         ) : (
           <>
             {msg.content && (
