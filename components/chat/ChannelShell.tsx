@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMessages } from '@/lib/hooks/useMessages'
+import { usePinnedMessages } from '@/lib/hooks/usePinnedMessages'
 import { markChannelRead } from '@/lib/channelReadState'
 import { usePresence } from '@/lib/hooks/usePresence'
 import ChatHeader from '@/components/chat/ChatHeader'
@@ -9,8 +10,11 @@ import MessageList from '@/components/chat/MessageList'
 import MessageInput from '@/components/chat/MessageInput'
 import TypingIndicator from '@/components/chat/TypingIndicator'
 import PresencePanel from '@/components/chat/PresencePanel'
+import PinnedMessagesPanel from '@/components/chat/PinnedMessagesPanel'
 import { toggleReaction } from '@/app/(app)/reactions/actions'
+import { pinMessage, unpinMessage } from '@/app/(app)/messages/actions'
 import { createClient } from '@/lib/supabase/client'
+import { PERMISSIONS } from '@/lib/permissions'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
@@ -27,7 +31,7 @@ interface ChannelShellProps {
 
 /**
  * Client wrapper for the chat area.
- * Owns message state, presence state, and reply-to state.
+ * Owns message state, presence state, reply-to state, and pinned panel state.
  */
 export default function ChannelShell({
   channelId,
@@ -48,7 +52,10 @@ export default function ChannelShell({
     toggleReactionOptimistic,
     broadcastReactionChange,
     updateMessageContent,
+    updateMessagePinnedAt,
   } = useMessages(channelId, initialMessages, profile.id)
+
+  const { pinnedMessages, pinnedCount, refetch: refetchPins } = usePinnedMessages(channelId)
 
   const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(channelId, {
     user_id:    profile.id,
@@ -57,6 +64,10 @@ export default function ChannelShell({
   })
 
   const [replyingTo, setReplyingTo] = useState<MessageWithProfile | null>(null)
+  const [pinnedPanelOpen, setPinnedPanelOpen] = useState(false)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+
+  const canPin = userRole ? PERMISSIONS.canPinMessages(userRole) : false
 
   // Mark channel as read on mount (channel navigation)
   useEffect(() => {
@@ -88,6 +99,28 @@ export default function ChannelShell({
     return { ok: true }
   }, [])
 
+  const handlePin = useCallback(async (messageId: string) => {
+    const result = await pinMessage(messageId, channelId)
+    if ('ok' in result) {
+      updateMessagePinnedAt(messageId, new Date().toISOString())
+      refetchPins()
+    }
+    return result
+  }, [channelId, updateMessagePinnedAt, refetchPins])
+
+  const handleUnpin = useCallback(async (pinnedId: string) => {
+    const pin = pinnedMessages.find(p => p.id === pinnedId)
+    await unpinMessage(pinnedId)
+    if (pin) updateMessagePinnedAt(pin.message_id, null)
+  }, [pinnedMessages, updateMessagePinnedAt])
+
+  const handleJump = useCallback((messageId: string) => {
+    setPinnedPanelOpen(false)
+    setHighlightedMessageId(messageId)
+    // Reset after animation so the same message can be jumped to again
+    setTimeout(() => setHighlightedMessageId(null), 1700)
+  }, [])
+
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
     toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
 
@@ -107,7 +140,13 @@ export default function ChannelShell({
         className="flex flex-col flex-1 min-w-0 min-h-0"
         style={{ background: 'var(--bg-chat)' }}
       >
-        <ChatHeader channelName={channelName} channelTopic={channelTopic} />
+        <ChatHeader
+          channelName={channelName}
+          channelTopic={channelTopic}
+          pinnedCount={pinnedCount}
+          pinnedPanelOpen={pinnedPanelOpen}
+          onTogglePinnedPanel={() => setPinnedPanelOpen(o => !o)}
+        />
         <MessageList
           messages={messages}
           hasMore={hasMore}
@@ -116,10 +155,13 @@ export default function ChannelShell({
           currentUsername={profile.username}
           onLoadMore={loadMore}
           editAction={handleEdit}
+          pinAction={handlePin}
           onReact={handleReact}
           onReply={setReplyingTo}
           userRole={userRole}
           onEditSuccess={updateMessageContent}
+          onOpenPinnedPanel={() => setPinnedPanelOpen(true)}
+          highlightedMessageId={highlightedMessageId}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput
@@ -139,6 +181,16 @@ export default function ChannelShell({
 
       {/* Right panel: online members */}
       <PresencePanel onlineUsers={onlineUsers} />
+
+      {/* Right panel: pinned messages */}
+      <PinnedMessagesPanel
+        open={pinnedPanelOpen}
+        pinnedMessages={pinnedMessages}
+        canPin={canPin}
+        onClose={() => setPinnedPanelOpen(false)}
+        onJump={handleJump}
+        onUnpin={handleUnpin}
+      />
     </div>
   )
 }

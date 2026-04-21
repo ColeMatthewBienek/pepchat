@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
-import { editMessage, deleteMessage, pinMessage } from '@/app/(app)/messages/actions'
+import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
 import Message from '@/components/chat/Message'
 import MessageModal from '@/components/chat/MessageModal'
+import MessageContextMenu from '@/components/chat/MessageContextMenu'
+import SystemMessage from '@/components/chat/SystemMessage'
 import { PERMISSIONS } from '@/lib/permissions'
 import type { MessageWithProfile } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
@@ -28,6 +30,8 @@ interface MessageListProps {
   deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   onEditSuccess?: (messageId: string, content: string) => void
+  onOpenPinnedPanel?: () => void
+  highlightedMessageId?: string | null
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -72,6 +76,8 @@ export default function MessageList({
   deleteAction,
   pinAction,
   onEditSuccess,
+  onOpenPinnedPanel,
+  highlightedMessageId,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -82,6 +88,7 @@ export default function MessageList({
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [modalMsg, setModalMsg] = useState<MessageWithProfile | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ msg: MessageWithProfile; x: number; y: number } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -123,6 +130,16 @@ export default function MessageList({
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
+
+  useEffect(() => {
+    if (!highlightedMessageId || !listRef.current) return
+    const el = listRef.current.querySelector(`[data-message-id="${highlightedMessageId}"]`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('message-highlighted')
+    const timer = setTimeout(() => el.classList.remove('message-highlighted'), 1600)
+    return () => clearTimeout(timer)
+  }, [highlightedMessageId])
 
   function startEdit(msg: MessageWithProfile) {
     setEditingId(msg.id)
@@ -175,10 +192,10 @@ export default function MessageList({
   }
 
   function handlePin(messageId: string) {
+    if (!pinAction) return
     setError('')
     startTransition(async () => {
-      const action = pinAction ?? pinMessage
-      const result = await action(messageId)
+      const result = await pinAction(messageId)
       if ('error' in result) setError(result.error)
     })
   }
@@ -227,8 +244,8 @@ export default function MessageList({
 
           const isNewMsg = newIdsRef.current.has(msg.id)
           return (
-            <div key={msg.id} className={isNewMsg ? 'message-new' : undefined}>
-              {showDateSep && (
+            <div key={msg.id} data-message-id={msg.id} className={isNewMsg ? 'message-new' : undefined}>
+              {showDateSep && !msg.is_system && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 16px' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border-soft)' }} />
                   <span style={{
@@ -244,34 +261,39 @@ export default function MessageList({
                 </div>
               )}
 
-              <Message
-                msg={msg}
-                isCompact={compact}
-                isOwn={isOwn}
-                currentUserId={currentUserId}
-                canDeleteAny={canDeleteAny}
-                canPin={canPin}
-                editingId={editingId}
-                editContent={editContent}
-                pickerOpenFor={pickerOpenFor}
-                onStartEdit={startEdit}
-                onCancelEdit={cancelEdit}
-                onEditContentChange={setEditContent}
-                onSubmitEdit={submitEdit}
-                onDelete={handleDelete}
-                onOpenProfile={(userId, anchor) => setProfileCard({ userId, anchor })}
-                onPickerToggle={id => setPickerOpenFor(pickerOpenFor === id ? null : id)}
-                onPickerClose={() => setPickerOpenFor(null)}
-                onEmojiSelect={(msgId, emoji) => { setPickerOpenFor(null); onReact(msgId, emoji) }}
-                onReact={emoji => onReact(msg.id, emoji)}
-                onReply={onReply}
-                onOpenActions={setModalMsg}
-                onPin={handlePin}
-                allowReactions={allowReactions}
-                allowReplies={allowReplies}
-                isPending={editPending || isPending}
-                atReactionLimit={atReactionLimit}
-              />
+              {msg.is_system ? (
+                <SystemMessage msg={msg} onOpenPinnedPanel={onOpenPinnedPanel ?? (() => {})} />
+              ) : (
+                <Message
+                  msg={msg}
+                  isCompact={compact}
+                  isOwn={isOwn}
+                  currentUserId={currentUserId}
+                  canDeleteAny={canDeleteAny}
+                  canPin={canPin}
+                  editingId={editingId}
+                  editContent={editContent}
+                  pickerOpenFor={pickerOpenFor}
+                  onStartEdit={startEdit}
+                  onCancelEdit={cancelEdit}
+                  onEditContentChange={setEditContent}
+                  onSubmitEdit={submitEdit}
+                  onDelete={handleDelete}
+                  onOpenProfile={(userId, anchor) => setProfileCard({ userId, anchor })}
+                  onPickerToggle={id => setPickerOpenFor(pickerOpenFor === id ? null : id)}
+                  onPickerClose={() => setPickerOpenFor(null)}
+                  onEmojiSelect={(msgId, emoji) => { setPickerOpenFor(null); onReact(msgId, emoji) }}
+                  onReact={emoji => onReact(msg.id, emoji)}
+                  onReply={onReply}
+                  onOpenActions={setModalMsg}
+                  onOpenContextMenu={(msg, x, y) => setContextMenu({ msg, x, y })}
+                  onPin={handlePin}
+                  allowReactions={allowReactions}
+                  allowReplies={allowReplies}
+                  isPending={editPending || isPending}
+                  atReactionLimit={atReactionLimit}
+                />
+              )}
             </div>
           )
         })}
@@ -332,6 +354,25 @@ export default function MessageList({
         onReply={msg => { onReply(msg); setModalMsg(null) }}
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
       />
+
+      {contextMenu && (
+        <MessageContextMenu
+          message={contextMenu.msg}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          isOwn={contextMenu.msg.user_id === currentUserId}
+          canDeleteAny={canDeleteAny}
+          canPin={canPin}
+          allowReactions={allowReactions}
+          allowReplies={allowReplies}
+          currentUserId={currentUserId}
+          onClose={() => setContextMenu(null)}
+          onStartEdit={msg => { startEdit(msg); setContextMenu(null) }}
+          onDelete={msgId => { handleDelete(msgId); setContextMenu(null) }}
+          onPin={handlePin}
+          onReply={msg => { onReply(msg); setContextMenu(null) }}
+          onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
+        />
+      )}
     </div>
   )
 }

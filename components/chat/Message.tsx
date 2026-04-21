@@ -37,6 +37,7 @@ export interface MessageProps {
   onReact: (emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
   onOpenActions?: (msg: MessageWithProfile) => void
+  onOpenContextMenu?: (msg: MessageWithProfile, x: number, y: number) => void
   onPin?: (msgId: string) => void
   allowReactions?: boolean
   allowReplies?: boolean
@@ -66,6 +67,7 @@ export default function Message({
   onReact,
   onReply,
   onOpenActions,
+  onOpenContextMenu,
   onPin,
   allowReactions = true,
   allowReplies = true,
@@ -80,12 +82,22 @@ export default function Message({
 
   return (
     <div
-      className="group/msg flex items-start gap-3 rounded px-2 hover:bg-[var(--bg-hover)] transition-colors"
+      className={`message-row group/msg flex items-start gap-3 rounded px-2 hover:bg-[var(--bg-hover)] transition-colors${isOwn ? ' own-message' : ''}`}
       style={{
         paddingTop: isCompact ? 2 : 16,
         paddingBottom: 2,
         position: 'relative',
       }}
+      onContextMenu={onOpenContextMenu ? (e) => {
+        e.preventDefault()
+        const vw = window.innerWidth
+        const menuWidth = 220
+        const x = e.clientX + menuWidth > vw ? vw - menuWidth - 8 : e.clientX
+        const vh = window.innerHeight
+        const menuHeight = 320
+        const y = e.clientY + menuHeight > vh ? vh - menuHeight - 8 : e.clientY
+        onOpenContextMenu(msg, x, y)
+      } : undefined}
       {...(!isEditing && onOpenActions ? {
         onPointerDown: longPress.onPointerDown,
         onPointerUp: longPress.onPointerUp,
@@ -145,6 +157,17 @@ export default function Message({
             <span style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'inherit' }}>
               {formatTime(msg.created_at)}
             </span>
+          </div>
+        )}
+
+        {/* Pinned indicator */}
+        {msg.pinned_at && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="17" x2="12" y2="22" />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+            </svg>
+            <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500 }}>Pinned</span>
           </div>
         )}
 

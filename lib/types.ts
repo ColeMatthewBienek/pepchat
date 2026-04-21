@@ -94,6 +94,10 @@ export interface Message {
   content: string
   reply_to_id: string | null
   edited_at: string | null
+  pinned_at?: string | null
+  is_system?: boolean
+  system_type?: string | null
+  system_data?: Record<string, any> | null
   created_at: string
   attachments?: Attachment[]
   /** Joined from profiles — populated by select queries */
@@ -107,6 +111,27 @@ export type MessageWithProfile = Message & {
   profiles: Pick<Profile, 'username' | 'avatar_url' | 'display_name'>
   replied_to?: QuotedMessage | null
   reactions?: Reaction[]
+}
+
+export interface PinnedMessage {
+  id: string
+  channel_id: string
+  message_id: string
+  pinned_by_id: string | null
+  system_message_id: string | null
+  pinned_at: string
+  message: {
+    id: string
+    content: string
+    created_at: string
+    user_id: string
+    profiles: {
+      username: string
+      display_name: string | null
+      avatar_url: string | null
+      username_color: string
+    }
+  } | null
 }
 
 export interface DirectMessage {
@@ -141,6 +166,54 @@ export interface ChannelReadState {
   user_id: string
   channel_id: string
   last_read_at: string
+}
+
+/** Admin dashboard types */
+
+export interface AdminUser {
+  id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  role: 'admin' | 'moderator' | 'user' | 'noob'
+  group_id: string
+  joined_at: string
+  last_active: string | null
+  is_banned: boolean
+}
+
+export interface AdminGroup {
+  id: string
+  name: string
+  icon_url: string | null
+  owner_id: string
+  owner_username: string
+  member_count: number
+  channel_count: number
+  created_at: string
+}
+
+export interface AdminReport {
+  id: string
+  message_id: string
+  message_content: string
+  reported_by: string
+  reporter_username: string
+  reason: string | null
+  status: 'pending' | 'reviewed' | 'dismissed'
+  created_at: string
+}
+
+export interface AuditEntry {
+  id: string
+  admin_id: string
+  admin_username: string
+  admin_avatar_url: string | null
+  action: string
+  target_type: string | null
+  target_id: string | null
+  metadata: Record<string, any> | null
+  created_at: string
 }
 
 /** Presence payload for a single online user */

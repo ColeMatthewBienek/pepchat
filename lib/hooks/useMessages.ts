@@ -18,6 +18,7 @@ interface UseMessagesReturn {
   toggleReactionOptimistic: (messageId: string, emoji: string, userId: string, username: string) => void
   broadcastReactionChange: (messageId: string, emoji: string, userId: string, action: 'added' | 'removed') => void
   updateMessageContent: (messageId: string, content: string) => void
+  updateMessagePinnedAt: (messageId: string, pinnedAt: string | null) => void
 }
 
 /**
@@ -85,7 +86,7 @@ export function useMessages(
           setMessages((prev) =>
             prev.map((m) =>
               m.id === payload.new.id
-                ? { ...m, content: payload.new.content as string, edited_at: payload.new.edited_at as string | null }
+                ? { ...m, content: payload.new.content as string, edited_at: payload.new.edited_at as string | null, pinned_at: payload.new.pinned_at as string | null }
                 : m
             )
           )
@@ -180,6 +181,13 @@ export function useMessages(
     []
   )
 
+  /** Optimistically update a message's pinned_at in local state after pin/unpin. */
+  const updateMessagePinnedAt = useCallback((messageId: string, pinnedAt: string | null) => {
+    setMessages(prev =>
+      prev.map(m => m.id === messageId ? { ...m, pinned_at: pinnedAt } : m)
+    )
+  }, [])
+
   /** Optimistically update a message's content in local state after a successful edit. */
   const updateMessageContent = useCallback((messageId: string, content: string) => {
     setMessages(prev =>
@@ -215,5 +223,5 @@ export function useMessages(
     setLoadingMore(false)
   }, [channelId, hasMore, loadingMore, messages])
 
-  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange, updateMessageContent }
+  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange, updateMessageContent, updateMessagePinnedAt }
 }

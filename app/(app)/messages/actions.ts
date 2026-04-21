@@ -75,20 +75,96 @@ export async function deleteMessage(
 }
 
 export async function pinMessage(
-  messageId: string
+  messageId: string,
+  channelId: string
 ): Promise<{ error: string } | { ok: true }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
-  const pinnedAt = new Date().toISOString()
-  const { error } = await supabase
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username, display_name')
+    .eq('id', user.id)
+    .single()
+
+  // Idempotent: skip if already pinned
+  const { data: existing } = await supabase
+    .from('pinned_messages')
+    .select('id')
+    .eq('channel_id', channelId)
+    .eq('message_id', messageId)
+    .maybeSingle()
+  if (existing) return { ok: true }
+
+  // Mark the message itself as pinned (RPC bypasses ownership RLS)
+  await supabase.rpc('set_message_pinned_at', {
+    p_message_id: messageId,
+    p_pinned_at:  new Date().toISOString(),
+  })
+
+  // Insert the system message
+  const pinnedBy = profile?.display_name ?? profile?.username ?? 'Someone'
+  const { data: systemMsg } = await supabase
     .from('messages')
-    .update({ pinned_at: pinnedAt })
-    .eq('id', messageId)
+    .insert({
+      channel_id: channelId,
+      user_id:    user.id,
+      content:    '',
+      is_system:  true,
+      system_type: 'pin',
+      system_data: { pinned_by: pinnedBy, message_id: messageId },
+    })
+    .select('id')
+    .single()
+
+  // Record in pinned_messages
+  const { error } = await supabase
+    .from('pinned_messages')
+    .insert({
+      channel_id:        channelId,
+      message_id:        messageId,
+      pinned_by_id:      user.id,
+      system_message_id: systemMsg?.id ?? null,
+    })
+
+  if (error) return { error: error.message }
+  return { ok: true }
+}
+
+export async function unpinMessage(
+  pinnedId: string
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // Fetch system_message_id and message_id before deleting
+  const { data: pin } = await supabase
+    .from('pinned_messages')
+    .select('message_id, system_message_id')
+    .eq('id', pinnedId)
+    .single()
+
+  const { error } = await supabase
+    .from('pinned_messages')
+    .delete()
+    .eq('id', pinnedId)
 
   if (error) return { error: error.message }
 
-  revalidatePath('/(app)', 'layout')
+  if (pin) {
+    // Clear pinned_at on the original message (RPC bypasses ownership RLS)
+    await supabase.rpc('set_message_pinned_at', {
+      p_message_id: pin.message_id,
+      p_pinned_at:  null,
+    })
+
+    // Delete the system message
+    if (pin.system_message_id) {
+      await supabase.from('messages').delete().eq('id', pin.system_message_id)
+    }
+  }
+
   return { ok: true }
 }
