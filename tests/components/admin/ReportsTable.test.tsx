@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ReportsTable from '@/components/admin/ReportsTable'
 import type { AdminReport } from '@/lib/types'
 
@@ -137,21 +137,45 @@ describe('ReportsTable — filtering', () => {
 })
 
 describe('ReportsTable — actions', () => {
-  it('calls onMarkReviewed when Mark Reviewed clicked', () => {
+  it('calls onMarkReviewed when Mark Reviewed clicked', async () => {
     render(<ReportsTable {...defaultProps} />)
     fireEvent.click(screen.getAllByTitle(/mark reviewed/i)[0])
-    expect(defaultProps.onMarkReviewed).toHaveBeenCalledWith('r1')
+    await waitFor(() => expect(defaultProps.onMarkReviewed).toHaveBeenCalledWith('r1'))
   })
 
-  it('calls onDismiss when Dismiss clicked', () => {
+  it('calls onDismiss when Dismiss clicked', async () => {
     render(<ReportsTable {...defaultProps} />)
     fireEvent.click(screen.getAllByTitle(/dismiss/i)[0])
-    expect(defaultProps.onDismiss).toHaveBeenCalledWith('r1')
+    await waitFor(() => expect(defaultProps.onDismiss).toHaveBeenCalledWith('r1'))
   })
 
-  it('calls onDeleteMessage when Delete Message clicked', () => {
+  it('calls onDeleteMessage when Delete Message clicked', async () => {
     render(<ReportsTable {...defaultProps} />)
     fireEvent.click(screen.getAllByTitle(/delete message/i)[0])
-    expect(defaultProps.onDeleteMessage).toHaveBeenCalledWith('msg-1')
+    await waitFor(() => expect(defaultProps.onDeleteMessage).toHaveBeenCalledWith('msg-1'))
+  })
+
+  it('shows success feedback after marking a report reviewed', async () => {
+    render(<ReportsTable {...defaultProps} />)
+    fireEvent.click(screen.getAllByTitle(/mark reviewed/i)[0])
+    await waitFor(() => expect(screen.getByText('Report marked as reviewed.')).toBeInTheDocument())
+  })
+
+  it('shows success feedback after dismissing a report', async () => {
+    render(<ReportsTable {...defaultProps} />)
+    fireEvent.click(screen.getAllByTitle(/dismiss/i)[0])
+    await waitFor(() => expect(screen.getByText('Report dismissed.')).toBeInTheDocument())
+  })
+
+  it('shows success feedback after deleting a reported message', async () => {
+    render(<ReportsTable {...defaultProps} />)
+    fireEvent.click(screen.getAllByTitle(/delete message/i)[0])
+    await waitFor(() => expect(screen.getByText('Reported message deleted.')).toBeInTheDocument())
+  })
+
+  it('shows error feedback when an action fails', async () => {
+    render(<ReportsTable {...defaultProps} onDismiss={vi.fn().mockRejectedValue(new Error('Dismiss failed'))} />)
+    fireEvent.click(screen.getAllByTitle(/dismiss/i)[0])
+    await waitFor(() => expect(screen.getByText('Dismiss failed')).toBeInTheDocument())
   })
 })

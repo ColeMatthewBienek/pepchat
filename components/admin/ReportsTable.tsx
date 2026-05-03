@@ -23,6 +23,9 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<'all' | AdminReport['status']>('all')
   const [search, setSearch] = useState('')
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const filteredReports = reports.filter(report => {
     if (statusFilter !== 'all' && report.status !== statusFilter) return false
@@ -43,21 +46,63 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
   }
 
   async function handleMarkReviewed(reportId: string) {
-    if (onMarkReviewed) { await onMarkReviewed(reportId); return }
-    await markReportReviewed(reportId)
-    router.refresh()
+    setPendingAction(`review:${reportId}`)
+    setError(null)
+    setNotice(null)
+    try {
+      if (onMarkReviewed) {
+        await onMarkReviewed(reportId)
+      } else {
+        const result = await markReportReviewed(reportId)
+        if ('error' in result) throw new Error(result.error)
+        router.refresh()
+      }
+      setNotice('Report marked as reviewed.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to mark report reviewed.')
+    } finally {
+      setPendingAction(null)
+    }
   }
 
   async function handleDismiss(reportId: string) {
-    if (onDismiss) { await onDismiss(reportId); return }
-    await dismissReport(reportId)
-    router.refresh()
+    setPendingAction(`dismiss:${reportId}`)
+    setError(null)
+    setNotice(null)
+    try {
+      if (onDismiss) {
+        await onDismiss(reportId)
+      } else {
+        const result = await dismissReport(reportId)
+        if ('error' in result) throw new Error(result.error)
+        router.refresh()
+      }
+      setNotice('Report dismissed.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to dismiss report.')
+    } finally {
+      setPendingAction(null)
+    }
   }
 
-  async function handleDeleteMessage(messageId: string) {
-    if (onDeleteMessage) { await onDeleteMessage(messageId); return }
-    await deleteMessage(messageId)
-    router.refresh()
+  async function handleDeleteMessage(report: AdminReport) {
+    setPendingAction(`delete:${report.id}`)
+    setError(null)
+    setNotice(null)
+    try {
+      if (onDeleteMessage) {
+        await onDeleteMessage(report.message_id)
+      } else {
+        const result = await deleteMessage(report.message_id)
+        if ('error' in result) throw new Error(result.error)
+        router.refresh()
+      }
+      setNotice('Reported message deleted.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete reported message.')
+    } finally {
+      setPendingAction(null)
+    }
   }
 
   if (reports.length === 0) {
@@ -79,6 +124,16 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
 
   return (
     <div>
+    {error && (
+      <p style={{ fontSize: 13, color: 'var(--danger)', background: 'rgba(201,74,42,0.1)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: 12 }}>
+        {error}
+      </p>
+    )}
+    {notice && (
+      <p style={{ fontSize: 13, color: 'var(--success)', background: 'rgba(106,160,138,0.1)', border: '1px solid rgba(106,160,138,0.35)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: 12 }}>
+        {notice}
+      </p>
+    )}
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 16 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {(['all', 'pending', 'reviewed', 'dismissed'] as const).map(status => (
@@ -163,9 +218,30 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
             </td>
             <td style={{ padding: '10px 12px' }}>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button title="mark reviewed" onClick={() => handleMarkReviewed(report.id)} style={actionBtn('#6aa08a')}>✓</button>
-                <button title="dismiss" onClick={() => handleDismiss(report.id)} style={actionBtn('var(--text-faint)')}>✕</button>
-                <button title="delete message" onClick={() => handleDeleteMessage(report.message_id)} style={actionBtn('var(--danger)')}>🗑</button>
+                <button
+                  title="mark reviewed"
+                  disabled={pendingAction !== null}
+                  onClick={() => handleMarkReviewed(report.id)}
+                  style={actionBtn('#6aa08a', pendingAction !== null)}
+                >
+                  ✓
+                </button>
+                <button
+                  title="dismiss"
+                  disabled={pendingAction !== null}
+                  onClick={() => handleDismiss(report.id)}
+                  style={actionBtn('var(--text-faint)', pendingAction !== null)}
+                >
+                  ✕
+                </button>
+                <button
+                  title="delete message"
+                  disabled={pendingAction !== null}
+                  onClick={() => handleDeleteMessage(report)}
+                  style={actionBtn('var(--danger)', pendingAction !== null)}
+                >
+                  🗑
+                </button>
               </div>
             </td>
           </tr>
@@ -178,14 +254,15 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
   )
 }
 
-function actionBtn(color: string): React.CSSProperties {
+function actionBtn(color: string, disabled = false): React.CSSProperties {
   return {
     background: 'transparent',
     border: '1px solid var(--border-soft)',
     borderRadius: 'var(--radius-sm)',
     color,
     fontSize: 12,
-    cursor: 'pointer',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.5 : 1,
     padding: '3px 7px',
   }
 }
