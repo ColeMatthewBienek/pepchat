@@ -33,3 +33,9 @@ supabase/.temp/
 # TypeScript incremental build cache
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright test artifacts
+test-results/
+
+# Fallow analysis cache
+.fallow/

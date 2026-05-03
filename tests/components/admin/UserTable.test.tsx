@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import UserTable from '@/components/admin/UserTable'
 import type { AdminUser } from '@/lib/types'
 
@@ -7,6 +7,7 @@ vi.mock('@/app/admin/actions', () => ({
   changeRole: vi.fn().mockResolvedValue({ ok: true }),
   banUser: vi.fn().mockResolvedValue({ ok: true }),
   unbanUser: vi.fn().mockResolvedValue({ ok: true }),
+  resetPassword: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -178,5 +179,23 @@ describe('UserTable — access control', () => {
     ]
     render(<UserTable {...defaultProps} users={adminUsers} currentUserId="u1" />)
     expect(screen.queryByText('Change Role')).toBeNull()
+  })
+})
+
+describe('UserTable — reset password', () => {
+  it('shows Reset Password in the user actions menu', () => {
+    render(<UserTable {...defaultProps} />)
+    fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
+    expect(screen.getByText('Reset Password')).toBeTruthy()
+  })
+
+  it('calls resetPassword with user id and username', async () => {
+    const { resetPassword } = await import('@/app/admin/actions')
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
+    fireEvent.click(screen.getByText('Reset Password'))
+
+    await waitFor(() => expect(resetPassword).toHaveBeenCalledWith('u2', 'cool42'))
   })
 })

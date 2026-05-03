@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Avatar from '@/components/ui/Avatar'
 import RolePill from '@/components/ui/RolePill'
-import { changeRole, banUser, unbanUser } from '@/app/admin/actions'
+import { changeRole, banUser, unbanUser, resetPassword } from '@/app/admin/actions'
 import type { AdminUser } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
@@ -69,6 +69,16 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
     setError(null)
     const result = await unbanUser(userId, user.username)
     setPending(null)
+    if ('error' in result) setError(result.error)
+    else router.refresh()
+  }
+
+  async function doResetPassword(user: AdminUser) {
+    setPending(user.id)
+    setError(null)
+    const result = await resetPassword(user.id, user.username)
+    setPending(null)
+    setOpenMenuId(null)
     if ('error' in result) setError(result.error)
     else router.refresh()
   }
@@ -209,6 +219,9 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                                 <div style={{ height: 1, background: 'var(--border-soft)', margin: '4px 0' }} />
                                 <button onClick={() => { setBanTarget(user.id); setOpenMenuId(null) }} style={actionStyle(true)}>
                                   Ban User
+                                </button>
+                                <button onClick={() => doResetPassword(user)} style={actionStyle(false)}>
+                                  Reset Password
                                 </button>
                               </div>
                             )}
