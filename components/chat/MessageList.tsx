@@ -7,6 +7,7 @@ import { reportMessage } from '@/app/admin/actions'
 import Message from '@/components/chat/Message'
 import MessageModal from '@/components/chat/MessageModal'
 import MessageContextMenu from '@/components/chat/MessageContextMenu'
+import ReportMessageDialog from '@/components/chat/ReportMessageDialog'
 import SystemMessage from '@/components/chat/SystemMessage'
 import { PERMISSIONS } from '@/lib/permissions'
 import type { MessageWithProfile } from '@/lib/types'
@@ -92,6 +93,8 @@ export default function MessageList({
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [modalMsg, setModalMsg] = useState<MessageWithProfile | null>(null)
   const [contextMenu, setContextMenu] = useState<{ msg: MessageWithProfile; x: number; y: number } | null>(null)
+  const [reportTarget, setReportTarget] = useState<MessageWithProfile | null>(null)
+  const [notice, setNotice] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -148,6 +151,7 @@ export default function MessageList({
     setEditingId(msg.id)
     setEditContent(msg.content)
     setError('')
+    setNotice('')
   }
 
   function cancelEdit() {
@@ -178,6 +182,7 @@ export default function MessageList({
   function handleDelete(messageId: string) {
     if (!confirm('Delete this message?')) return
     setError('')
+    setNotice('')
     startTransition(async () => {
       const action = deleteAction ?? deleteMessage
       const result = await action(messageId)
@@ -187,6 +192,7 @@ export default function MessageList({
 
   function handleModalDelete(messageId: string) {
     setError('')
+    setNotice('')
     startTransition(async () => {
       const action = deleteAction ?? deleteMessage
       const result = await action(messageId)
@@ -197,6 +203,7 @@ export default function MessageList({
   function handlePin(messageId: string) {
     if (!pinAction) return
     setError('')
+    setNotice('')
     startTransition(async () => {
       const result = await pinAction(messageId)
       if ('error' in result) setError(result.error)
@@ -204,14 +211,26 @@ export default function MessageList({
   }
 
   function handleReport(messageId: string) {
-    const reason = window.prompt('Why are you reporting this message?')
-    if (reason === null) return
-
+    const target = messages.find(m => m.id === messageId)
+    if (!target || target.user_id === currentUserId) return
     setError('')
+    setNotice('')
+    setReportTarget(target)
+  }
+
+  function submitReport(reason: string) {
+    if (!reportTarget) return
+    setError('')
+    setNotice('')
     startTransition(async () => {
       const action = reportAction ?? reportMessage
-      const result = await action(messageId, reason.trim())
-      if ('error' in result) setError(result.error)
+      const result = await action(reportTarget.id, reason)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setReportTarget(null)
+        setNotice('Report submitted for review.')
+      }
     })
   }
 
@@ -246,6 +265,11 @@ export default function MessageList({
         {error && (
           <p className="text-xs text-[var(--danger)] bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded px-3 py-1.5 mx-4 mb-2">
             {error}
+          </p>
+        )}
+        {notice && (
+          <p className="text-xs text-[var(--success)] bg-[var(--success)]/10 border border-[var(--success)]/20 rounded px-3 py-1.5 mx-4 mb-2">
+            {notice}
           </p>
         )}
 
@@ -390,6 +414,14 @@ export default function MessageList({
           onReport={contextMenu.msg.user_id !== currentUserId ? handleReport : undefined}
         />
       )}
+
+      <ReportMessageDialog
+        open={reportTarget !== null}
+        message={reportTarget}
+        pending={isPending}
+        onClose={() => setReportTarget(null)}
+        onSubmit={submitReport}
+      />
     </div>
   )
 }
