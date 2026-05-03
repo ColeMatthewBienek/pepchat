@@ -141,6 +141,16 @@ describe('MessageModal — action rows', () => {
     render(<MessageModal {...BASE} canPin={false} />)
     expect(screen.queryByTestId('modal-action-pin')).not.toBeInTheDocument()
   })
+
+  it('renders Mark Unread action when onMarkUnread is provided', () => {
+    render(<MessageModal {...BASE} onMarkUnread={vi.fn()} />)
+    expect(screen.getByTestId('modal-action-mark-unread')).toBeInTheDocument()
+  })
+
+  it('hides Mark Unread action when onMarkUnread is not provided', () => {
+    render(<MessageModal {...BASE} />)
+    expect(screen.queryByTestId('modal-action-mark-unread')).not.toBeInTheDocument()
+  })
 })
 
 describe('MessageModal — callbacks', () => {
@@ -168,6 +178,17 @@ describe('MessageModal — callbacks', () => {
     render(<MessageModal {...BASE} canPin={true} onPin={onPin} onClose={onClose} />)
     fireEvent.click(screen.getByTestId('modal-action-pin'))
     expect(onPin).toHaveBeenCalledWith('msg-1')
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('calls onMarkUnread and onClose when Mark Unread clicked', () => {
+    const onMarkUnread = vi.fn()
+    const onClose = vi.fn()
+    render(<MessageModal {...BASE} onMarkUnread={onMarkUnread} onClose={onClose} />)
+
+    fireEvent.click(screen.getByTestId('modal-action-mark-unread'))
+
+    expect(onMarkUnread).toHaveBeenCalledWith(MSG)
     expect(onClose).toHaveBeenCalled()
   })
 

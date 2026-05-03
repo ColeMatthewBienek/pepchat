@@ -10,6 +10,7 @@ import MessageContextMenu from '@/components/chat/MessageContextMenu'
 import ReportMessageDialog from '@/components/chat/ReportMessageDialog'
 import SystemMessage from '@/components/chat/SystemMessage'
 import { PERMISSIONS } from '@/lib/permissions'
+import { markChannelUnreadFromMessage } from '@/lib/channelReadState'
 import type { MessageWithProfile } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
@@ -264,6 +265,19 @@ export default function MessageList({
     setReportTarget(target)
   }
 
+  function handleMarkUnread(msg: MessageWithProfile) {
+    setError('')
+    setNotice('')
+    startTransition(async () => {
+      try {
+        await markChannelUnreadFromMessage(msg.channel_id, currentUserId, msg.created_at)
+        setNotice('Marked unread from this message.')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to mark message unread.')
+      }
+    })
+  }
+
   function submitReport(reason: string) {
     if (!reportTarget) return
     setError('')
@@ -497,6 +511,7 @@ export default function MessageList({
         onPin={handlePin}
         onReply={msg => { onReply(msg); setModalMsg(null) }}
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
+        onMarkUnread={handleMarkUnread}
         onReport={modalMsg && modalMsg.user_id !== currentUserId ? handleReport : undefined}
       />
 
@@ -516,6 +531,7 @@ export default function MessageList({
           onPin={handlePin}
           onReply={msg => { onReply(msg); setContextMenu(null) }}
           onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
+          onMarkUnread={handleMarkUnread}
           onReport={contextMenu.msg.user_id !== currentUserId ? handleReport : undefined}
         />
       )}
