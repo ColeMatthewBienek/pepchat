@@ -26,6 +26,7 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
   const [banReason, setBanReason] = useState('')
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const filtered = users.filter(u => {
     const q = search.toLowerCase()
@@ -41,11 +42,15 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
   async function doRoleChange(user: AdminUser, role: Role) {
     setPending(user.id)
     setError(null)
+    setNotice(null)
     const result = await changeRole(user.id, user.group_id, role, user.username, user.role)
     setPending(null)
     setOpenMenuId(null)
     if ('error' in result) setError(result.error)
-    else router.refresh()
+    else {
+      setNotice(`Updated @${user.username} to ${role}.`)
+      router.refresh()
+    }
   }
 
   async function doBan() {
@@ -54,12 +59,16 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
     if (!user) return
     setPending(banTarget)
     setError(null)
+    setNotice(null)
     const result = await banUser(banTarget, user.username, banReason)
     setPending(null)
     setBanTarget(null)
     setBanReason('')
     if ('error' in result) setError(result.error)
-    else router.refresh()
+    else {
+      setNotice(`Banned @${user.username}.`)
+      router.refresh()
+    }
   }
 
   async function doUnban(userId: string) {
@@ -67,20 +76,28 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
     if (!user) return
     setPending(userId)
     setError(null)
+    setNotice(null)
     const result = await unbanUser(userId, user.username)
     setPending(null)
     if ('error' in result) setError(result.error)
-    else router.refresh()
+    else {
+      setNotice(`Unbanned @${user.username}.`)
+      router.refresh()
+    }
   }
 
   async function doResetPassword(user: AdminUser) {
     setPending(user.id)
     setError(null)
+    setNotice(null)
     const result = await resetPassword(user.id, user.username)
     setPending(null)
     setOpenMenuId(null)
     if ('error' in result) setError(result.error)
-    else router.refresh()
+    else {
+      setNotice(`Password reset email sent to @${user.username}.`)
+      router.refresh()
+    }
   }
 
   function formatDate(iso: string) {
@@ -92,6 +109,11 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
       {error && (
         <p style={{ fontSize: 13, color: 'var(--danger)', background: 'rgba(201,74,42,0.1)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: 12 }}>
           {error}
+        </p>
+      )}
+      {notice && (
+        <p style={{ fontSize: 13, color: 'var(--success)', background: 'rgba(106,160,138,0.1)', border: '1px solid rgba(106,160,138,0.35)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: 12 }}>
+          {notice}
         </p>
       )}
       <input

@@ -154,37 +154,6 @@ export async function deleteGroup(
   return { ok: true }
 }
 
-export async function transferOwnership(
-  groupId: string,
-  groupName: string,
-  newOwnerId: string,
-  fromUsername: string,
-): Promise<ActionResult> {
-  const adminId = await getAdminUserId()
-  if (!adminId) return { error: 'Unauthorized' }
-
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('groups')
-    .update({ owner_id: newOwnerId })
-    .eq('id', groupId)
-
-  if (error) return { error: error.message }
-
-  const { data: newOwner } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('id', newOwnerId)
-    .single()
-
-  await logAudit(adminId, 'transfer_ownership', 'group', groupId, {
-    group_name: groupName,
-    from_user: fromUsername,
-    to_user: (newOwner as any)?.username ?? newOwnerId,
-  })
-  return { ok: true }
-}
-
 export async function reportMessage(
   messageId: string,
   reason: string,

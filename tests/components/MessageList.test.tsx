@@ -241,7 +241,6 @@ describe('MessageList — system messages', () => {
 describe('MessageList — report message', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'prompt').mockReturnValue('spam')
   })
 
   it('reports another user message from the mobile action modal', async () => {
@@ -250,8 +249,10 @@ describe('MessageList — report message', () => {
 
     fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
     fireEvent.click(screen.getByTestId('modal-action-report'))
+    fireEvent.click(screen.getByTestId('report-reason-spam'))
+    fireEvent.click(screen.getByTestId('report-submit'))
 
-    await waitFor(() => expect(reportAction).toHaveBeenCalledWith('msg-2', 'spam'))
+    await waitFor(() => expect(reportAction).toHaveBeenCalledWith('msg-2', 'Spam'))
   })
 
   it('reports another user message from the desktop context menu', async () => {
@@ -260,8 +261,10 @@ describe('MessageList — report message', () => {
 
     fireEvent.click(screen.getByTestId('context-btn-msg-2'))
     fireEvent.click(screen.getByText('Report Message'))
+    fireEvent.change(screen.getByTestId('report-reason-input'), { target: { value: 'Custom reason' } })
+    fireEvent.click(screen.getByTestId('report-submit'))
 
-    await waitFor(() => expect(reportAction).toHaveBeenCalledWith('msg-2', 'spam'))
+    await waitFor(() => expect(reportAction).toHaveBeenCalledWith('msg-2', 'Custom reason'))
   })
 
   it('does not show report action for own messages', () => {
@@ -271,16 +274,17 @@ describe('MessageList — report message', () => {
     expect(screen.queryByTestId('modal-action-report')).not.toBeInTheDocument()
   })
 
-  it('does not call reportAction when the prompt is cancelled', async () => {
-    vi.mocked(window.prompt).mockReturnValue(null)
+  it('does not call reportAction when the dialog is cancelled', async () => {
     const reportAction = vi.fn().mockResolvedValue({ ok: true })
     render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
 
     fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
     fireEvent.click(screen.getByTestId('modal-action-report'))
+    fireEvent.click(screen.getByTestId('report-cancel'))
 
     await new Promise(r => setTimeout(r, 50))
     expect(reportAction).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('report-submit')).not.toBeInTheDocument()
   })
 
   it('shows inline error when reportAction fails', async () => {
@@ -289,7 +293,22 @@ describe('MessageList — report message', () => {
 
     fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
     fireEvent.click(screen.getByTestId('modal-action-report'))
+    fireEvent.click(screen.getByTestId('report-reason-spam'))
+    fireEvent.click(screen.getByTestId('report-submit'))
 
     await waitFor(() => expect(screen.getByText('Report failed')).toBeInTheDocument())
+  })
+
+  it('shows success feedback when reportAction succeeds', async () => {
+    const reportAction = vi.fn().mockResolvedValue({ ok: true })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    fireEvent.click(screen.getByTestId('modal-action-report'))
+    fireEvent.click(screen.getByTestId('report-reason-spam'))
+    fireEvent.click(screen.getByTestId('report-submit'))
+
+    await waitFor(() => expect(screen.getByText('Report submitted for review.')).toBeInTheDocument())
+    expect(screen.queryByTestId('report-submit')).not.toBeInTheDocument()
   })
 })
