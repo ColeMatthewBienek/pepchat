@@ -183,6 +183,16 @@ export default function MessageList({
     jumpToSearchResult((activeSearchIndex - 1 + searchMatches.length) % searchMatches.length)
   }
 
+  function handleJumpToReply(messageId: string) {
+    if (!messages.some(m => m.id === messageId)) {
+      setError('')
+      setNotice('Original message is not loaded. Load earlier messages and try again.')
+      return
+    }
+    setNotice('')
+    jumpToMessage(messageId)
+  }
+
   function startEdit(msg: MessageWithProfile) {
     setEditingId(msg.id)
     setEditContent(msg.content)
@@ -418,6 +428,7 @@ export default function MessageList({
                   onEmojiSelect={(msgId, emoji) => { setPickerOpenFor(null); onReact(msgId, emoji) }}
                   onReact={emoji => onReact(msg.id, emoji)}
                   onReply={onReply}
+                  onJumpToMessage={handleJumpToReply}
                   onOpenActions={setModalMsg}
                   onOpenContextMenu={(msg, x, y) => setContextMenu({ msg, x, y })}
                   onPin={handlePin}

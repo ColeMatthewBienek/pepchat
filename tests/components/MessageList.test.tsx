@@ -5,11 +5,16 @@ import type { MessageWithProfile } from '@/lib/types'
 
 // Minimal Message mock — emits the same edit events as the real component
 vi.mock('@/components/chat/Message', () => ({
-  default: ({ msg, editingId, editContent, onStartEdit, onSubmitEdit, onCancelEdit, onEditContentChange, onOpenActions, onOpenContextMenu }: any) => {
+  default: ({ msg, editingId, editContent, onStartEdit, onSubmitEdit, onCancelEdit, onEditContentChange, onOpenActions, onOpenContextMenu, onJumpToMessage }: any) => {
     const isEditing = editingId === msg.id
     return (
       <div data-testid={`msg-${msg.id}`}>
         <span data-testid={`content-${msg.id}`}>{msg.content}</span>
+        {msg.replied_to && (
+          <button data-testid={`reply-quote-${msg.id}`} onClick={() => onJumpToMessage?.(msg.replied_to.id)}>
+            Reply to {msg.replied_to.content}
+          </button>
+        )}
         {isEditing ? (
           <div>
             <textarea
@@ -82,6 +87,21 @@ const SEARCH_MSG: MessageWithProfile = {
   user_id: 'u3',
   content: 'Launch notes mention peppers',
   profiles: { username: 'carol', display_name: 'Carol', avatar_url: null },
+}
+
+const REPLY_MSG: MessageWithProfile = {
+  ...MSG,
+  id: 'msg-4',
+  user_id: 'u2',
+  content: 'Replying to hello',
+  reply_to_id: 'msg-1',
+  replied_to: {
+    id: 'msg-1',
+    content: 'Hello',
+    user_id: 'u1',
+    profiles: { username: 'alice', avatar_url: null },
+  },
+  profiles: { username: 'bob', display_name: null, avatar_url: null },
 }
 
 const BASE_PROPS = {
@@ -282,6 +302,27 @@ describe('MessageList — message search', () => {
 
     expect(screen.getByTestId('message-search-next')).toBeDisabled()
     expect(screen.getByTestId('message-search-prev')).toBeDisabled()
+  })
+})
+
+describe('MessageList — reply navigation', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('jumps to the replied-to message when it is loaded', () => {
+    const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
+    render(<MessageList {...BASE_PROPS} messages={[MSG, REPLY_MSG]} />)
+
+    fireEvent.click(screen.getByTestId('reply-quote-msg-4'))
+
+    expect(scrollSpy).toHaveBeenCalled()
+  })
+
+  it('shows guidance when the replied-to message is not loaded', () => {
+    render(<MessageList {...BASE_PROPS} messages={[REPLY_MSG]} />)
+
+    fireEvent.click(screen.getByTestId('reply-quote-msg-4'))
+
+    expect(screen.getByText('Original message is not loaded. Load earlier messages and try again.')).toBeInTheDocument()
   })
 })
 
