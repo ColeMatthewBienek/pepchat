@@ -198,4 +198,42 @@ describe('UserTable — reset password', () => {
 
     await waitFor(() => expect(resetPassword).toHaveBeenCalledWith('u2', 'cool42'))
   })
+
+  it('shows a success notice after sending a reset email', async () => {
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
+    fireEvent.click(screen.getByText('Reset Password'))
+
+    await waitFor(() => expect(screen.getByText('Password reset email sent to @cool42.')).toBeInTheDocument())
+  })
+})
+
+describe('UserTable — action feedback', () => {
+  it('shows a success notice after role changes', async () => {
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
+    fireEvent.click(screen.getByText('user'))
+
+    await waitFor(() => expect(screen.getByText('Updated @cool42 to user.')).toBeInTheDocument())
+  })
+
+  it('shows a success notice after banning a user', async () => {
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[2] as HTMLElement).getByTitle(/actions/i))
+    fireEvent.click(screen.getByText('Ban User'))
+    fireEvent.click(screen.getByTestId('confirm-ban-user'))
+
+    await waitFor(() => expect(screen.getByText('Banned @newbie.')).toBeInTheDocument())
+  })
+
+  it('shows a success notice after unbanning a user', async () => {
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(screen.getByText('Unban User'))
+
+    await waitFor(() => expect(screen.getByText('Unbanned @banned_user.')).toBeInTheDocument())
+  })
 })

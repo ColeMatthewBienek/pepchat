@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import GroupTable from '@/components/admin/GroupTable'
 import type { AdminGroup } from '@/lib/types'
 
 vi.mock('@/app/admin/actions', () => ({
   deleteGroup: vi.fn().mockResolvedValue({ ok: true }),
-  transferOwnership: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -38,7 +37,6 @@ const GROUPS: AdminGroup[] = [
 const defaultProps = {
   groups: GROUPS,
   onDelete: vi.fn().mockResolvedValue(undefined),
-  onTransferOwnership: vi.fn().mockResolvedValue(undefined),
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -93,7 +91,7 @@ describe('GroupTable — delete flow', () => {
     const deleteBtn = screen.getAllByTitle(/delete group/i)[0]
     fireEvent.click(deleteBtn)
     fireEvent.click(screen.getByTestId('confirm-delete-group'))
-    expect(defaultProps.onDelete).toHaveBeenCalledWith('g1')
+    await waitFor(() => expect(defaultProps.onDelete).toHaveBeenCalledWith('g1'))
   })
 
   it('cancels deletion without calling onDelete', () => {
