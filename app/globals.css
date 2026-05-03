@@ -293,7 +293,6 @@ a, button, [role="button"], .channel-row, .dm-entry {
 .message-row {
   -webkit-touch-callout: none;
 }
-
 /* Admin dashboard nav — desktop sidebar */
 .admin-nav {
   width: 220px;
