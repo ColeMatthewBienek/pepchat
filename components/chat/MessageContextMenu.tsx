@@ -27,6 +27,7 @@ export interface MessageContextMenuProps {
   onPin?: (msgId: string) => void
   onReply: (msg: MessageWithProfile) => void
   onEmojiSelect: (msgId: string, emoji: string) => void
+  onMarkUnread?: (msg: MessageWithProfile) => void
   onReport?: (msgId: string) => void
 }
 
@@ -44,6 +45,7 @@ export default function MessageContextMenu({
   onPin,
   onReply,
   onEmojiSelect,
+  onMarkUnread,
   onReport,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
@@ -190,9 +192,11 @@ export default function MessageContextMenu({
             </MenuItem>
           )}
 
-          <MenuItem label="Mark Unread" onClick={onClose}>
-            <MarkUnreadIcon />
-          </MenuItem>
+          {onMarkUnread && (
+            <MenuItem label="Mark Unread" onClick={() => { onMarkUnread(message); onClose() }}>
+              <MarkUnreadIcon />
+            </MenuItem>
+          )}
 
           {onReport && (
             <MenuItem label="Report Message" onClick={() => { onReport(message.id); onClose() }}>

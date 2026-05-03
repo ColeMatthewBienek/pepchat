@@ -109,6 +109,11 @@ describe('MessageContextMenu — rendering', () => {
     render(<MessageContextMenu {...defaultProps} isOwn={false} canDeleteAny={false} />)
     expect(screen.queryByText('Delete Message')).toBeNull()
   })
+
+  it('hides Mark Unread when onMarkUnread is not provided', () => {
+    render(<MessageContextMenu {...defaultProps} />)
+    expect(screen.queryByText('Mark Unread')).toBeNull()
+  })
 })
 
 describe('MessageContextMenu — dismiss behavior', () => {
@@ -169,6 +174,17 @@ describe('MessageContextMenu — actions', () => {
     render(<MessageContextMenu {...defaultProps} canPin={true} message={PINNED_MSG} onClose={onClose} onPin={onPin} />)
     fireEvent.click(screen.getByText('Unpin Message'))
     expect(onPin).toHaveBeenCalledWith(PINNED_MSG.id)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('calls onMarkUnread with message and onClose when Mark Unread clicked', () => {
+    const onClose = vi.fn()
+    const onMarkUnread = vi.fn()
+    render(<MessageContextMenu {...defaultProps} onClose={onClose} onMarkUnread={onMarkUnread} />)
+
+    fireEvent.click(screen.getByText('Mark Unread'))
+
+    expect(onMarkUnread).toHaveBeenCalledWith(MSG)
     expect(onClose).toHaveBeenCalledOnce()
   })
 

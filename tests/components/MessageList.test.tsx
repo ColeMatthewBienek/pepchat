@@ -55,6 +55,9 @@ vi.mock('@/app/(app)/messages/actions', () => ({
 vi.mock('@/app/admin/actions', () => ({
   reportMessage: vi.fn(),
 }))
+vi.mock('@/lib/channelReadState', () => ({
+  markChannelUnreadFromMessage: vi.fn().mockResolvedValue(undefined),
+}))
 
 // jsdom doesn't implement scrollIntoView
 Element.prototype.scrollIntoView = vi.fn()
@@ -323,6 +326,39 @@ describe('MessageList — reply navigation', () => {
     fireEvent.click(screen.getByTestId('reply-quote-msg-4'))
 
     expect(screen.getByText('Original message is not loaded. Load earlier messages and try again.')).toBeInTheDocument()
+  })
+})
+
+describe('MessageList — mark unread', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('marks unread from the selected message in the desktop context menu', async () => {
+    const { markChannelUnreadFromMessage } = await import('@/lib/channelReadState')
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} />)
+
+    fireEvent.click(screen.getByTestId('context-btn-msg-2'))
+    fireEvent.click(screen.getByText('Mark Unread'))
+
+    await waitFor(() => expect(markChannelUnreadFromMessage).toHaveBeenCalledWith(
+      'ch-1',
+      'u1',
+      OTHER_MSG.created_at
+    ))
+    expect(screen.getByText('Marked unread from this message.')).toBeInTheDocument()
+  })
+
+  it('marks unread from the selected message in the mobile action modal', async () => {
+    const { markChannelUnreadFromMessage } = await import('@/lib/channelReadState')
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    fireEvent.click(screen.getByTestId('modal-action-mark-unread'))
+
+    await waitFor(() => expect(markChannelUnreadFromMessage).toHaveBeenCalledWith(
+      'ch-1',
+      'u1',
+      OTHER_MSG.created_at
+    ))
   })
 })
 

@@ -26,6 +26,7 @@ export interface MessageModalProps {
   onPin?: (msgId: string) => void
   onReply: (msg: MessageWithProfile) => void
   onEmojiSelect: (msgId: string, emoji: string) => void
+  onMarkUnread?: (msg: MessageWithProfile) => void
   onReport?: (msgId: string) => void
 }
 
@@ -43,6 +44,7 @@ export default function MessageModal({
   onPin,
   onReply,
   onEmojiSelect,
+  onMarkUnread,
   onReport,
 }: MessageModalProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -206,6 +208,14 @@ export default function MessageModal({
               testId="modal-action-pin"
               label="Pin Message"
               onClick={() => { onPin?.(msg.id); onClose() }}
+            />
+          )}
+
+          {onMarkUnread && (
+            <ActionRow
+              testId="modal-action-mark-unread"
+              label="Mark Unread"
+              onClick={() => { onMarkUnread(msg); onClose() }}
             />
           )}
 
