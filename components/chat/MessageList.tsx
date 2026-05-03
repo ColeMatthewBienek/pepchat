@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
+import { reportMessage } from '@/app/admin/actions'
 import Message from '@/components/chat/Message'
 import MessageModal from '@/components/chat/MessageModal'
 import MessageContextMenu from '@/components/chat/MessageContextMenu'
@@ -29,6 +30,7 @@ interface MessageListProps {
   editAction?: (messageId: string, content: string) => Promise<{ error: string } | { ok: true }>
   deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
+  reportAction?: (messageId: string, reason: string) => Promise<{ error: string } | { ok: true }>
   onEditSuccess?: (messageId: string, content: string) => void
   onOpenPinnedPanel?: () => void
   highlightedMessageId?: string | null
@@ -75,6 +77,7 @@ export default function MessageList({
   editAction,
   deleteAction,
   pinAction,
+  reportAction,
   onEditSuccess,
   onOpenPinnedPanel,
   highlightedMessageId,
@@ -196,6 +199,18 @@ export default function MessageList({
     setError('')
     startTransition(async () => {
       const result = await pinAction(messageId)
+      if ('error' in result) setError(result.error)
+    })
+  }
+
+  function handleReport(messageId: string) {
+    const reason = window.prompt('Why are you reporting this message?')
+    if (reason === null) return
+
+    setError('')
+    startTransition(async () => {
+      const action = reportAction ?? reportMessage
+      const result = await action(messageId, reason.trim())
       if ('error' in result) setError(result.error)
     })
   }
@@ -353,6 +368,7 @@ export default function MessageList({
         onPin={handlePin}
         onReply={msg => { onReply(msg); setModalMsg(null) }}
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
+        onReport={modalMsg && modalMsg.user_id !== currentUserId ? handleReport : undefined}
       />
 
       {contextMenu && (
@@ -371,6 +387,7 @@ export default function MessageList({
           onPin={handlePin}
           onReply={msg => { onReply(msg); setContextMenu(null) }}
           onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
+          onReport={contextMenu.msg.user_id !== currentUserId ? handleReport : undefined}
         />
       )}
     </div>

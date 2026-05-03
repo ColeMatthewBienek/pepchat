@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import MessageList from '@/components/chat/MessageList'
 import type { MessageWithProfile } from '@/lib/types'
 
 // Minimal Message mock — emits the same edit events as the real component
 vi.mock('@/components/chat/Message', () => ({
-  default: ({ msg, editingId, editContent, onStartEdit, onSubmitEdit, onCancelEdit, onEditContentChange }: any) => {
+  default: ({ msg, editingId, editContent, onStartEdit, onSubmitEdit, onCancelEdit, onEditContentChange, onOpenActions, onOpenContextMenu }: any) => {
     const isEditing = editingId === msg.id
     return (
       <div data-testid={`msg-${msg.id}`}>
@@ -23,7 +23,11 @@ vi.mock('@/components/chat/Message', () => ({
             />
           </div>
         ) : (
-          <button data-testid={`edit-btn-${msg.id}`} onClick={() => onStartEdit(msg)}>Edit</button>
+          <>
+            <button data-testid={`edit-btn-${msg.id}`} onClick={() => onStartEdit(msg)}>Edit</button>
+            <button data-testid={`actions-btn-${msg.id}`} onClick={() => onOpenActions?.(msg)}>Actions</button>
+            <button data-testid={`context-btn-${msg.id}`} onClick={() => onOpenContextMenu?.(msg, 100, 100)}>Context</button>
+          </>
         )}
       </div>
     )
@@ -43,6 +47,9 @@ vi.mock('@/app/(app)/messages/actions', () => ({
   editMessage: vi.fn(),
   deleteMessage: vi.fn(),
 }))
+vi.mock('@/app/admin/actions', () => ({
+  reportMessage: vi.fn(),
+}))
 
 // jsdom doesn't implement scrollIntoView
 Element.prototype.scrollIntoView = vi.fn()
@@ -59,6 +66,14 @@ const MSG: MessageWithProfile = {
   attachments: [],
   reactions: [],
   profiles: { username: 'alice', display_name: null, avatar_url: null },
+}
+
+const OTHER_MSG: MessageWithProfile = {
+  ...MSG,
+  id: 'msg-2',
+  user_id: 'u2',
+  content: 'Needs review',
+  profiles: { username: 'bob', display_name: null, avatar_url: null },
 }
 
 const BASE_PROPS = {
@@ -220,5 +235,61 @@ describe('MessageList — system messages', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, SYS_MSG]} />)
     expect(screen.getByTestId('msg-msg-1')).toBeInTheDocument()
     expect(screen.getByTestId('system-msg-sys-1')).toBeInTheDocument()
+  })
+})
+
+describe('MessageList — report message', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.spyOn(window, 'prompt').mockReturnValue('spam')
+  })
+
+  it('reports another user message from the mobile action modal', async () => {
+    const reportAction = vi.fn().mockResolvedValue({ ok: true })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    fireEvent.click(screen.getByTestId('modal-action-report'))
+
+    await waitFor(() => expect(reportAction).toHaveBeenCalledWith('msg-2', 'spam'))
+  })
+
+  it('reports another user message from the desktop context menu', async () => {
+    const reportAction = vi.fn().mockResolvedValue({ ok: true })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('context-btn-msg-2'))
+    fireEvent.click(screen.getByText('Report Message'))
+
+    await waitFor(() => expect(reportAction).toHaveBeenCalledWith('msg-2', 'spam'))
+  })
+
+  it('does not show report action for own messages', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG]} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-1'))
+    expect(screen.queryByTestId('modal-action-report')).not.toBeInTheDocument()
+  })
+
+  it('does not call reportAction when the prompt is cancelled', async () => {
+    vi.mocked(window.prompt).mockReturnValue(null)
+    const reportAction = vi.fn().mockResolvedValue({ ok: true })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    fireEvent.click(screen.getByTestId('modal-action-report'))
+
+    await new Promise(r => setTimeout(r, 50))
+    expect(reportAction).not.toHaveBeenCalled()
+  })
+
+  it('shows inline error when reportAction fails', async () => {
+    const reportAction = vi.fn().mockResolvedValue({ error: 'Report failed' })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    fireEvent.click(screen.getByTestId('modal-action-report'))
+
+    await waitFor(() => expect(screen.getByText('Report failed')).toBeInTheDocument())
   })
 })

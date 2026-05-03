@@ -116,13 +116,26 @@ export async function unbanUser(
   return { ok: true }
 }
 
-export async function resetPassword(userId: string, email: string): Promise<ActionResult> {
+export async function resetPassword(userId: string, targetUsername: string): Promise<ActionResult> {
   const adminId = await getAdminUserId()
   if (!adminId) return { error: 'Unauthorized' }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { error: 'Password reset requires SUPABASE_SERVICE_ROLE_KEY.' }
+  }
+
+  const adminClient = createAdminClient()
+  const { data, error: lookupError } = await adminClient.auth.admin.getUserById(userId)
+  if (lookupError) return { error: lookupError.message }
+
+  const email = data.user?.email
+  if (!email) return { error: 'No email address found for this user.' }
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email)
   if (error) return { error: error.message }
+
+  await logAudit(adminId, 'reset_password', 'user', userId, { target_username: targetUsername })
   return { ok: true }
 }
 
