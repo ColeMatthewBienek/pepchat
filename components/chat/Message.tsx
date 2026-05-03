@@ -36,6 +36,7 @@ export interface MessageProps {
   onEmojiSelect: (msgId: string, emoji: string) => void
   onReact: (emoji: string) => void
   onReply: (msg: MessageWithProfile) => void
+  onJumpToMessage?: (messageId: string) => void
   onOpenActions?: (msg: MessageWithProfile) => void
   onOpenContextMenu?: (msg: MessageWithProfile, x: number, y: number) => void
   onPin?: (msgId: string) => void
@@ -66,6 +67,7 @@ export default function Message({
   onEmojiSelect,
   onReact,
   onReply,
+  onJumpToMessage,
   onOpenActions,
   onOpenContextMenu,
   onPin,
@@ -173,17 +175,28 @@ export default function Message({
 
         {/* Reply quote */}
         {msg.replied_to && (
-          <div
+          <button
+            type="button"
             data-testid="message-reply-quote"
+            onClick={() => onJumpToMessage?.(msg.replied_to!.id)}
+            title="Jump to replied message"
+            aria-label="Jump to replied message"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 6,
+              width: '100%',
               marginBottom: 4,
-              paddingLeft: 8,
+              padding: '0 0 0 8px',
               borderLeft: '2px solid var(--border-strong)',
+              borderTop: 0,
+              borderRight: 0,
+              borderBottom: 0,
+              background: 'transparent',
               fontSize: 12,
               color: 'var(--text-muted)',
+              cursor: onJumpToMessage ? 'pointer' : 'default',
+              textAlign: 'left',
             }}
           >
             <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
@@ -194,7 +207,7 @@ export default function Message({
                 ? msg.replied_to.content.slice(0, 80) + '…'
                 : msg.replied_to.content}
             </span>
-          </div>
+          </button>
         )}
 
         {/* Edit mode */}

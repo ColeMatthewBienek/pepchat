@@ -50,6 +50,7 @@ const BASE_PROPS = {
   onEmojiSelect: NOOP,
   onReact: NOOP,
   onReply: NOOP,
+  onJumpToMessage: NOOP,
   allowReactions: true,
   allowReplies: true,
   isPending: false,
@@ -122,6 +123,15 @@ describe('Message — reply quote', () => {
   it('does not show reply quote when replied_to is null', () => {
     render(<Message {...BASE_PROPS} />)
     expect(screen.queryByTestId('message-reply-quote')).not.toBeInTheDocument()
+  })
+
+  it('calls onJumpToMessage when reply quote is clicked', () => {
+    const onJumpToMessage = vi.fn()
+    render(<Message {...BASE_PROPS} msg={msgWithReply} onJumpToMessage={onJumpToMessage} />)
+
+    fireEvent.click(screen.getByTestId('message-reply-quote'))
+
+    expect(onJumpToMessage).toHaveBeenCalledWith('msg-0')
   })
 })
 
