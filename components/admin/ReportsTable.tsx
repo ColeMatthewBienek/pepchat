@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { markReportReviewed, dismissReport } from '@/app/admin/actions'
 import { deleteMessage } from '@/app/(app)/messages/actions'
@@ -20,6 +21,26 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
 
 export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDeleteMessage }: ReportsTableProps) {
   const router = useRouter()
+  const [statusFilter, setStatusFilter] = useState<'all' | AdminReport['status']>('all')
+  const [search, setSearch] = useState('')
+
+  const filteredReports = reports.filter(report => {
+    if (statusFilter !== 'all' && report.status !== statusFilter) return false
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      report.message_content.toLowerCase().includes(q) ||
+      report.reporter_username.toLowerCase().includes(q) ||
+      (report.reason ?? '').toLowerCase().includes(q)
+    )
+  })
+
+  const statusCounts = {
+    all: reports.length,
+    pending: reports.filter(report => report.status === 'pending').length,
+    reviewed: reports.filter(report => report.status === 'reviewed').length,
+    dismissed: reports.filter(report => report.status === 'dismissed').length,
+  }
 
   async function handleMarkReviewed(reportId: string) {
     if (onMarkReviewed) { await onMarkReviewed(reportId); return }
@@ -57,6 +78,56 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
   }
 
   return (
+    <div>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {(['all', 'pending', 'reviewed', 'dismissed'] as const).map(status => (
+          <button
+            key={status}
+            type="button"
+            data-testid={`report-filter-${status}`}
+            onClick={() => setStatusFilter(status)}
+            style={{
+              padding: '5px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: statusFilter === status ? '1px solid var(--accent)' : '1px solid var(--border-soft)',
+              background: statusFilter === status ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
+              color: statusFilter === status ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontSize: 12,
+              cursor: 'pointer',
+              textTransform: 'capitalize',
+            }}
+          >
+            {status} ({statusCounts[status]})
+          </button>
+        ))}
+      </div>
+      <input
+        className="report-search"
+        type="text"
+        placeholder="Search reports..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          minWidth: 220,
+          flex: '1 1 240px',
+          maxWidth: 360,
+          padding: '7px 10px',
+          background: 'var(--bg-tertiary)',
+          border: '1px solid var(--border-soft)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--text-primary)',
+          fontSize: 13,
+          outline: 'none',
+        }}
+      />
+    </div>
+
+    {filteredReports.length === 0 ? (
+      <p style={{ color: 'var(--text-faint)', fontSize: 13, textAlign: 'center', padding: 32 }}>
+        No reports match the current filters.
+      </p>
+    ) : (
     <div className="table-scroll-wrapper">
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
@@ -69,7 +140,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
         </tr>
       </thead>
       <tbody>
-        {reports.map(report => (
+        {filteredReports.map(report => (
           <tr key={report.id} className="report-row" style={{ borderBottom: '1px solid var(--border-soft)' }}>
             <td style={{ padding: '10px 12px', maxWidth: 260 }}>
               <span style={{ fontSize: 13, color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -101,6 +172,8 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
         ))}
       </tbody>
     </table>
+    </div>
+    )}
     </div>
   )
 }

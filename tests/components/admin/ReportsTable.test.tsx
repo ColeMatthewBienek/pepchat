@@ -37,6 +37,16 @@ const REPORTS: AdminReport[] = [
     status: 'reviewed',
     created_at: '2024-04-18T09:00:00Z',
   },
+  {
+    id: 'r3',
+    message_id: 'msg-3',
+    message_content: 'case closed message',
+    reported_by: 'u4',
+    reporter_username: 'modfan',
+    reason: 'not actionable',
+    status: 'dismissed',
+    created_at: '2024-04-17T08:00:00Z',
+  },
 ]
 
 const defaultProps = {
@@ -76,6 +86,53 @@ describe('ReportsTable — rendering', () => {
     render(<ReportsTable {...defaultProps} />)
     expect(screen.getByText('pending')).toBeTruthy()
     expect(screen.getByText('reviewed')).toBeTruthy()
+    expect(screen.getByText('dismissed')).toBeTruthy()
+  })
+})
+
+describe('ReportsTable — filtering', () => {
+  it('shows status filter counts', () => {
+    render(<ReportsTable {...defaultProps} />)
+    expect(screen.getByText('all (3)')).toBeTruthy()
+    expect(screen.getByText('pending (1)')).toBeTruthy()
+    expect(screen.getByText('reviewed (1)')).toBeTruthy()
+    expect(screen.getByText('dismissed (1)')).toBeTruthy()
+  })
+
+  it('filters reports by status', () => {
+    render(<ReportsTable {...defaultProps} />)
+    fireEvent.click(screen.getByTestId('report-filter-pending'))
+    expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+    expect(screen.getByText('offensive content here')).toBeTruthy()
+    expect(screen.queryByText('another bad message')).toBeNull()
+  })
+
+  it('searches by message content', () => {
+    render(<ReportsTable {...defaultProps} />)
+    const search = document.querySelector('.report-search') as HTMLInputElement
+    fireEvent.change(search, { target: { value: 'closed' } })
+    expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+    expect(screen.getByText('case closed message')).toBeTruthy()
+  })
+
+  it('searches by reporter username and reason', () => {
+    render(<ReportsTable {...defaultProps} />)
+    const search = document.querySelector('.report-search') as HTMLInputElement
+    fireEvent.change(search, { target: { value: 'cool42' } })
+    expect(screen.getByText('@cool42')).toBeTruthy()
+    expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+
+    fireEvent.change(search, { target: { value: 'spam' } })
+    expect(screen.getByText('spam')).toBeTruthy()
+    expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+  })
+
+  it('shows a filtered empty state when no reports match', () => {
+    render(<ReportsTable {...defaultProps} />)
+    const search = document.querySelector('.report-search') as HTMLInputElement
+    fireEvent.change(search, { target: { value: 'zzznomatch' } })
+    expect(document.querySelectorAll('.report-row')).toHaveLength(0)
+    expect(screen.getByText(/no reports match/i)).toBeTruthy()
   })
 })
 
