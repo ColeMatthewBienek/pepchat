@@ -121,6 +121,17 @@ export default function ChannelShell({
     setTimeout(() => setHighlightedMessageId(null), 1700)
   }, [])
 
+  useEffect(() => {
+    function jumpToHashMessage() {
+      const messageId = decodeURIComponent(window.location.hash.replace(/^#/, '')).trim()
+      if (messageId) handleJump(messageId)
+    }
+
+    jumpToHashMessage()
+    window.addEventListener('hashchange', jumpToHashMessage)
+    return () => window.removeEventListener('hashchange', jumpToHashMessage)
+  }, [channelId, handleJump])
+
   const handleReact = useCallback(async (messageId: string, emoji: string) => {
     toggleReactionOptimistic(messageId, emoji, profile.id, profile.username)
 

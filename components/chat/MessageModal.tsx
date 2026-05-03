@@ -72,6 +72,11 @@ export default function MessageModal({
     setConfirmingDelete(false)
   }
 
+  function handleCopyLink() {
+    navigator.clipboard?.writeText(`${window.location.origin}/channels/${msg!.channel_id}#${msg!.id}`)
+    onClose()
+  }
+
   const content = (
     <div
       data-testid="modal-backdrop"
@@ -193,6 +198,12 @@ export default function MessageModal({
             testId="modal-action-copy"
             label="Copy Text"
             onClick={() => { navigator.clipboard?.writeText(msg.content); onClose() }}
+          />
+
+          <ActionRow
+            testId="modal-action-copy-link"
+            label="Copy Message Link"
+            onClick={handleCopyLink}
           />
 
           {isOwn && (

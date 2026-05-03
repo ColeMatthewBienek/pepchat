@@ -107,6 +107,11 @@ describe('MessageModal — action rows', () => {
     expect(screen.getByTestId('modal-action-copy')).toBeInTheDocument()
   })
 
+  it('renders Copy Message Link action always', () => {
+    render(<MessageModal {...BASE} />)
+    expect(screen.getByTestId('modal-action-copy-link')).toBeInTheDocument()
+  })
+
   it('renders Edit action for own message', () => {
     render(<MessageModal {...BASE} isOwn={true} />)
     expect(screen.getByTestId('modal-action-edit')).toBeInTheDocument()
@@ -178,6 +183,19 @@ describe('MessageModal — callbacks', () => {
     render(<MessageModal {...BASE} canPin={true} onPin={onPin} onClose={onClose} />)
     fireEvent.click(screen.getByTestId('modal-action-pin'))
     expect(onPin).toHaveBeenCalledWith('msg-1')
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('copies message link and closes when Copy Message Link clicked', () => {
+    const writeText = vi.fn()
+    const onClose = vi.fn()
+    Object.assign(navigator, { clipboard: { writeText } })
+
+    render(<MessageModal {...BASE} onClose={onClose} />)
+
+    fireEvent.click(screen.getByTestId('modal-action-copy-link'))
+
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/channels/ch-1#msg-1`)
     expect(onClose).toHaveBeenCalled()
   })
 
