@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
 import { reportMessage } from '@/app/admin/actions'
@@ -95,6 +95,8 @@ export default function MessageList({
   const [contextMenu, setContextMenu] = useState<{ msg: MessageWithProfile; x: number; y: number } | null>(null)
   const [reportTarget, setReportTarget] = useState<MessageWithProfile | null>(null)
   const [notice, setNotice] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
@@ -102,6 +104,15 @@ export default function MessageList({
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
   const newIdsRef = useRef(new Set<string>())
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const searchMatches = useMemo(() => {
+    if (!normalizedSearch) return []
+    return messages.filter(msg => {
+      if (msg.is_system) return false
+      const author = `${msg.profiles?.display_name ?? ''} ${msg.profiles?.username ?? ''}`.toLowerCase()
+      return msg.content.toLowerCase().includes(normalizedSearch) || author.includes(normalizedSearch)
+    })
+  }, [messages, normalizedSearch])
 
   useEffect(() => {
     const currentFirstId = messages[0]?.id
@@ -139,13 +150,38 @@ export default function MessageList({
 
   useEffect(() => {
     if (!highlightedMessageId || !listRef.current) return
-    const el = listRef.current.querySelector(`[data-message-id="${highlightedMessageId}"]`)
+    jumpToMessage(highlightedMessageId)
+  }, [highlightedMessageId])
+
+  useEffect(() => {
+    setActiveSearchIndex(-1)
+  }, [normalizedSearch])
+
+  function jumpToMessage(messageId: string) {
+    if (!listRef.current) return
+    const el = listRef.current.querySelector(`[data-message-id="${messageId}"]`)
     if (!el) return
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el.classList.add('message-highlighted')
-    const timer = setTimeout(() => el.classList.remove('message-highlighted'), 1600)
-    return () => clearTimeout(timer)
-  }, [highlightedMessageId])
+    setTimeout(() => el.classList.remove('message-highlighted'), 1600)
+  }
+
+  function jumpToSearchResult(index: number) {
+    const match = searchMatches[index]
+    if (!match) return
+    setActiveSearchIndex(index)
+    jumpToMessage(match.id)
+  }
+
+  function goToNextSearchResult() {
+    if (searchMatches.length === 0) return
+    jumpToSearchResult((activeSearchIndex + 1) % searchMatches.length)
+  }
+
+  function goToPrevSearchResult() {
+    if (searchMatches.length === 0) return
+    jumpToSearchResult((activeSearchIndex - 1 + searchMatches.length) % searchMatches.length)
+  }
 
   function startEdit(msg: MessageWithProfile) {
     setEditingId(msg.id)
@@ -250,6 +286,64 @@ export default function MessageList({
           padding: '12px 0',
         }}
       >
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 16px 10px',
+            background: 'var(--bg-chat)',
+          }}
+        >
+          <input
+            data-testid="message-search-input"
+            type="search"
+            placeholder="Search loaded messages..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: '7px 10px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+          <span
+            data-testid="message-search-count"
+            style={{ width: 72, textAlign: 'right', fontSize: 12, color: 'var(--text-faint)' }}
+          >
+            {normalizedSearch ? `${searchMatches.length} ${searchMatches.length === 1 ? 'result' : 'results'}` : ''}
+          </span>
+          <button
+            type="button"
+            data-testid="message-search-prev"
+            aria-label="Previous search result"
+            disabled={searchMatches.length === 0}
+            onClick={goToPrevSearchResult}
+            style={searchNavBtn(searchMatches.length === 0)}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            data-testid="message-search-next"
+            aria-label="Next search result"
+            disabled={searchMatches.length === 0}
+            onClick={goToNextSearchResult}
+            style={searchNavBtn(searchMatches.length === 0)}
+          >
+            ↓
+          </button>
+        </div>
+
         {hasMore && (
           <div className="flex justify-center py-2">
             <button
@@ -424,4 +518,18 @@ export default function MessageList({
       />
     </div>
   )
+}
+
+function searchNavBtn(disabled: boolean): React.CSSProperties {
+  return {
+    width: 28,
+    height: 28,
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border-soft)',
+    background: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.45 : 1,
+    fontSize: 13,
+  }
 }
