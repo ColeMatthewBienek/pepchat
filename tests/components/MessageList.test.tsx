@@ -76,6 +76,14 @@ const OTHER_MSG: MessageWithProfile = {
   profiles: { username: 'bob', display_name: null, avatar_url: null },
 }
 
+const SEARCH_MSG: MessageWithProfile = {
+  ...MSG,
+  id: 'msg-3',
+  user_id: 'u3',
+  content: 'Launch notes mention peppers',
+  profiles: { username: 'carol', display_name: 'Carol', avatar_url: null },
+}
+
 const BASE_PROPS = {
   messages: [MSG],
   hasMore: false,
@@ -235,6 +243,45 @@ describe('MessageList — system messages', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, SYS_MSG]} />)
     expect(screen.getByTestId('msg-msg-1')).toBeInTheDocument()
     expect(screen.getByTestId('system-msg-sys-1')).toBeInTheDocument()
+  })
+})
+
+describe('MessageList — message search', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('shows the number of loaded message matches', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG, SYS_MSG]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'peppers' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+  })
+
+  it('searches loaded messages by author', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'carol' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+  })
+
+  it('jumps to the first matching message when next is clicked', () => {
+    const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
+    render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'needs' } })
+    fireEvent.click(screen.getByTestId('message-search-next'))
+
+    expect(scrollSpy).toHaveBeenCalled()
+  })
+
+  it('disables search navigation when there are no matches', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'missing' } })
+
+    expect(screen.getByTestId('message-search-next')).toBeDisabled()
+    expect(screen.getByTestId('message-search-prev')).toBeDisabled()
   })
 })
 
