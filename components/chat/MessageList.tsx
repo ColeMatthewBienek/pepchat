@@ -34,6 +34,7 @@ interface MessageListProps {
   pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   reportAction?: (messageId: string, reason: string) => Promise<{ error: string } | { ok: true }>
   onEditSuccess?: (messageId: string, content: string) => void
+  onDeleteSuccess?: (messageId: string) => void
   onOpenPinnedPanel?: () => void
   highlightedMessageId?: string | null
   initialLastReadAt?: string | null
@@ -82,6 +83,7 @@ export default function MessageList({
   pinAction,
   reportAction,
   onEditSuccess,
+  onDeleteSuccess,
   onOpenPinnedPanel,
   highlightedMessageId,
   initialLastReadAt = null,
@@ -262,7 +264,11 @@ export default function MessageList({
     startTransition(async () => {
       const action = deleteAction ?? deleteMessage
       const result = await action(messageId)
-      if ('error' in result) setError(result.error)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        onDeleteSuccess?.(messageId)
+      }
     })
   }
 
@@ -272,7 +278,11 @@ export default function MessageList({
     startTransition(async () => {
       const action = deleteAction ?? deleteMessage
       const result = await action(messageId)
-      if ('error' in result) setError(result.error)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        onDeleteSuccess?.(messageId)
+      }
     })
   }
 

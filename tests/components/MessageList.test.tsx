@@ -5,7 +5,7 @@ import type { MessageWithProfile } from '@/lib/types'
 
 // Minimal Message mock — emits the same edit events as the real component
 vi.mock('@/components/chat/Message', () => ({
-  default: ({ msg, editingId, editContent, onStartEdit, onSubmitEdit, onCancelEdit, onEditContentChange, onOpenActions, onOpenContextMenu, onJumpToMessage }: any) => {
+  default: ({ msg, editingId, editContent, onStartEdit, onSubmitEdit, onCancelEdit, onEditContentChange, onDelete, onOpenActions, onOpenContextMenu, onJumpToMessage }: any) => {
     const isEditing = editingId === msg.id
     return (
       <div data-testid={`msg-${msg.id}`}>
@@ -30,6 +30,7 @@ vi.mock('@/components/chat/Message', () => ({
         ) : (
           <>
             <button data-testid={`edit-btn-${msg.id}`} onClick={() => onStartEdit(msg)}>Edit</button>
+            <button data-testid={`delete-btn-${msg.id}`} onClick={() => onDelete(msg.id)}>Delete</button>
             <button data-testid={`actions-btn-${msg.id}`} onClick={() => onOpenActions?.(msg)}>Actions</button>
             <button data-testid={`context-btn-${msg.id}`} onClick={() => onOpenContextMenu?.(msg, 100, 100)}>Context</button>
           </>
@@ -232,6 +233,35 @@ describe('MessageList — submitEdit', () => {
 
     await waitFor(() => expect(screen.getByText('Failed')).toBeInTheDocument())
     expect(onEditSuccess).not.toHaveBeenCalled()
+  })
+})
+
+describe('MessageList — delete success', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  })
+
+  it('calls onDeleteSuccess after a successful delete', async () => {
+    const deleteAction = vi.fn().mockResolvedValue({ ok: true })
+    const onDeleteSuccess = vi.fn()
+    render(<MessageList {...BASE_PROPS} deleteAction={deleteAction} onDeleteSuccess={onDeleteSuccess} />)
+
+    fireEvent.click(screen.getByTestId('delete-btn-msg-1'))
+
+    await waitFor(() => expect(deleteAction).toHaveBeenCalledWith('msg-1'))
+    expect(onDeleteSuccess).toHaveBeenCalledWith('msg-1')
+  })
+
+  it('does not call onDeleteSuccess when delete returns an error', async () => {
+    const deleteAction = vi.fn().mockResolvedValue({ error: 'Delete failed' })
+    const onDeleteSuccess = vi.fn()
+    render(<MessageList {...BASE_PROPS} deleteAction={deleteAction} onDeleteSuccess={onDeleteSuccess} />)
+
+    fireEvent.click(screen.getByTestId('delete-btn-msg-1'))
+
+    await waitFor(() => expect(screen.getByText('Delete failed')).toBeInTheDocument())
+    expect(onDeleteSuccess).not.toHaveBeenCalled()
   })
 })
 
