@@ -73,6 +73,7 @@ describe('useUnreadChannels', () => {
     })
     const { result } = renderHook(() => useUnreadChannels(USER_ID, null))
     await waitFor(() => { expect(result.current.unreadChannelIds.has('ch-a')).toBe(true) })
+    expect(result.current.unreadCountsByChannelId.get('ch-a')).toBe(1)
   })
 
   it('does not mark channel unread when all messages are before last_read_at', async () => {
@@ -121,6 +122,23 @@ describe('useUnreadChannels', () => {
     })
   })
 
+  it('counts unread messages per channel', async () => {
+    setupMock({
+      channels: [CH_A, CH_B],
+      channel_read_state: [{ channel_id: 'ch-a', last_read_at: BEFORE }],
+      messages: [
+        { channel_id: 'ch-a', created_at: NOW },
+        { channel_id: 'ch-a', created_at: AFTER },
+        { channel_id: 'ch-b', created_at: NOW },
+      ],
+    })
+    const { result } = renderHook(() => useUnreadChannels(USER_ID, null))
+    await waitFor(() => {
+      expect(result.current.unreadCountsByChannelId.get('ch-a')).toBe(2)
+      expect(result.current.unreadCountsByChannelId.get('ch-b')).toBe(1)
+    })
+  })
+
   it('adds channel to unread when realtime message arrives from another user', async () => {
     const ch = setupMock({ channels: [CH_A], channel_read_state: [], messages: [] })
     const { result } = renderHook(() => useUnreadChannels(USER_ID, null))
@@ -133,6 +151,7 @@ describe('useUnreadChannels', () => {
     })
 
     expect(result.current.unreadChannelIds.has('ch-a')).toBe(true)
+    expect(result.current.unreadCountsByChannelId.get('ch-a')).toBe(1)
   })
 
   it('does not add active channel to unread on realtime message', async () => {
@@ -147,6 +166,7 @@ describe('useUnreadChannels', () => {
     })
 
     expect(result.current.unreadChannelIds.has('ch-a')).toBe(false)
+    expect(result.current.unreadCountsByChannelId.has('ch-a')).toBe(false)
   })
 
   it('ignores realtime messages from the current user', async () => {
@@ -196,5 +216,6 @@ describe('useUnreadChannels', () => {
     rerender({ active: 'ch-a' })
 
     expect(result.current.unreadChannelIds.has('ch-a')).toBe(false)
+    expect(result.current.unreadCountsByChannelId.has('ch-a')).toBe(false)
   })
 })

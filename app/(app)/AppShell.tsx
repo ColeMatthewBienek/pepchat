@@ -13,6 +13,7 @@ import InstallBanner from '@/components/ui/InstallBanner'
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
 import { useUnreadChannels } from '@/lib/hooks/useUnreadChannels'
+import { markChannelRead, markChannelUnread } from '@/lib/channelReadState'
 import { createClient } from '@/lib/supabase/client'
 import { PERMISSIONS, type Role } from '@/lib/permissions'
 import type { Profile } from '@/lib/types'
@@ -111,7 +112,15 @@ export default function AppShell({ profile, children }: AppShellProps) {
     return m ? m[1] : null
   })()
 
-  const { unreadChannelIds, unreadGroupIds } = useUnreadChannels(profile.id, activeChannelId)
+  const { unreadChannelIds, unreadGroupIds, unreadCountsByChannelId } = useUnreadChannels(profile.id, activeChannelId)
+
+  async function handleMarkChannelRead(channelId: string) {
+    await markChannelRead(channelId, profile.id)
+  }
+
+  async function handleMarkChannelUnread(channelId: string) {
+    await markChannelUnread(channelId, profile.id)
+  }
 
   return (
     <MobileSidebarContext.Provider value={{ open: () => setMobileSidebarOpen(true) }}>
@@ -149,6 +158,9 @@ export default function AppShell({ profile, children }: AppShellProps) {
             profile={profile}
             userRole={userRole}
             unreadChannelIds={unreadChannelIds}
+            unreadCountsByChannelId={unreadCountsByChannelId}
+            onMarkChannelRead={handleMarkChannelRead}
+            onMarkChannelUnread={handleMarkChannelUnread}
             onCreateChannel={() => setShowNewChannel(true)}
             onGroupSettings={() => setShowSettings(true)}
             onMobileClose={() => setMobileSidebarOpen(false)}

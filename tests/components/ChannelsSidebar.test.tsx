@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import ChannelsSidebar from '@/components/sidebar/ChannelsSidebar'
 import type { Channel, Group, Profile } from '@/lib/types'
 
@@ -133,6 +133,52 @@ describe('ChannelsSidebar channel rows', () => {
     render(<ChannelsSidebar {...BASE_PROPS} unreadChannelIds={new Set()} />)
     const link = screen.getByRole('link', { name: /random/i })
     expect(link).not.toHaveClass('font-medium')
+  })
+
+  it('shows unread count when provided', () => {
+    render(
+      <ChannelsSidebar
+        {...BASE_PROPS}
+        unreadChannelIds={new Set(['ch-unread'])}
+        unreadCountsByChannelId={new Map([['ch-unread', 3]])}
+      />
+    )
+    expect(screen.getByTestId('unread-count-ch-unread')).toHaveTextContent('3')
+  })
+
+  it('caps unread count at 99+', () => {
+    render(
+      <ChannelsSidebar
+        {...BASE_PROPS}
+        unreadChannelIds={new Set(['ch-unread'])}
+        unreadCountsByChannelId={new Map([['ch-unread', 120]])}
+      />
+    )
+    expect(screen.getByTestId('unread-count-ch-unread')).toHaveTextContent('99+')
+  })
+
+  it('calls onMarkChannelRead from unread row action', () => {
+    const onMarkChannelRead = vi.fn()
+    render(
+      <ChannelsSidebar
+        {...BASE_PROPS}
+        unreadChannelIds={new Set(['ch-unread'])}
+        onMarkChannelRead={onMarkChannelRead}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('mark-read-ch-unread'))
+
+    expect(onMarkChannelRead).toHaveBeenCalledWith('ch-unread')
+  })
+
+  it('calls onMarkChannelUnread from read row action', () => {
+    const onMarkChannelUnread = vi.fn()
+    render(<ChannelsSidebar {...BASE_PROPS} onMarkChannelUnread={onMarkChannelUnread} />)
+
+    fireEvent.click(screen.getByTestId('mark-unread-ch-read'))
+
+    expect(onMarkChannelUnread).toHaveBeenCalledWith('ch-read')
   })
 })
 

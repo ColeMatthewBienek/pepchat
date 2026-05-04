@@ -19,6 +19,9 @@ interface ChannelsSidebarProps {
   profile: Profile
   userRole: Role | null
   unreadChannelIds?: Set<string>
+  unreadCountsByChannelId?: Map<string, number>
+  onMarkChannelRead?: (channelId: string) => void | Promise<void>
+  onMarkChannelUnread?: (channelId: string) => void | Promise<void>
   onCreateChannel?: () => void
   onGroupSettings?: () => void
   onMobileClose?: () => void
@@ -30,6 +33,9 @@ export default function ChannelsSidebar({
   profile,
   userRole,
   unreadChannelIds = new Set(),
+  unreadCountsByChannelId = new Map(),
+  onMarkChannelRead,
+  onMarkChannelUnread,
   onCreateChannel,
   onGroupSettings,
   onMobileClose,
@@ -177,6 +183,7 @@ export default function ChannelsSidebar({
             {visibleChannels.map((channel, idx) => {
               const isActive  = channel.id === activeChannelId
               const isUnread  = !isActive && unreadChannelIds.has(channel.id)
+              const unreadCount = unreadCountsByChannelId.get(channel.id) ?? 0
               const allIdx    = channels.findIndex((c) => c.id === channel.id)
 
               return (
@@ -231,11 +238,58 @@ export default function ChannelsSidebar({
                     }}>
                       <span style={{ opacity: 0.5 }}>#</span>{channel.name}
                     </span>
+
+                    {isUnread && unreadCount > 0 && (
+                      <span
+                        data-testid={`unread-count-${channel.id}`}
+                        style={{
+                          minWidth: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          padding: '0 6px',
+                          background: 'var(--accent)',
+                          color: '#fff',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
 
-                  {/* Admin move/delete controls */}
-                  {canManage && (
+                  {(onMarkChannelRead || onMarkChannelUnread || canManage) && (
                     <div className="hidden group-hover/ch:flex items-center gap-0.5 pr-1 flex-shrink-0">
+                      {isUnread && onMarkChannelRead && (
+                        <button
+                          data-testid={`mark-read-${channel.id}`}
+                          onClick={() => onMarkChannelRead(channel.id)}
+                          className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+                          title="Mark channel read"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                      )}
+                      {!isActive && !isUnread && onMarkChannelUnread && (
+                        <button
+                          data-testid={`mark-unread-${channel.id}`}
+                          onClick={() => onMarkChannelUnread(channel.id)}
+                          className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+                          title="Mark channel unread"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="7" />
+                          </svg>
+                        </button>
+                      )}
+                      {canManage && (
+                        <>
                       <button
                         disabled={allIdx === 0 || isPending}
                         onClick={() => handleMove(channel.id, 'up')}
@@ -266,6 +320,8 @@ export default function ChannelsSidebar({
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
