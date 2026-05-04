@@ -396,6 +396,27 @@ export default function MessageList({
           >
             ↓
           </button>
+          {unreadMessageId && (
+            <button
+              type="button"
+              data-testid="jump-first-unread"
+              onClick={() => jumpToMessage(unreadMessageId)}
+              title="Jump to first unread"
+              style={{
+                height: 28,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--accent)',
+                background: 'transparent',
+                color: 'var(--accent)',
+                cursor: 'pointer',
+                padding: '0 9px',
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              Unread
+            </button>
+          )}
         </div>
 
         {hasMore && (

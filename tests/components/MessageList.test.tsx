@@ -344,6 +344,25 @@ describe('MessageList — unread divider', () => {
     expect(scrolledMessageIds).toContain('msg-2')
   })
 
+  it('can jump back to the first loaded unread message from the toolbar', () => {
+    const scrolledMessageIds: string[] = []
+    vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+      scrolledMessageIds.push(this.getAttribute('data-message-id') ?? '')
+    })
+
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG, OTHER_MSG, SEARCH_MSG]}
+        initialLastReadAt="2024-01-01T12:01:00.000Z"
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('jump-first-unread'))
+
+    expect(scrolledMessageIds.filter(id => id === 'msg-2')).toHaveLength(2)
+  })
+
   it('scrolls to the bottom on initial render when there are no loaded unread messages', () => {
     const scrolledMessageIds: string[] = []
     vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {

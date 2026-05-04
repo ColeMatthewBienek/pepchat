@@ -30,3 +30,16 @@ export async function markChannelUnreadFromMessage(
       { onConflict: 'user_id,channel_id' }
     )
 }
+
+export async function markChannelUnread(channelId: string, userId: string): Promise<void> {
+  const supabase = createClient()
+  const { data: latest } = await supabase
+    .from('messages')
+    .select('created_at')
+    .eq('channel_id', channelId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  await markChannelUnreadFromMessage(channelId, userId, latest?.created_at ?? new Date(0).toISOString())
+}

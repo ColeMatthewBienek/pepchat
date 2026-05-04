@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 interface UnreadState {
   unreadChannelIds: Set<string>
   unreadGroupIds: Set<string>
+  unreadCountsByChannelId: Map<string, number>
 }
 
 export function useUnreadChannels(
@@ -13,6 +14,7 @@ export function useUnreadChannels(
   activeChannelId: string | null
 ): UnreadState {
   const [unreadChannelIds, setUnreadChannelIds] = useState(new Set<string>())
+  const [unreadCountsByChannelId, setUnreadCountsByChannelId] = useState(new Map<string, number>())
   const channelGroupMapRef = useRef(new Map<string, string>())
 
   // Keep a ref so Realtime callbacks always see the current activeChannelId
@@ -26,6 +28,12 @@ export function useUnreadChannels(
     setUnreadChannelIds(prev => {
       if (!prev.has(activeChannelId)) return prev
       const next = new Set(prev)
+      next.delete(activeChannelId)
+      return next
+    })
+    setUnreadCountsByChannelId(prev => {
+      if (!prev.has(activeChannelId)) return prev
+      const next = new Map(prev)
       next.delete(activeChannelId)
       return next
     })
@@ -71,13 +79,18 @@ export function useUnreadChannels(
 
     // 4 — Compute unread channel IDs
     const unread = new Set<string>()
+    const unreadCounts = new Map<string, number>()
     for (const msg of (messages ?? []) as { channel_id: string; created_at: string }[]) {
       if (msg.channel_id === activeChannelIdRef.current) continue
       const lastRead = readMap.get(msg.channel_id) ?? '1970-01-01T00:00:00Z'
-      if (msg.created_at > lastRead) unread.add(msg.channel_id)
+      if (msg.created_at > lastRead) {
+        unread.add(msg.channel_id)
+        unreadCounts.set(msg.channel_id, (unreadCounts.get(msg.channel_id) ?? 0) + 1)
+      }
     }
 
     setUnreadChannelIds(unread)
+    setUnreadCountsByChannelId(unreadCounts)
   }, [userId])
 
   // Subscription + re-fetch on reconnect. Re-runs only when userId changes.
@@ -100,6 +113,11 @@ export function useUnreadChannels(
           if (user_id === userId) return
           if (channel_id === activeChannelIdRef.current) return
           setUnreadChannelIds(prev => new Set(Array.from(prev).concat(channel_id)))
+          setUnreadCountsByChannelId(prev => {
+            const next = new Map(prev)
+            next.set(channel_id, (next.get(channel_id) ?? 0) + 1)
+            return next
+          })
         }
       )
       .on(
@@ -110,6 +128,12 @@ export function useUnreadChannels(
           setUnreadChannelIds(prev => {
             if (!prev.has(channel_id)) return prev
             const next = new Set(prev)
+            next.delete(channel_id)
+            return next
+          })
+          setUnreadCountsByChannelId(prev => {
+            if (!prev.has(channel_id)) return prev
+            const next = new Map(prev)
             next.delete(channel_id)
             return next
           })
@@ -135,5 +159,5 @@ export function useUnreadChannels(
     return groups
   }, [unreadChannelIds])
 
-  return { unreadChannelIds, unreadGroupIds }
+  return { unreadChannelIds, unreadGroupIds, unreadCountsByChannelId }
 }
