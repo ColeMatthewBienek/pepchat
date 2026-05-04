@@ -38,6 +38,7 @@ interface MessageListProps {
   onOpenPinnedPanel?: () => void
   highlightedMessageId?: string | null
   initialLastReadAt?: string | null
+  messageLinkBasePath?: string
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -87,6 +88,7 @@ export default function MessageList({
   onOpenPinnedPanel,
   highlightedMessageId,
   initialLastReadAt = null,
+  messageLinkBasePath = '/channels',
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -603,6 +605,7 @@ export default function MessageList({
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
         onMarkUnread={handleMarkUnread}
         onReport={modalMsg && modalMsg.user_id !== currentUserId ? handleReport : undefined}
+        messageLinkBasePath={messageLinkBasePath}
       />
 
       {contextMenu && (
@@ -623,6 +626,7 @@ export default function MessageList({
           onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
           onMarkUnread={handleMarkUnread}
           onReport={contextMenu.msg.user_id !== currentUserId ? handleReport : undefined}
+          messageLinkBasePath={messageLinkBasePath}
         />
       )}
 

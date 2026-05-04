@@ -27,6 +27,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
   const [recipientId, setRecipientId] = useState<string>('')
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
 
   const {
     messages,
@@ -107,6 +108,26 @@ export default function DMConversationView({ conversationId }: DMConversationVie
     }
   }, [router])
 
+  useEffect(() => {
+    let clearHighlightTimer: ReturnType<typeof setTimeout> | null = null
+
+    function jumpToHashMessage() {
+      if (clearHighlightTimer) clearTimeout(clearHighlightTimer)
+      const messageId = decodeURIComponent(window.location.hash.replace(/^#/, '')).trim()
+      setHighlightedMessageId(messageId || null)
+      if (messageId) {
+        clearHighlightTimer = setTimeout(() => setHighlightedMessageId(null), 1700)
+      }
+    }
+
+    jumpToHashMessage()
+    window.addEventListener('hashchange', jumpToHashMessage)
+    return () => {
+      window.removeEventListener('hashchange', jumpToHashMessage)
+      if (clearHighlightTimer) clearTimeout(clearHighlightTimer)
+    }
+  }, [conversationId])
+
   const { typingUsernames, broadcastTyping } = usePresence(
     currentUser ? `dm-presence:${conversationId}` : '__noop__',
     currentUser
@@ -176,6 +197,8 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             deleteAction={deleteDM}
             onEditSuccess={updateMessageContent}
             onDeleteSuccess={removeMessage}
+            highlightedMessageId={highlightedMessageId}
+            messageLinkBasePath="/dm"
           />
           <TypingIndicator typingUsernames={typingUsernames} />
           <MessageInput
