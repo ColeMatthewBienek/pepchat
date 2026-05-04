@@ -284,8 +284,20 @@ describe('MessageList — unread divider', () => {
       />
     )
 
-    expect(screen.getByTestId('unread-divider')).toHaveTextContent('New messages')
+    expect(screen.getByTestId('unread-divider')).toHaveTextContent('2 new messages')
     expect(screen.getAllByTestId('unread-divider')).toHaveLength(1)
+  })
+
+  it('uses a singular unread divider label for one loaded unread message', () => {
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG, OTHER_MSG]}
+        initialLastReadAt="2024-01-01T12:01:00.000Z"
+      />
+    )
+
+    expect(screen.getByTestId('unread-divider')).toHaveTextContent('1 new message')
   })
 
   it('does not count the current user messages as unread', () => {
