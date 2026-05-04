@@ -39,6 +39,7 @@ interface MessageListProps {
   highlightedMessageId?: string | null
   initialLastReadAt?: string | null
   messageLinkBasePath?: string
+  allowMarkUnread?: boolean
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -89,6 +90,7 @@ export default function MessageList({
   highlightedMessageId,
   initialLastReadAt = null,
   messageLinkBasePath = '/channels',
+  allowMarkUnread = true,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -603,7 +605,7 @@ export default function MessageList({
         onPin={handlePin}
         onReply={msg => { onReply(msg); setModalMsg(null) }}
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
-        onMarkUnread={handleMarkUnread}
+        onMarkUnread={allowMarkUnread ? handleMarkUnread : undefined}
         onReport={modalMsg && modalMsg.user_id !== currentUserId ? handleReport : undefined}
         messageLinkBasePath={messageLinkBasePath}
       />
@@ -624,7 +626,7 @@ export default function MessageList({
           onPin={handlePin}
           onReply={msg => { onReply(msg); setContextMenu(null) }}
           onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
-          onMarkUnread={handleMarkUnread}
+          onMarkUnread={allowMarkUnread ? handleMarkUnread : undefined}
           onReport={contextMenu.msg.user_id !== currentUserId ? handleReport : undefined}
           messageLinkBasePath={messageLinkBasePath}
         />

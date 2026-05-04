@@ -199,6 +199,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             onDeleteSuccess={removeMessage}
             highlightedMessageId={highlightedMessageId}
             messageLinkBasePath="/dm"
+            allowMarkUnread={false}
           />
           <TypingIndicator typingUsernames={typingUsernames} />
           <MessageInput
