@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import ChannelShell from '@/components/chat/ChannelShell'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 
-const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId }: { highlightedMessageId?: string | null }) => (
+const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId }: any) => (
   <div data-testid="message-list-highlight">{highlightedMessageId ?? ''}</div>
 )))
 
@@ -21,6 +21,7 @@ vi.mock('@/lib/hooks/useMessages', () => ({
     loadingMore: false,
     loadMore: vi.fn(),
     addMessage: vi.fn(),
+    removeMessage: vi.fn(),
     broadcastNewMessage: vi.fn(),
     toggleReactionOptimistic: vi.fn(),
     broadcastReactionChange: vi.fn(),
@@ -124,5 +125,19 @@ describe('ChannelShell — message links', () => {
     })
 
     await waitFor(() => expect(screen.getByTestId('message-list-highlight')).toHaveTextContent('msg-1'))
+  })
+
+  it('passes a delete-success handler to MessageList', () => {
+    render(
+      <ChannelShell
+        channelId="ch-1"
+        channelName="general"
+        initialMessages={[MESSAGE]}
+        profile={PROFILE}
+        userRole="user"
+      />
+    )
+
+    expect(mockMessageList.mock.calls.at(-1)?.[0].onDeleteSuccess).toEqual(expect.any(Function))
   })
 })

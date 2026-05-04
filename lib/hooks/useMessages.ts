@@ -14,6 +14,7 @@ interface UseMessagesReturn {
   loadingMore: boolean
   loadMore: () => Promise<void>
   addMessage: (msg: MessageWithProfile) => void
+  removeMessage: (messageId: string) => void
   broadcastNewMessage: (msg: MessageWithProfile) => void
   toggleReactionOptimistic: (messageId: string, emoji: string, userId: string, username: string) => void
   broadcastReactionChange: (messageId: string, emoji: string, userId: string, action: 'added' | 'removed') => void
@@ -123,6 +124,11 @@ export function useMessages(
     })
   }, [])
 
+  /** Remove a message from local state after a successful delete. */
+  const removeMessage = useCallback((messageId: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== messageId))
+  }, [])
+
   /**
    * Optimistically toggle a reaction in local state.
    * Call before the server action; caller is responsible for rollback on error.
@@ -223,5 +229,5 @@ export function useMessages(
     setLoadingMore(false)
   }, [channelId, hasMore, loadingMore, messages])
 
-  return { messages, hasMore, loadingMore, loadMore, addMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange, updateMessageContent, updateMessagePinnedAt }
+  return { messages, hasMore, loadingMore, loadMore, addMessage, removeMessage, broadcastNewMessage, toggleReactionOptimistic, broadcastReactionChange, updateMessageContent, updateMessagePinnedAt }
 }

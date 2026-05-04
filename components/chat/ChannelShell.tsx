@@ -50,6 +50,7 @@ export default function ChannelShell({
     loadingMore,
     loadMore,
     addMessage,
+    removeMessage,
     broadcastNewMessage,
     toggleReactionOptimistic,
     broadcastReactionChange,
@@ -173,6 +174,7 @@ export default function ChannelShell({
           onReply={setReplyingTo}
           userRole={userRole}
           onEditSuccess={updateMessageContent}
+          onDeleteSuccess={removeMessage}
           onOpenPinnedPanel={() => setPinnedPanelOpen(true)}
           highlightedMessageId={highlightedMessageId}
           initialLastReadAt={initialLastReadAt}
