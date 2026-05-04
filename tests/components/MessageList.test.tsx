@@ -531,6 +531,14 @@ describe('MessageList — mark unread', () => {
       OTHER_MSG.created_at
     ))
   })
+
+  it('can hide mark unread actions', () => {
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} allowMarkUnread={false} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+
+    expect(screen.queryByTestId('modal-action-mark-unread')).not.toBeInTheDocument()
+  })
 })
 
 describe('MessageList — report message', () => {
