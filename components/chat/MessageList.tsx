@@ -103,6 +103,7 @@ export default function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
+  const didInitialScrollRef = useRef(false)
 
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
@@ -152,8 +153,14 @@ export default function MessageList({
   }
 
   useEffect(() => {
+    if (didInitialScrollRef.current) return
+    didInitialScrollRef.current = true
+    if (unreadMessageId) {
+      jumpToMessage(unreadMessageId)
+      return
+    }
     bottomRef.current?.scrollIntoView()
-  }, [])
+  }, [unreadMessageId])
 
   useEffect(() => {
     if (isAtBottomRef.current) {
