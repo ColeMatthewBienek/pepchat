@@ -577,6 +577,14 @@ describe('MessageList — report message', () => {
     expect(screen.queryByTestId('modal-action-report')).not.toBeInTheDocument()
   })
 
+  it('can hide report actions for contexts without report support', () => {
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} allowReports={false} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+
+    expect(screen.queryByTestId('modal-action-report')).not.toBeInTheDocument()
+  })
+
   it('does not call reportAction when the dialog is cancelled', async () => {
     const reportAction = vi.fn().mockResolvedValue({ ok: true })
     render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)

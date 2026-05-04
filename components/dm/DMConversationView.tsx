@@ -200,6 +200,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             highlightedMessageId={highlightedMessageId}
             messageLinkBasePath="/dm"
             allowMarkUnread={false}
+            allowReports={false}
           />
           <TypingIndicator typingUsernames={typingUsernames} />
           <MessageInput

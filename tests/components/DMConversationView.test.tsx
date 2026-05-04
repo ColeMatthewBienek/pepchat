@@ -107,4 +107,10 @@ describe('DMConversationView — message links', () => {
 
     await waitFor(() => expect(mockMessageList.mock.calls.at(-1)?.[0].allowMarkUnread).toBe(false))
   })
+
+  it('disables channel-style reports for DM messages', async () => {
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => expect(mockMessageList.mock.calls.at(-1)?.[0].allowReports).toBe(false))
+  })
 })
