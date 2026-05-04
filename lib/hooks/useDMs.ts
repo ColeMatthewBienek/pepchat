@@ -108,6 +108,8 @@ interface UseDMMessagesReturn {
   loadingMore: boolean
   loadMore: () => Promise<void>
   addMessage: (dm: DirectMessageWithProfile) => void
+  removeMessage: (messageId: string) => void
+  updateMessageContent: (messageId: string, content: string) => void
 }
 
 export function useDMMessages(conversationId: string): UseDMMessagesReturn {
@@ -221,5 +223,19 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
     })
   }, [])
 
-  return { messages, hasMore, loadingMore, loadMore, addMessage }
+  const removeMessage = useCallback((messageId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId))
+  }, [])
+
+  const updateMessageContent = useCallback((messageId: string, content: string) => {
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? { ...m, content, edited_at: new Date().toISOString() }
+          : m
+      )
+    )
+  }, [])
+
+  return { messages, hasMore, loadingMore, loadMore, addMessage, removeMessage, updateMessageContent }
 }

@@ -28,7 +28,15 @@ export default function DMConversationView({ conversationId }: DMConversationVie
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
 
-  const { messages, hasMore, loadingMore, loadMore, addMessage } = useDMMessages(conversationId)
+  const {
+    messages,
+    hasMore,
+    loadingMore,
+    loadMore,
+    addMessage,
+    removeMessage,
+    updateMessageContent,
+  } = useDMMessages(conversationId)
 
   // Fetch conversation participants on mount
   useEffect(() => {
@@ -166,6 +174,8 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             allowReplies={false}
             editAction={editDM}
             deleteAction={deleteDM}
+            onEditSuccess={updateMessageContent}
+            onDeleteSuccess={removeMessage}
           />
           <TypingIndicator typingUsernames={typingUsernames} />
           <MessageInput
