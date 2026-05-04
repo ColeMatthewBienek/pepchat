@@ -41,6 +41,13 @@ export default async function ChannelPage({
     .single()
   const userRole = (membership?.role ?? null) as Role | null
 
+  const { data: readState } = await supabase
+    .from('channel_read_state')
+    .select('last_read_at')
+    .eq('channel_id', params.channelId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
   // Fetch last 50 messages (descending, then reverse for chronological display)
   const { data: messages } = await supabase
     .from('messages')
@@ -61,6 +68,7 @@ export default async function ChannelPage({
         profile={profile as Profile}
         userRole={userRole}
         userId={user.id}
+        initialLastReadAt={readState?.last_read_at ?? null}
       />
     </div>
   )

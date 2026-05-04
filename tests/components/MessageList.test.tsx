@@ -67,7 +67,7 @@ const MSG: MessageWithProfile = {
   user_id: 'u1',
   channel_id: 'ch-1',
   content: 'Hello',
-  created_at: new Date().toISOString(),
+  created_at: '2024-01-01T12:00:00.000Z',
   edited_at: null,
   reply_to_id: null,
   replied_to: null,
@@ -80,6 +80,7 @@ const OTHER_MSG: MessageWithProfile = {
   ...MSG,
   id: 'msg-2',
   user_id: 'u2',
+  created_at: '2024-01-01T12:05:00.000Z',
   content: 'Needs review',
   profiles: { username: 'bob', display_name: null, avatar_url: null },
 }
@@ -88,6 +89,7 @@ const SEARCH_MSG: MessageWithProfile = {
   ...MSG,
   id: 'msg-3',
   user_id: 'u3',
+  created_at: '2024-01-01T12:10:00.000Z',
   content: 'Launch notes mention peppers',
   profiles: { username: 'carol', display_name: 'Carol', avatar_url: null },
 }
@@ -96,6 +98,7 @@ const REPLY_MSG: MessageWithProfile = {
   ...MSG,
   id: 'msg-4',
   user_id: 'u2',
+  created_at: '2024-01-01T12:15:00.000Z',
   content: 'Replying to hello',
   reply_to_id: 'msg-1',
   replied_to: {
@@ -266,6 +269,41 @@ describe('MessageList — system messages', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, SYS_MSG]} />)
     expect(screen.getByTestId('msg-msg-1')).toBeInTheDocument()
     expect(screen.getByTestId('system-msg-sys-1')).toBeInTheDocument()
+  })
+})
+
+describe('MessageList — unread divider', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renders a divider before the first loaded unread message from another user', () => {
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG, OTHER_MSG, SEARCH_MSG]}
+        initialLastReadAt="2024-01-01T12:01:00.000Z"
+      />
+    )
+
+    expect(screen.getByTestId('unread-divider')).toHaveTextContent('New messages')
+    expect(screen.getAllByTestId('unread-divider')).toHaveLength(1)
+  })
+
+  it('does not count the current user messages as unread', () => {
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[{ ...MSG, created_at: '2024-01-01T12:05:00.000Z' }]}
+        initialLastReadAt="2024-01-01T12:01:00.000Z"
+      />
+    )
+
+    expect(screen.queryByTestId('unread-divider')).not.toBeInTheDocument()
+  })
+
+  it('does not render a divider without a read-state timestamp', () => {
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} />)
+
+    expect(screen.queryByTestId('unread-divider')).not.toBeInTheDocument()
   })
 })
 
