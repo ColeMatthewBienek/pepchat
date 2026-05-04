@@ -10,10 +10,11 @@ const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId, messageL
   </div>
 )))
 
-const { mockReplace, mockBack, mockMarkDMsRead } = vi.hoisted(() => ({
+const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockBack: vi.fn(),
   mockMarkDMsRead: vi.fn().mockResolvedValue(undefined),
+  mockDMMessageCount: { value: 1 },
 }))
 
 vi.mock('next/navigation', () => ({
@@ -32,19 +33,19 @@ vi.mock('@/lib/hooks/usePresence', () => ({
 
 vi.mock('@/lib/hooks/useDMs', () => ({
   useDMMessages: () => ({
-    messages: [{
-      id: DM_MESSAGE.id,
-      channel_id: DM_MESSAGE.conversation_id,
-      user_id: DM_MESSAGE.sender_id,
-      content: DM_MESSAGE.content,
+    messages: Array.from({ length: mockDMMessageCount.value }, (_, index) => ({
+      id: `dm-${index + 1}`,
+      channel_id: 'conv-1',
+      user_id: index === 0 ? 'user-a' : 'user-b',
+      content: index === 0 ? 'Hey Bob!' : 'New reply',
       reply_to_id: null,
       edited_at: null,
-      created_at: DM_MESSAGE.created_at,
+      created_at: `2024-03-01T10:0${index}:00Z`,
       attachments: [],
-      profiles: { username: PROFILE_A.username, avatar_url: PROFILE_A.avatar_url, display_name: PROFILE_A.display_name },
+      profiles: { username: index === 0 ? 'alice' : 'bob', avatar_url: null, display_name: index === 0 ? 'Alice' : 'Bob' },
       reactions: [],
       replied_to: null,
-    }],
+    })),
     hasMore: false,
     loadingMore: false,
     loadMore: vi.fn(),
@@ -85,6 +86,7 @@ vi.mock('@/lib/supabase/client', () => ({
 describe('DMConversationView — message links', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockDMMessageCount.value = 1
     window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}`)
   })
 
@@ -112,5 +114,17 @@ describe('DMConversationView — message links', () => {
     render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
 
     await waitFor(() => expect(mockMessageList.mock.calls.at(-1)?.[0].allowReports).toBe(false))
+  })
+
+  it('marks new messages read while the DM conversation is open', async () => {
+    const { rerender } = render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => expect(mockMarkDMsRead).toHaveBeenCalledWith(DM_MESSAGE.conversation_id))
+    mockMarkDMsRead.mockClear()
+
+    mockDMMessageCount.value = 2
+    rerender(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => expect(mockMarkDMsRead).toHaveBeenCalledWith(DM_MESSAGE.conversation_id))
   })
 })
