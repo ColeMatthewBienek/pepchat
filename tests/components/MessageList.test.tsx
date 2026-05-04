@@ -110,6 +110,15 @@ const REPLY_MSG: MessageWithProfile = {
   profiles: { username: 'bob', display_name: null, avatar_url: null },
 }
 
+const NEW_MSG: MessageWithProfile = {
+  ...MSG,
+  id: 'msg-5',
+  user_id: 'u2',
+  created_at: '2024-01-01T12:20:00.000Z',
+  content: 'Fresh update',
+  profiles: { username: 'bob', display_name: null, avatar_url: null },
+}
+
 const BASE_PROPS = {
   messages: [MSG],
   hasMore: false,
@@ -383,6 +392,41 @@ describe('MessageList — message search', () => {
 
     expect(screen.getByTestId('message-search-next')).toBeDisabled()
     expect(screen.getByTestId('message-search-prev')).toBeDisabled()
+  })
+})
+
+describe('MessageList — new message jump button', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  function scrollAwayFromBottom() {
+    const container = screen.getByTestId('message-scroll-container')
+    Object.defineProperty(container, 'scrollHeight', { value: 1000, configurable: true })
+    Object.defineProperty(container, 'clientHeight', { value: 400, configurable: true })
+    Object.defineProperty(container, 'scrollTop', { value: 100, configurable: true })
+    fireEvent.scroll(container)
+  }
+
+  it('shows a pending new-message count when another user message arrives while scrolled up', async () => {
+    const { rerender } = render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG]} />)
+
+    scrollAwayFromBottom()
+    await waitFor(() => expect(screen.getByTestId('scroll-to-bottom-btn')).toBeInTheDocument())
+
+    rerender(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, NEW_MSG]} />)
+
+    await waitFor(() => expect(screen.getByTestId('scroll-new-count')).toHaveTextContent('1 new'))
+  })
+
+  it('clears the pending new-message count when jumping to the bottom', async () => {
+    const { rerender } = render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG]} />)
+
+    scrollAwayFromBottom()
+    rerender(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, NEW_MSG]} />)
+    await waitFor(() => expect(screen.getByTestId('scroll-new-count')).toHaveTextContent('1 new'))
+
+    fireEvent.click(screen.getByTestId('scroll-to-bottom-btn'))
+
+    expect(screen.queryByTestId('scroll-new-count')).not.toBeInTheDocument()
   })
 })
 
