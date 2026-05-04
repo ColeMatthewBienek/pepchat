@@ -9,9 +9,13 @@ interface DMSectionProps {
 }
 
 export default function DMSection({ currentUserId }: DMSectionProps) {
-  const { conversations, totalUnread, loading } = useDMConversations(currentUserId)
+  const { conversations, loading } = useDMConversations(currentUserId)
   const params = useParams()
   const activeConvId = params?.conversationId as string | undefined
+  const visibleTotalUnread = conversations.reduce(
+    (sum, conv) => sum + (conv.id === activeConvId ? 0 : conv.unread_count),
+    0
+  )
 
   return (
     <div className="mt-1">
@@ -23,9 +27,12 @@ export default function DMSection({ currentUserId }: DMSectionProps) {
         <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
           Direct Messages
         </span>
-        {totalUnread > 0 && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white leading-none">
-            {totalUnread > 99 ? '99+' : totalUnread}
+        {visibleTotalUnread > 0 && (
+          <span
+            data-testid="dm-total-unread"
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white leading-none"
+          >
+            {visibleTotalUnread > 99 ? '99+' : visibleTotalUnread}
           </span>
         )}
       </div>
@@ -41,7 +48,7 @@ export default function DMSection({ currentUserId }: DMSectionProps) {
           {conversations.map(conv => (
             <li key={conv.id}>
               <DMEntry
-                conversation={conv}
+                conversation={conv.id === activeConvId ? { ...conv, unread_count: 0 } : conv}
                 isActive={conv.id === activeConvId}
               />
             </li>
