@@ -94,6 +94,7 @@ export default function MessageList({
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [pendingNewCount, setPendingNewCount] = useState(0)
   const [modalMsg, setModalMsg] = useState<MessageWithProfile | null>(null)
   const [contextMenu, setContextMenu] = useState<{ msg: MessageWithProfile; x: number; y: number } | null>(null)
   const [reportTarget, setReportTarget] = useState<MessageWithProfile | null>(null)
@@ -133,24 +134,31 @@ export default function MessageList({
   useEffect(() => {
     const currentFirstId = messages[0]?.id
     if (currentFirstId === prevFirstIdRef.current) {
+      let appendedCount = 0
       for (const m of messages) {
-        if (!knownIdsRef.current.has(m.id)) newIdsRef.current.add(m.id)
+        if (!knownIdsRef.current.has(m.id)) {
+          newIdsRef.current.add(m.id)
+          if (!isAtBottomRef.current && !m.is_system && m.user_id !== currentUserId) appendedCount++
+        }
       }
+      if (appendedCount > 0) setPendingNewCount(count => count + appendedCount)
     }
     for (const m of messages) knownIdsRef.current.add(m.id)
     prevFirstIdRef.current = currentFirstId
-  }, [messages])
+  }, [currentUserId, messages])
 
   function handleScroll() {
     const el = listRef.current
     if (!el) return
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
     isAtBottomRef.current = distFromBottom < 80
+    if (isAtBottomRef.current) setPendingNewCount(0)
     setShowScrollBtn(distFromBottom > 300)
   }
 
   function scrollToBottom() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setPendingNewCount(0)
     setShowScrollBtn(false)
   }
 
@@ -321,6 +329,7 @@ export default function MessageList({
   return (
     <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
       <div
+        data-testid="message-scroll-container"
         ref={listRef}
         onScroll={handleScroll}
         style={{
@@ -502,14 +511,15 @@ export default function MessageList({
       {/* Scroll-to-bottom button */}
       {showScrollBtn && (
         <button
+          data-testid="scroll-to-bottom-btn"
           onClick={scrollToBottom}
           style={{
             position: 'absolute',
             bottom: 16,
             right: 16,
-            width: 40,
+            minWidth: 40,
             height: 40,
-            borderRadius: '50%',
+            borderRadius: 20,
             background: 'var(--accent)',
             color: '#fff',
             border: 'none',
@@ -517,11 +527,20 @@ export default function MessageList({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 6,
+            padding: pendingNewCount > 0 ? '0 12px' : 0,
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             zIndex: 10,
+            fontSize: 12,
+            fontWeight: 700,
           }}
-          title="Scroll to bottom"
+          title={pendingNewCount > 0 ? `${pendingNewCount} new ${pendingNewCount === 1 ? 'message' : 'messages'}` : 'Scroll to bottom'}
         >
+          {pendingNewCount > 0 && (
+            <span data-testid="scroll-new-count">
+              {pendingNewCount} new
+            </span>
+          )}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
             <path d="M12 5v14M5 12l7 7 7-7" />
           </svg>
