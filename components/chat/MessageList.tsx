@@ -108,16 +108,18 @@ export default function MessageList({
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
   const newIdsRef = useRef(new Set<string>())
-  const unreadMessageId = useMemo(() => {
-    if (!initialLastReadAt) return null
+  const unreadMessages = useMemo(() => {
+    if (!initialLastReadAt) return []
     const lastReadMs = new Date(initialLastReadAt).getTime()
-    if (!Number.isFinite(lastReadMs)) return null
-    return messages.find(msg => (
+    if (!Number.isFinite(lastReadMs)) return []
+    return messages.filter(msg => (
       !msg.is_system &&
       msg.user_id !== currentUserId &&
       new Date(msg.created_at).getTime() > lastReadMs
-    ))?.id ?? null
+    ))
   }, [currentUserId, initialLastReadAt, messages])
+  const unreadMessageId = unreadMessages[0]?.id ?? null
+  const unreadDividerLabel = `${unreadMessages.length} new ${unreadMessages.length === 1 ? 'message' : 'messages'}`
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const searchMatches = useMemo(() => {
     if (!normalizedSearch) return []
@@ -434,7 +436,7 @@ export default function MessageList({
                     textTransform: 'uppercase',
                     letterSpacing: 0,
                   }}>
-                    New messages
+                    {unreadDividerLabel}
                   </span>
                   <div style={{ flex: 1, height: 1, background: 'var(--accent)' }} />
                 </div>
