@@ -28,6 +28,7 @@ export interface MessageModalProps {
   onEmojiSelect: (msgId: string, emoji: string) => void
   onMarkUnread?: (msg: MessageWithProfile) => void
   onReport?: (msgId: string) => void
+  messageLinkBasePath?: string
 }
 
 export default function MessageModal({
@@ -46,6 +47,7 @@ export default function MessageModal({
   onEmojiSelect,
   onMarkUnread,
   onReport,
+  messageLinkBasePath = '/channels',
 }: MessageModalProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [showFullPicker, setShowFullPicker] = useState(false)
@@ -73,7 +75,7 @@ export default function MessageModal({
   }
 
   function handleCopyLink() {
-    navigator.clipboard?.writeText(`${window.location.origin}/channels/${msg!.channel_id}#${msg!.id}`)
+    navigator.clipboard?.writeText(`${window.location.origin}${messageLinkBasePath}/${msg!.channel_id}#${msg!.id}`)
     onClose()
   }
 

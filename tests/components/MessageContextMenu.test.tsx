@@ -188,6 +188,17 @@ describe('MessageContextMenu — actions', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('copies message link with a custom base path', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+
+    render(<MessageContextMenu {...defaultProps} messageLinkBasePath="/dm" />)
+
+    fireEvent.click(screen.getByText('Copy Message Link'))
+
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/dm/ch-1#msg-1`)
+  })
+
   it('shows confirm dialog when Delete clicked, then calls onDelete on confirm', () => {
     const onDelete = vi.fn()
     const onClose = vi.fn()

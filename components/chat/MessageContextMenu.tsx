@@ -29,6 +29,7 @@ export interface MessageContextMenuProps {
   onEmojiSelect: (msgId: string, emoji: string) => void
   onMarkUnread?: (msg: MessageWithProfile) => void
   onReport?: (msgId: string) => void
+  messageLinkBasePath?: string
 }
 
 export default function MessageContextMenu({
@@ -47,6 +48,7 @@ export default function MessageContextMenu({
   onEmojiSelect,
   onMarkUnread,
   onReport,
+  messageLinkBasePath = '/channels',
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -84,7 +86,7 @@ export default function MessageContextMenu({
   }
 
   function handleCopyLink() {
-    const url = `${window.location.origin}/channels/${message.channel_id}#${message.id}`
+    const url = `${window.location.origin}${messageLinkBasePath}/${message.channel_id}#${message.id}`
     navigator.clipboard?.writeText(url).catch(() => {})
     onClose()
   }

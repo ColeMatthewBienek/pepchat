@@ -199,6 +199,17 @@ describe('MessageModal — callbacks', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('copies message link with a custom base path', () => {
+    const writeText = vi.fn()
+    Object.assign(navigator, { clipboard: { writeText } })
+
+    render(<MessageModal {...BASE} messageLinkBasePath="/dm" />)
+
+    fireEvent.click(screen.getByTestId('modal-action-copy-link'))
+
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/dm/ch-1#msg-1`)
+  })
+
   it('calls onMarkUnread and onClose when Mark Unread clicked', () => {
     const onMarkUnread = vi.fn()
     const onClose = vi.fn()
