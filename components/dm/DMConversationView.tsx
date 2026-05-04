@@ -39,6 +39,8 @@ export default function DMConversationView({ conversationId }: DMConversationVie
     updateMessageContent,
   } = useDMMessages(conversationId)
 
+  const prevMessageCountRef = useRef(messages.length)
+
   // Fetch conversation participants on mount
   useEffect(() => {
     if (!conversationId) return
@@ -82,6 +84,18 @@ export default function DMConversationView({ conversationId }: DMConversationVie
 
     init()
   }, [conversationId, router])
+
+  useEffect(() => {
+    if (!currentUser) {
+      prevMessageCountRef.current = messages.length
+      return
+    }
+
+    if (messages.length > prevMessageCountRef.current) {
+      markDMsRead(conversationId)
+    }
+    prevMessageCountRef.current = messages.length
+  }, [conversationId, currentUser, messages.length])
 
   // Swipe right from left edge to go back
   useEffect(() => {
