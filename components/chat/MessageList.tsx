@@ -36,6 +36,7 @@ interface MessageListProps {
   onEditSuccess?: (messageId: string, content: string) => void
   onOpenPinnedPanel?: () => void
   highlightedMessageId?: string | null
+  initialLastReadAt?: string | null
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -83,6 +84,7 @@ export default function MessageList({
   onEditSuccess,
   onOpenPinnedPanel,
   highlightedMessageId,
+  initialLastReadAt = null,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -105,6 +107,16 @@ export default function MessageList({
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
   const newIdsRef = useRef(new Set<string>())
+  const unreadMessageId = useMemo(() => {
+    if (!initialLastReadAt) return null
+    const lastReadMs = new Date(initialLastReadAt).getTime()
+    if (!Number.isFinite(lastReadMs)) return null
+    return messages.find(msg => (
+      !msg.is_system &&
+      msg.user_id !== currentUserId &&
+      new Date(msg.created_at).getTime() > lastReadMs
+    ))?.id ?? null
+  }, [currentUserId, initialLastReadAt, messages])
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const searchMatches = useMemo(() => {
     if (!normalizedSearch) return []
@@ -398,10 +410,29 @@ export default function MessageList({
           const isOwn = msg.user_id === currentUserId
           const uniqueEmojiCount = new Set((msg.reactions ?? []).map(r => r.emoji)).size
           const atReactionLimit = uniqueEmojiCount >= 20
+          const showUnreadDivider = msg.id === unreadMessageId
 
           const isNewMsg = newIdsRef.current.has(msg.id)
           return (
             <div key={msg.id} data-message-id={msg.id} className={isNewMsg ? 'message-new' : undefined}>
+              {showUnreadDivider && (
+                <div data-testid="unread-divider" style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 16px 14px' }}>
+                  <div style={{ flex: 1, height: 1, background: 'var(--accent)' }} />
+                  <span style={{
+                    fontSize: 11,
+                    color: 'var(--accent)',
+                    background: 'var(--bg-chat)',
+                    padding: '0 12px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0,
+                  }}>
+                    New messages
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: 'var(--accent)' }} />
+                </div>
+              )}
+
               {showDateSep && !msg.is_system && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 16px' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--border-soft)' }} />

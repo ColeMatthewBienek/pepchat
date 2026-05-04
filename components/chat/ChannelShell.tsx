@@ -25,6 +25,7 @@ interface ChannelShellProps {
   initialMessages: MessageWithProfile[]
   profile: Profile
   userRole?: Role | null
+  initialLastReadAt?: string | null
   /** Auth user ID — used for message ownership checks. Defaults to profile.id. */
   userId?: string
 }
@@ -40,6 +41,7 @@ export default function ChannelShell({
   initialMessages,
   profile,
   userRole,
+  initialLastReadAt = null,
   userId,
 }: ChannelShellProps) {
   const {
@@ -173,6 +175,7 @@ export default function ChannelShell({
           onEditSuccess={updateMessageContent}
           onOpenPinnedPanel={() => setPinnedPanelOpen(true)}
           highlightedMessageId={highlightedMessageId}
+          initialLastReadAt={initialLastReadAt}
         />
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput
