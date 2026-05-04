@@ -5,6 +5,35 @@ import type { DirectMessageWithProfile, Attachment } from '@/lib/types'
 
 const DM_SELECT = '*, sender:profiles!sender_id(id, username, avatar_url, display_name, username_color, banner_color, badge, pronouns, bio, location, website, member_since, updated_at, created_at)'
 
+type DMPreviewMessage = {
+  id: string
+  conversation_id: string
+  content: string
+  created_at: string
+}
+
+async function updateConversationPreview(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string
+): Promise<void> {
+  const { data: latest } = await supabase
+    .from('direct_messages')
+    .select('id, conversation_id, content, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  const latestMessage = latest as DMPreviewMessage | null
+  await supabase
+    .from('dm_conversations')
+    .update({
+      last_message:    latestMessage?.content.slice(0, 100) ?? null,
+      last_message_at: latestMessage?.created_at ?? null,
+    })
+    .eq('id', conversationId)
+}
+
 export async function sendDM(
   conversationId: string,
   recipientId: string,
@@ -53,13 +82,19 @@ export async function editDM(
   const trimmed = content.trim()
   if (!trimmed) return { error: 'Message cannot be empty.' }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('direct_messages')
     .update({ content: trimmed, edited_at: new Date().toISOString() })
     .eq('id', messageId)
     .eq('sender_id', user.id)
+    .select('id, conversation_id, content, created_at')
+    .single()
 
   if (error) return { error: error.message }
+  const updatedMessage = data as DMPreviewMessage | null
+  if (updatedMessage) {
+    await updateConversationPreview(supabase, updatedMessage.conversation_id)
+  }
   return { ok: true }
 }
 
@@ -70,6 +105,13 @@ export async function deleteDM(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
+  const { data: target } = await supabase
+    .from('direct_messages')
+    .select('id, conversation_id')
+    .eq('id', messageId)
+    .eq('sender_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('direct_messages')
     .delete()
@@ -77,6 +119,10 @@ export async function deleteDM(
     .eq('sender_id', user.id)
 
   if (error) return { error: error.message }
+  const deletedMessage = target as { conversation_id: string } | null
+  if (deletedMessage) {
+    await updateConversationPreview(supabase, deletedMessage.conversation_id)
+  }
   return { ok: true }
 }
 
