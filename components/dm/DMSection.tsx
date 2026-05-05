@@ -56,14 +56,27 @@ export default function DMSection({ currentUserId }: DMSectionProps) {
 
       {!loading && conversations.length > 0 && (
         <div className="px-3 pb-2">
-          <input
-            data-testid="dm-search-input"
-            className="w-full rounded border border-[var(--border-soft)] bg-[var(--bg-tertiary)] px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
-            type="text"
-            placeholder="Search DMs..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <div className="relative">
+            <input
+              data-testid="dm-search-input"
+              className="w-full rounded border border-[var(--border-soft)] bg-[var(--bg-tertiary)] px-2 py-1.5 pr-7 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
+              type="search"
+              placeholder="Search DMs..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {normalizedSearch && (
+              <button
+                type="button"
+                data-testid="dm-search-clear"
+                aria-label="Clear DM search"
+                className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-sm leading-none text-[var(--text-muted)] hover:bg-white/10 hover:text-[var(--text-primary)]"
+                onClick={() => setSearch('')}
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -101,4 +101,28 @@ describe('DMSection', () => {
     expect(screen.queryByText('Bob')).not.toBeInTheDocument()
     expect(screen.queryByText('Carol')).not.toBeInTheDocument()
   })
+
+  it('clears the conversation search', () => {
+    mockUseParams.mockReturnValue({ conversationId: undefined })
+    mockUseDMConversations.mockReturnValue({
+      conversations: CONVERSATIONS,
+      totalUnread: 6,
+      loading: false,
+    })
+
+    render(<DMSection currentUserId={PROFILE_A.id} />)
+
+    const searchInput = screen.getByTestId('dm-search-input')
+    fireEvent.change(searchInput, { target: { value: 'carol' } })
+
+    expect(screen.getByText('Carol')).toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('dm-search-clear'))
+
+    expect(searchInput).toHaveValue('')
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+    expect(screen.getByText('Carol')).toBeInTheDocument()
+    expect(screen.queryByTestId('dm-search-clear')).not.toBeInTheDocument()
+  })
 })
