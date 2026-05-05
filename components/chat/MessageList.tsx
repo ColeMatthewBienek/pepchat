@@ -227,12 +227,17 @@ export default function MessageList({
   }
 
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    if (e.shiftKey) {
-      goToPrevSearchResult()
-    } else {
-      goToNextSearchResult()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (e.shiftKey) {
+        goToPrevSearchResult()
+      } else {
+        goToNextSearchResult()
+      }
+    }
+    if (e.key === 'Escape' && normalizedSearch) {
+      e.preventDefault()
+      clearSearch()
     }
   }
 

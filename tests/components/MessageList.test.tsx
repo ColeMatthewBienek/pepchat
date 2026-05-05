@@ -502,6 +502,21 @@ describe('MessageList — message search', () => {
     expect(screen.getByTestId('message-search-count')).toHaveTextContent('')
     expect(screen.queryByTestId('message-search-clear')).not.toBeInTheDocument()
   })
+
+  it('clears the loaded message search query with Escape', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
+    const input = screen.getByTestId('message-search-input')
+
+    fireEvent.change(input, { target: { value: 'peppers' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    expect(input).toHaveValue('')
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('')
+    expect(screen.queryByTestId('message-search-clear')).not.toBeInTheDocument()
+  })
 })
 
 describe('MessageList — new message jump button', () => {
