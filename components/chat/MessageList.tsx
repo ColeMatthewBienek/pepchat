@@ -139,10 +139,14 @@ export default function MessageList({
         .map(attachment => `${attachment.type} ${attachment.name}`)
         .join(' ')
         .toLowerCase()
+      const replyText = msg.replied_to
+        ? `${msg.replied_to.content} ${msg.replied_to.profiles?.username ?? ''}`.toLowerCase()
+        : ''
       return (
         msg.content.toLowerCase().includes(normalizedSearch) ||
         author.includes(normalizedSearch) ||
-        attachmentText.includes(normalizedSearch)
+        attachmentText.includes(normalizedSearch) ||
+        replyText.includes(normalizedSearch)
       )
     })
   }, [messages, normalizedSearch])
