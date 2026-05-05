@@ -20,6 +20,7 @@ interface MessageInputProps {
   onCancelReply?: () => void
   onTyping?: () => void
   onSent?: (message: MessageWithProfile) => void
+  placeholder?: string
   /** When provided, called instead of the default sendMessage server action. */
   sendAction?: (content: string, replyToId: string | null, attachments: Attachment[]) => Promise<{ error: string } | { ok: true; message: MessageWithProfile }>
 }
@@ -32,6 +33,7 @@ export default function MessageInput({
   onCancelReply,
   onTyping,
   onSent,
+  placeholder,
   sendAction,
 }: MessageInputProps) {
   const [content, setContent] = useState('')
@@ -189,6 +191,9 @@ export default function MessageInput({
   }
 
   const canSend = (content.trim().length > 0 || attachments.length > 0) && !isPending && !hasUploading
+  const inputPlaceholder = replyingTo
+    ? `Reply to @${replyingTo.profiles?.username}…`
+    : (placeholder ?? `Message #${channelName}`)
 
   return (
     <div
@@ -302,7 +307,7 @@ export default function MessageInput({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={replyingTo ? `Reply to @${replyingTo.profiles?.username}…` : `Message #${channelName}`}
+            placeholder={inputPlaceholder}
             disabled={isPending}
             rows={1}
             className="composer-input flex-1 text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none leading-relaxed disabled:opacity-50"

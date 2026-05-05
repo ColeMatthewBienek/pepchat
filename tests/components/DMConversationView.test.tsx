@@ -10,13 +10,14 @@ const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId, messageL
   </div>
 )))
 
-const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUsers, mockDMHeader } = vi.hoisted(() => ({
+const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUsers, mockDMHeader, mockMessageInput } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockBack: vi.fn(),
   mockMarkDMsRead: vi.fn().mockResolvedValue(undefined),
   mockDMMessageCount: { value: 1 },
   mockOnlineUsers: { value: [] as Array<{ user_id: string; username: string; avatar_url: string | null }> },
   mockDMHeader: vi.fn((_props: any) => <div data-testid="dm-header" />),
+  mockMessageInput: vi.fn((_props: any) => <div data-testid="message-input" />),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -24,7 +25,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/chat/MessageList', () => ({ default: (props: any) => mockMessageList(props) }))
-vi.mock('@/components/chat/MessageInput', () => ({ default: () => <div data-testid="message-input" /> }))
+vi.mock('@/components/chat/MessageInput', () => ({ default: (props: any) => mockMessageInput(props) }))
 vi.mock('@/components/chat/TypingIndicator', () => ({ default: () => <div data-testid="typing-indicator" /> }))
 vi.mock('@/components/dm/DMHeader', () => ({ default: (props: any) => mockDMHeader(props) }))
 vi.mock('@/components/dm/DMEmptyState', () => ({ default: () => <div data-testid="dm-empty-state" /> }))
@@ -138,6 +139,14 @@ describe('DMConversationView — message links', () => {
 
     await waitFor(() => {
       expect(mockDMHeader).toHaveBeenLastCalledWith(expect.objectContaining({ isOnline: true }))
+    })
+  })
+
+  it('passes a direct-message placeholder to the composer', async () => {
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => {
+      expect(mockMessageInput).toHaveBeenLastCalledWith(expect.objectContaining({ placeholder: 'Message Bob' }))
     })
   })
 })

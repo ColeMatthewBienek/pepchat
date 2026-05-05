@@ -193,6 +193,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             channelId={conversationId}
             channelName={otherUser.display_name ?? otherUser.username}
             profile={currentUser}
+            placeholder={`Message ${otherUser.display_name ?? otherUser.username}`}
             onTyping={broadcastTyping}
             sendAction={handleSend}
             onSent={() => {}}
@@ -225,6 +226,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             channelId={conversationId}
             channelName={otherUser.display_name ?? otherUser.username}
             profile={currentUser}
+            placeholder={`Message ${otherUser.display_name ?? otherUser.username}`}
             onTyping={broadcastTyping}
             sendAction={handleSend}
             onSent={() => {}}
