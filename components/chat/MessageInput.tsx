@@ -11,6 +11,7 @@ import type { KlipyGif } from '@/lib/klipy'
 const GifPicker = dynamic(() => import('./GifPicker'), { ssr: false })
 
 const KLIPY_ENABLED = !!process.env.NEXT_PUBLIC_KLIPY_API_KEY
+const TYPING_BROADCAST_INTERVAL_MS = 1500
 
 interface MessageInputProps {
   channelId: string
@@ -49,6 +50,7 @@ export default function MessageInput({
   const gifPickerRef = useRef<HTMLDivElement>(null)
   const dragCounterRef = useRef(0)
   const skipNextDraftWriteRef = useRef(false)
+  const lastTypingBroadcastAtRef = useRef(0)
 
   const { pendingImages, inputError, addFiles, removeImage, retryUpload, clearAll, hasUploading, attachments } =
     useImageUpload()
@@ -168,7 +170,11 @@ export default function MessageInput({
     setContent(e.target.value)
     setError('')
     autoResize()
-    onTyping?.()
+    const now = Date.now()
+    if (now - lastTypingBroadcastAtRef.current >= TYPING_BROADCAST_INTERVAL_MS) {
+      lastTypingBroadcastAtRef.current = now
+      onTyping?.()
+    }
   }
 
   function clearDraft() {

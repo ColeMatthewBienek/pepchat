@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MessageInput from '@/components/chat/MessageInput'
 import { MESSAGE, PROFILE_A } from '@/tests/fixtures'
 
@@ -38,6 +38,11 @@ describe('MessageInput draft persistence', () => {
   beforeEach(() => {
     window.localStorage.clear()
     vi.clearAllMocks()
+    vi.useRealTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('loads a saved draft for the current channel', () => {
@@ -101,5 +106,28 @@ describe('MessageInput draft persistence', () => {
     expect(window.localStorage.getItem('pepchat:draft:channel-1')).toBeNull()
     expect(screen.queryByTestId('message-input-clear-draft')).not.toBeInTheDocument()
     expect(textarea).toHaveFocus()
+  })
+
+  it('throttles typing notifications while text changes quickly', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(2_000)
+    const onTyping = vi.fn()
+    render(<MessageInput {...BASE_PROPS} onTyping={onTyping} />)
+
+    const textarea = screen.getByTestId('message-input-textarea')
+    fireEvent.change(textarea, { target: { value: 'h' } })
+    fireEvent.change(textarea, { target: { value: 'he' } })
+
+    expect(onTyping).toHaveBeenCalledTimes(1)
+
+    vi.setSystemTime(3_499)
+    fireEvent.change(textarea, { target: { value: 'hel' } })
+
+    expect(onTyping).toHaveBeenCalledTimes(1)
+
+    vi.setSystemTime(3_500)
+    fireEvent.change(textarea, { target: { value: 'hell' } })
+
+    expect(onTyping).toHaveBeenCalledTimes(2)
   })
 })
