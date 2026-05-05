@@ -28,6 +28,12 @@ export default function GroupsSidebar({
   const activeGroupId = params?.groupId as string | undefined
   const [hovered, setHovered] = useState<string | null>(null)
 
+  function handleKeyboardActivate(e: React.KeyboardEvent, action: () => void) {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    action()
+  }
+
   return (
     <nav
       data-testid="groups-sidebar"
@@ -45,9 +51,13 @@ export default function GroupsSidebar({
     >
       {/* DMs home */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Direct Messages"
         onMouseEnter={() => setHovered('home')}
         onMouseLeave={() => setHovered(null)}
         onClick={onDMsHome}
+        onKeyDown={(e) => handleKeyboardActivate(e, () => onDMsHome?.())}
         onPointerDown={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); onDMsHome?.() } }}
         style={{
           position: 'relative',
@@ -101,7 +111,11 @@ export default function GroupsSidebar({
             }}
           >
             <AccentBar active={isActive} hovered={hovered === group.id} />
-            <Link href={`/groups/${group.id}`} style={{ display: 'flex', textDecoration: 'none', touchAction: 'manipulation' }}>
+            <Link
+              href={`/groups/${group.id}`}
+              aria-label={group.name}
+              style={{ display: 'flex', textDecoration: 'none', touchAction: 'manipulation' }}
+            >
               <GroupIcon group={group} size={44} active={isActive} />
             </Link>
             {hovered === group.id && (
@@ -129,9 +143,13 @@ export default function GroupsSidebar({
       {/* Create / Join group */}
       <div
         data-testid="create-join-tile"
+        role="button"
+        tabIndex={0}
+        aria-label="Create or Join Group"
         onMouseEnter={() => setHovered('create')}
         onMouseLeave={() => setHovered(null)}
         onClick={onCreateGroup}
+        onKeyDown={(e) => handleKeyboardActivate(e, onCreateGroup)}
         onPointerDown={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); onCreateGroup() } }}
         style={{
           position: 'relative',
