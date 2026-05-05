@@ -221,6 +221,11 @@ export default function MessageList({
     jumpToSearchResult((activeSearchIndex - 1 + searchMatches.length) % searchMatches.length)
   }
 
+  function clearSearch() {
+    setSearchQuery('')
+    setActiveSearchIndex(-1)
+  }
+
   function handleJumpToReply(messageId: string) {
     if (!messages.some(m => m.id === messageId)) {
       setError('')
@@ -392,6 +397,17 @@ export default function MessageList({
           >
             {normalizedSearch ? `${searchMatches.length} ${searchMatches.length === 1 ? 'result' : 'results'}` : ''}
           </span>
+          {normalizedSearch && (
+            <button
+              type="button"
+              data-testid="message-search-clear"
+              aria-label="Clear message search"
+              onClick={clearSearch}
+              style={searchNavBtn(false)}
+            >
+              ×
+            </button>
+          )}
           <button
             type="button"
             data-testid="message-search-prev"

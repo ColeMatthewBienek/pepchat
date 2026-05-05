@@ -442,6 +442,20 @@ describe('MessageList — message search', () => {
     expect(screen.getByTestId('message-search-next')).toBeDisabled()
     expect(screen.getByTestId('message-search-prev')).toBeDisabled()
   })
+
+  it('clears the loaded message search query', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'peppers' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+
+    fireEvent.click(screen.getByTestId('message-search-clear'))
+
+    expect(screen.getByTestId('message-search-input')).toHaveValue('')
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('')
+    expect(screen.queryByTestId('message-search-clear')).not.toBeInTheDocument()
+  })
 })
 
 describe('MessageList — new message jump button', () => {
