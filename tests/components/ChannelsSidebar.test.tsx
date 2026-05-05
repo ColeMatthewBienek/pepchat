@@ -157,6 +157,59 @@ describe('ChannelsSidebar channel rows', () => {
     expect(screen.getByTestId('unread-count-ch-unread')).toHaveTextContent('99+')
   })
 
+  it('filters channels by name and description', () => {
+    render(
+      <ChannelsSidebar
+        {...BASE_PROPS}
+        channels={[
+          CHANNELS[0],
+          { ...CHANNELS[1], description: 'Release notes and updates' },
+          CHANNELS[2],
+        ]}
+      />
+    )
+
+    fireEvent.change(screen.getByTestId('channel-search-input'), { target: { value: 'announce' } })
+
+    expect(screen.getByRole('link', { name: /announcements/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /general/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /random/i })).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByTestId('channel-search-input'), { target: { value: 'release notes' } })
+
+    expect(screen.getByRole('link', { name: /announcements/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /general/i })).not.toBeInTheDocument()
+  })
+
+  it('clears the channel search', () => {
+    render(<ChannelsSidebar {...BASE_PROPS} />)
+
+    const searchInput = screen.getByTestId('channel-search-input')
+    fireEvent.change(searchInput, { target: { value: 'random' } })
+
+    expect(screen.getByRole('link', { name: /random/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /general/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('channel-search-clear'))
+
+    expect(searchInput).toHaveValue('')
+    expect(screen.getByRole('link', { name: /general/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /announcements/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /random/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('channel-search-clear')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty channel search state when no channels match', () => {
+    render(<ChannelsSidebar {...BASE_PROPS} />)
+
+    fireEvent.change(screen.getByTestId('channel-search-input'), { target: { value: 'zzznomatch' } })
+
+    expect(screen.getByText('No channels match your search.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /general/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /announcements/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /random/i })).not.toBeInTheDocument()
+  })
+
   it('calls onMarkChannelRead from unread row action', () => {
     const onMarkChannelRead = vi.fn()
     render(
