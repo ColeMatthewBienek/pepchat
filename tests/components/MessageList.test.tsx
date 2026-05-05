@@ -449,6 +449,26 @@ describe('MessageList — message search', () => {
     expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
   })
 
+  it('searches loaded replies by quoted message text and author', () => {
+    const replyToSearchMsg: MessageWithProfile = {
+      ...REPLY_MSG,
+      content: 'Following up',
+      replied_to: {
+        ...REPLY_MSG.replied_to!,
+        content: 'Orbit window',
+      },
+    }
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG, replyToSearchMsg]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'orbit window' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'alice' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+  })
+
   it('jumps to the first matching message when next is clicked', () => {
     const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
     render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
