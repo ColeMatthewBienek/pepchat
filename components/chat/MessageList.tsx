@@ -111,6 +111,7 @@ export default function MessageList({
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const isAtBottomRef = useRef(true)
   const didInitialScrollRef = useRef(false)
 
@@ -206,6 +207,24 @@ export default function MessageList({
   useEffect(() => {
     setActiveSearchIndex(-1)
   }, [normalizedSearch])
+
+  useEffect(() => {
+    function isEditableTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false
+      const tagName = target.tagName.toLowerCase()
+      return tagName === 'input' || tagName === 'textarea' || target.isContentEditable
+    }
+
+    function handleDocumentKeyDown(e: KeyboardEvent) {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || isEditableTarget(e.target)) return
+      e.preventDefault()
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }
+
+    document.addEventListener('keydown', handleDocumentKeyDown)
+    return () => document.removeEventListener('keydown', handleDocumentKeyDown)
+  }, [])
 
   function jumpToMessage(messageId: string) {
     if (!listRef.current) return
@@ -408,6 +427,7 @@ export default function MessageList({
           }}
         >
           <input
+            ref={searchInputRef}
             data-testid="message-search-input"
             type="search"
             placeholder="Search loaded messages..."
