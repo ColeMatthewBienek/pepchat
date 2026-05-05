@@ -73,4 +73,22 @@ describe('MessageInput draft persistence', () => {
     })
     expect(screen.getByTestId('message-input-textarea')).toHaveValue('')
   })
+
+  it('clears a typed draft from the composer', () => {
+    render(<MessageInput {...BASE_PROPS} />)
+
+    const textarea = screen.getByTestId('message-input-textarea')
+    fireEvent.change(textarea, {
+      target: { value: 'Do not send this' },
+    })
+
+    expect(window.localStorage.getItem('pepchat:draft:channel-1')).toBe('Do not send this')
+
+    fireEvent.click(screen.getByTestId('message-input-clear-draft'))
+
+    expect(textarea).toHaveValue('')
+    expect(window.localStorage.getItem('pepchat:draft:channel-1')).toBeNull()
+    expect(screen.queryByTestId('message-input-clear-draft')).not.toBeInTheDocument()
+    expect(textarea).toHaveFocus()
+  })
 })

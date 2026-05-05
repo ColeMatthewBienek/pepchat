@@ -169,6 +169,15 @@ export default function MessageInput({
     onTyping?.()
   }
 
+  function clearDraft() {
+    setContent('')
+    setError('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.focus()
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -330,6 +339,21 @@ export default function MessageInput({
             className="composer-input flex-1 text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none leading-relaxed disabled:opacity-50"
             style={{ maxHeight: 200 }}
           />
+          {content.length > 0 && (
+            <button
+              type="button"
+              data-testid="message-input-clear-draft"
+              onClick={clearDraft}
+              disabled={isPending}
+              title="Clear draft"
+              aria-label="Clear message draft"
+              className="flex-shrink-0 rounded p-1.5 text-[var(--text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-40"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={submit}
             disabled={!canSend}
