@@ -10,7 +10,7 @@ const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId, messageL
   </div>
 )))
 
-const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUsers, mockDMHeader, mockMessageInput } = vi.hoisted(() => ({
+const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUsers, mockDMHeader, mockMessageInput, mockDMEmptyState } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockBack: vi.fn(),
   mockMarkDMsRead: vi.fn().mockResolvedValue(undefined),
@@ -18,6 +18,7 @@ const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUs
   mockOnlineUsers: { value: [] as Array<{ user_id: string; username: string; avatar_url: string | null }> },
   mockDMHeader: vi.fn((_props: any) => <div data-testid="dm-header" />),
   mockMessageInput: vi.fn((_props: any) => <div data-testid="message-input" />),
+  mockDMEmptyState: vi.fn((_props: any) => <div data-testid="dm-empty-state" />),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -28,7 +29,7 @@ vi.mock('@/components/chat/MessageList', () => ({ default: (props: any) => mockM
 vi.mock('@/components/chat/MessageInput', () => ({ default: (props: any) => mockMessageInput(props) }))
 vi.mock('@/components/chat/TypingIndicator', () => ({ default: () => <div data-testid="typing-indicator" /> }))
 vi.mock('@/components/dm/DMHeader', () => ({ default: (props: any) => mockDMHeader(props) }))
-vi.mock('@/components/dm/DMEmptyState', () => ({ default: () => <div data-testid="dm-empty-state" /> }))
+vi.mock('@/components/dm/DMEmptyState', () => ({ default: (props: any) => mockDMEmptyState(props) }))
 
 vi.mock('@/lib/hooks/usePresence', () => ({
   usePresence: () => ({ onlineUsers: mockOnlineUsers.value, typingUsernames: [], broadcastTyping: vi.fn() }),
@@ -147,6 +148,17 @@ describe('DMConversationView — message links', () => {
 
     await waitFor(() => {
       expect(mockMessageInput).toHaveBeenLastCalledWith(expect.objectContaining({ placeholder: 'Message Bob' }))
+    })
+  })
+
+  it('passes online presence to the empty state before any messages exist', async () => {
+    mockDMMessageCount.value = 0
+    mockOnlineUsers.value = [{ user_id: PROFILE_B.id, username: PROFILE_B.username, avatar_url: PROFILE_B.avatar_url }]
+
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => {
+      expect(mockDMEmptyState).toHaveBeenLastCalledWith(expect.objectContaining({ isOnline: true }))
     })
   })
 })

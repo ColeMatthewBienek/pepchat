@@ -176,17 +176,19 @@ export default function DMConversationView({ conversationId }: DMConversationVie
     )
   }
 
+  const isOtherUserOnline = onlineUsers.some(user => user.user_id === otherUser.id)
+
   return (
     <div ref={swipeRef} className="flex flex-col flex-1 min-h-0">
       <DMHeader
         otherUser={otherUser}
         onBack={() => router.back()}
-        isOnline={onlineUsers.some(user => user.user_id === otherUser.id)}
+        isOnline={isOtherUserOnline}
       />
       {messages.length === 0 ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1">
-            <DMEmptyState otherUser={otherUser} />
+            <DMEmptyState otherUser={otherUser} isOnline={isOtherUserOnline} />
           </div>
           <TypingIndicator typingUsernames={typingUsernames} />
           <MessageInput
