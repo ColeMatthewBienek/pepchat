@@ -9,11 +9,24 @@ interface DMEntryProps {
   isActive: boolean
 }
 
+export function formatDMEntryTime(value: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
 export default function DMEntry({ conversation, isActive }: DMEntryProps) {
   const { other_user, unread_count } = conversation
   const displayName = other_user.display_name ?? other_user.username
   const visibleUnreadCount = isActive ? 0 : unread_count
   const hasUnread = visibleUnreadCount > 0
+  const lastMessageTime = formatDMEntryTime(conversation.last_message_at)
 
   return (
     <Link
@@ -36,8 +49,18 @@ export default function DMEntry({ conversation, isActive }: DMEntryProps) {
         )}
       </div>
       <span className="min-w-0 flex-1">
-        <span className={`block text-sm truncate ${hasUnread ? 'font-semibold text-[var(--text-primary)]' : ''}`}>
-          {displayName}
+        <span className="flex items-center gap-2">
+          <span className={`min-w-0 flex-1 text-sm truncate ${hasUnread ? 'font-semibold text-[var(--text-primary)]' : ''}`}>
+            {displayName}
+          </span>
+          {lastMessageTime && (
+            <span
+              data-testid={`dm-last-time-${conversation.id}`}
+              className="flex-shrink-0 text-[10px] text-[var(--text-faint)]"
+            >
+              {lastMessageTime}
+            </span>
+          )}
         </span>
         {conversation.last_message && (
           <span
