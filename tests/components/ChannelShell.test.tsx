@@ -3,13 +3,16 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import ChannelShell from '@/components/chat/ChannelShell'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 
-const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId }: any) => (
-  <div data-testid="message-list-highlight">{highlightedMessageId ?? ''}</div>
-)))
+const { mockMessageList, mockMessageInput } = vi.hoisted(() => ({
+  mockMessageList: vi.fn(({ highlightedMessageId }: any) => (
+    <div data-testid="message-list-highlight">{highlightedMessageId ?? ''}</div>
+  )),
+  mockMessageInput: vi.fn((_props: any) => <div data-testid="message-input" />),
+}))
 
 vi.mock('@/components/chat/ChatHeader', () => ({ default: () => <div data-testid="chat-header" /> }))
 vi.mock('@/components/chat/MessageList', () => ({ default: (props: any) => mockMessageList(props) }))
-vi.mock('@/components/chat/MessageInput', () => ({ default: () => <div data-testid="message-input" /> }))
+vi.mock('@/components/chat/MessageInput', () => ({ default: (props: any) => mockMessageInput(props) }))
 vi.mock('@/components/chat/TypingIndicator', () => ({ default: () => <div data-testid="typing-indicator" /> }))
 vi.mock('@/components/chat/PresencePanel', () => ({ default: () => <div data-testid="presence-panel" /> }))
 vi.mock('@/components/chat/PinnedMessagesPanel', () => ({ default: () => <div data-testid="pinned-panel" /> }))
@@ -139,5 +142,21 @@ describe('ChannelShell — message links', () => {
     )
 
     expect(mockMessageList.mock.calls.at(-1)?.[0].onDeleteSuccess).toEqual(expect.any(Function))
+  })
+
+  it('scopes composer drafts to the channel', () => {
+    render(
+      <ChannelShell
+        channelId="ch-1"
+        channelName="general"
+        initialMessages={[MESSAGE]}
+        profile={PROFILE}
+        userRole="user"
+      />
+    )
+
+    expect(mockMessageInput).toHaveBeenLastCalledWith(
+      expect.objectContaining({ draftStorageKey: 'pepchat:draft:channel:ch-1' })
+    )
   })
 })

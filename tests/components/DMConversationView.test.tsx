@@ -151,6 +151,16 @@ describe('DMConversationView — message links', () => {
     })
   })
 
+  it('scopes composer drafts to the DM conversation', async () => {
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => {
+      expect(mockMessageInput).toHaveBeenLastCalledWith(
+        expect.objectContaining({ draftStorageKey: `pepchat:draft:dm:${DM_MESSAGE.conversation_id}` })
+      )
+    })
+  })
+
   it('passes online presence to the empty state before any messages exist', async () => {
     mockDMMessageCount.value = 0
     mockOnlineUsers.value = [{ user_id: PROFILE_B.id, username: PROFILE_B.username, avatar_url: PROFILE_B.avatar_url }]

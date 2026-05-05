@@ -58,6 +58,17 @@ describe('MessageInput draft persistence', () => {
     expect(window.localStorage.getItem('pepchat:draft:channel-1')).toBe('Remember this thought')
   })
 
+  it('uses a provided draft storage key', () => {
+    render(<MessageInput {...BASE_PROPS} draftStorageKey="pepchat:draft:channel:channel-1" />)
+
+    fireEvent.change(screen.getByTestId('message-input-textarea'), {
+      target: { value: 'Scoped draft' },
+    })
+
+    expect(window.localStorage.getItem('pepchat:draft:channel:channel-1')).toBe('Scoped draft')
+    expect(window.localStorage.getItem('pepchat:draft:channel-1')).toBeNull()
+  })
+
   it('clears the draft after a successful send', async () => {
     const sendAction = vi.fn().mockResolvedValue({ ok: true, message: MESSAGE })
     render(<MessageInput {...BASE_PROPS} sendAction={sendAction} />)

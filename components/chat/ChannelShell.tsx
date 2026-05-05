@@ -184,6 +184,7 @@ export default function ChannelShell({
           channelId={channelId}
           channelName={channelName}
           profile={profile}
+          draftStorageKey={`pepchat:draft:channel:${channelId}`}
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
           onTyping={broadcastTyping}
