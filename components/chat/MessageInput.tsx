@@ -36,7 +36,8 @@ export default function MessageInput({
   placeholder,
   sendAction,
 }: MessageInputProps) {
-  const [content, setContent] = useState('')
+  const draftStorageKey = `pepchat:draft:${channelId}`
+  const [content, setContent] = useState(() => readDraft(draftStorageKey))
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
   const [isDragging, setIsDragging] = useState(false)
@@ -45,9 +46,23 @@ export default function MessageInput({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const gifPickerRef = useRef<HTMLDivElement>(null)
   const dragCounterRef = useRef(0)
+  const skipNextDraftWriteRef = useRef(false)
 
   const { pendingImages, inputError, addFiles, removeImage, retryUpload, clearAll, hasUploading, attachments } =
     useImageUpload()
+
+  useEffect(() => {
+    skipNextDraftWriteRef.current = true
+    setContent(readDraft(draftStorageKey))
+  }, [draftStorageKey])
+
+  useEffect(() => {
+    if (skipNextDraftWriteRef.current) {
+      skipNextDraftWriteRef.current = false
+      return
+    }
+    writeDraft(draftStorageKey, content)
+  }, [content, draftStorageKey])
 
   // Document-level drag listeners so the overlay covers the whole page
   useEffect(() => {
@@ -176,6 +191,7 @@ export default function MessageInput({
       if ('error' in result) {
         setError(result.error)
       } else {
+        removeDraft(draftStorageKey)
         setContent('')
         clearAll()
         if (textareaRef.current) textareaRef.current.style.height = 'auto'
@@ -303,6 +319,7 @@ export default function MessageInput({
 
           <textarea
             ref={textareaRef}
+            data-testid="message-input-textarea"
             value={content}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -403,4 +420,38 @@ export default function MessageInput({
       </div>
     </div>
   )
+}
+
+function readDraft(key: string): string {
+  if (typeof window === 'undefined') return ''
+
+  try {
+    return window.localStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function writeDraft(key: string, value: string) {
+  if (typeof window === 'undefined') return
+
+  try {
+    if (value.length > 0) {
+      window.localStorage.setItem(key, value)
+    } else {
+      window.localStorage.removeItem(key)
+    }
+  } catch {
+    // localStorage can be unavailable in private browsing or embedded contexts.
+  }
+}
+
+function removeDraft(key: string) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // localStorage can be unavailable in private browsing or embedded contexts.
+  }
 }
