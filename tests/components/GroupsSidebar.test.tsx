@@ -39,6 +39,7 @@ describe('GroupsSidebar layout', () => {
   it('renders a DMs home button', () => {
     render(<GroupsSidebar {...BASE_PROPS} />)
     expect(screen.getByTestId('dms-home-button')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Direct Messages' })).toBeInTheDocument()
   })
 
   it('renders a tile for each group', () => {
@@ -49,20 +50,38 @@ describe('GroupsSidebar layout', () => {
 
   it('group tile links to /groups/:id', () => {
     render(<GroupsSidebar {...BASE_PROPS} />)
-    const tile = screen.getByTestId('group-tile-grp-1')
-    const link = tile.closest('a') ?? tile.querySelector('a')
+    const link = screen.getByRole('link', { name: 'Alpha' })
     expect(link).toHaveAttribute('href', '/groups/grp-1')
   })
 
   it('renders the create/join button', () => {
     render(<GroupsSidebar {...BASE_PROPS} />)
     expect(screen.getByTestId('create-join-button')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create or Join Group' })).toBeInTheDocument()
   })
 
   it('calls onCreateGroup when create/join button is clicked', () => {
     const onCreateGroup = vi.fn()
     render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
     fireEvent.click(screen.getByTestId('create-join-button'))
+    expect(onCreateGroup).toHaveBeenCalled()
+  })
+
+  it('calls onDMsHome when Direct Messages is activated with keyboard', () => {
+    const onDMsHome = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onDMsHome={onDMsHome} />)
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Direct Messages' }), { key: 'Enter' })
+
+    expect(onDMsHome).toHaveBeenCalled()
+  })
+
+  it('calls onCreateGroup when create/join is activated with keyboard', () => {
+    const onCreateGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Create or Join Group' }), { key: ' ' })
+
     expect(onCreateGroup).toHaveBeenCalled()
   })
 
