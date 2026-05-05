@@ -9,7 +9,23 @@ type DMPreviewMessage = {
   id: string
   conversation_id: string
   content: string
+  attachments?: Attachment[] | null
   created_at: string
+}
+
+function formatDMPreview(content: string, attachments?: Attachment[] | null): string | null {
+  const trimmed = content.trim()
+  if (trimmed) return trimmed.slice(0, 100)
+  if (!attachments || attachments.length === 0) return null
+
+  const [first] = attachments
+  if (attachments.length === 1) {
+    if (first.type === 'gif') return 'GIF'
+    if (first.type === 'image') return 'Image'
+    return 'Attachment'
+  }
+
+  return `${attachments.length} attachments`
 }
 
 async function updateConversationPreview(
@@ -18,7 +34,7 @@ async function updateConversationPreview(
 ): Promise<void> {
   const { data: latest } = await supabase
     .from('direct_messages')
-    .select('id, conversation_id, content, created_at')
+    .select('id, conversation_id, content, attachments, created_at')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -28,7 +44,7 @@ async function updateConversationPreview(
   await supabase
     .from('dm_conversations')
     .update({
-      last_message:    latestMessage?.content.slice(0, 100) ?? null,
+      last_message:    latestMessage ? formatDMPreview(latestMessage.content, latestMessage.attachments) : null,
       last_message_at: latestMessage?.created_at ?? null,
     })
     .eq('id', conversationId)
@@ -65,7 +81,7 @@ export async function sendDM(
   // Update conversation preview
   await supabase
     .from('dm_conversations')
-    .update({ last_message: trimmed.slice(0, 100), last_message_at: new Date().toISOString() })
+    .update({ last_message: formatDMPreview(trimmed, attachments), last_message_at: new Date().toISOString() })
     .eq('id', conversationId)
 
   return { ok: true, message: msg as unknown as DirectMessageWithProfile }
@@ -87,7 +103,7 @@ export async function editDM(
     .update({ content: trimmed, edited_at: new Date().toISOString() })
     .eq('id', messageId)
     .eq('sender_id', user.id)
-    .select('id, conversation_id, content, created_at')
+    .select('id, conversation_id, content, attachments, created_at')
     .single()
 
   if (error) return { error: error.message }

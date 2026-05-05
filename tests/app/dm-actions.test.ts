@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteDM, editDM } from '@/app/(app)/dm/actions'
+import { deleteDM, editDM, sendDM } from '@/app/(app)/dm/actions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -14,7 +14,7 @@ function makeBuilder(result: QueryResult = {}) {
     _updates: [] as unknown[],
   }
 
-  for (const method of ['select', 'eq', 'order', 'limit']) {
+  for (const method of ['insert', 'select', 'eq', 'order', 'limit']) {
     builder[method] = vi.fn(() => builder)
   }
 
@@ -62,6 +62,7 @@ describe('DM actions — conversation preview maintenance', () => {
         id: 'dm-1',
         conversation_id: 'conv-1',
         content: 'Updated message',
+        attachments: [],
         created_at: '2024-03-01T10:00:00Z',
       },
     })
@@ -70,6 +71,7 @@ describe('DM actions — conversation preview maintenance', () => {
         id: 'dm-1',
         conversation_id: 'conv-1',
         content: 'Updated message',
+        attachments: [],
         created_at: '2024-03-01T10:00:00Z',
       },
     })
@@ -86,6 +88,95 @@ describe('DM actions — conversation preview maintenance', () => {
     expect(conversationBuilder.eq).toHaveBeenCalledWith('id', 'conv-1')
   })
 
+  it('uses an image label for image-only DM previews', async () => {
+    const messageBuilder = makeBuilder({
+      data: {
+        id: 'dm-1',
+        conversation_id: 'conv-1',
+        sender_id: 'user-a',
+        recipient_id: 'user-b',
+        content: '',
+        attachments: [{ type: 'image', url: 'https://example.com/image.jpg', name: 'image.jpg', size: 123 }],
+        edited_at: null,
+        read_at: null,
+        created_at: '2024-03-01T10:00:00Z',
+        sender: { id: 'user-a', username: 'alice' },
+      },
+    })
+    const conversationBuilder = makeBuilder()
+
+    setupClient([messageBuilder, conversationBuilder])
+
+    await sendDM('conv-1', 'user-b', '   ', [
+      { type: 'image', url: 'https://example.com/image.jpg', name: 'image.jpg', size: 123 },
+    ])
+
+    expect(conversationBuilder.update).toHaveBeenCalledWith({
+      last_message: 'Image',
+      last_message_at: expect.any(String),
+    })
+  })
+
+  it('uses a GIF label for GIF-only DM previews', async () => {
+    const messageBuilder = makeBuilder({
+      data: {
+        id: 'dm-1',
+        conversation_id: 'conv-1',
+        sender_id: 'user-a',
+        recipient_id: 'user-b',
+        content: '',
+        attachments: [{ type: 'gif', url: 'https://example.com/gif.gif', name: 'gif', preview: 'https://example.com/gif.gif', width: 200, height: 200, source: 'klipy' }],
+        edited_at: null,
+        read_at: null,
+        created_at: '2024-03-01T10:00:00Z',
+        sender: { id: 'user-a', username: 'alice' },
+      },
+    })
+    const conversationBuilder = makeBuilder()
+
+    setupClient([messageBuilder, conversationBuilder])
+
+    await sendDM('conv-1', 'user-b', '', [
+      { type: 'gif', url: 'https://example.com/gif.gif', name: 'gif', preview: 'https://example.com/gif.gif', width: 200, height: 200, source: 'klipy' },
+    ])
+
+    expect(conversationBuilder.update).toHaveBeenCalledWith({
+      last_message: 'GIF',
+      last_message_at: expect.any(String),
+    })
+  })
+
+  it('uses an attachment count for multi-attachment DM previews', async () => {
+    const attachments = [
+      { type: 'image' as const, url: 'https://example.com/1.jpg', name: '1.jpg', size: 123 },
+      { type: 'image' as const, url: 'https://example.com/2.jpg', name: '2.jpg', size: 456 },
+    ]
+    const messageBuilder = makeBuilder({
+      data: {
+        id: 'dm-1',
+        conversation_id: 'conv-1',
+        sender_id: 'user-a',
+        recipient_id: 'user-b',
+        content: '',
+        attachments,
+        edited_at: null,
+        read_at: null,
+        created_at: '2024-03-01T10:00:00Z',
+        sender: { id: 'user-a', username: 'alice' },
+      },
+    })
+    const conversationBuilder = makeBuilder()
+
+    setupClient([messageBuilder, conversationBuilder])
+
+    await sendDM('conv-1', 'user-b', '', attachments)
+
+    expect(conversationBuilder.update).toHaveBeenCalledWith({
+      last_message: '2 attachments',
+      last_message_at: expect.any(String),
+    })
+  })
+
   it('falls back to the previous DM after deleting the latest DM', async () => {
     const targetBuilder = makeBuilder({ data: { id: 'dm-2', conversation_id: 'conv-1' } })
     const deleteBuilder = makeBuilder()
@@ -93,7 +184,8 @@ describe('DM actions — conversation preview maintenance', () => {
       data: {
         id: 'dm-1',
         conversation_id: 'conv-1',
-        content: 'Previous message',
+        content: '',
+        attachments: [{ type: 'gif', url: 'https://example.com/gif.gif', name: 'gif', preview: 'https://example.com/gif.gif', width: 200, height: 200, source: 'klipy' }],
         created_at: '2024-03-01T09:00:00Z',
       },
     })
@@ -104,7 +196,7 @@ describe('DM actions — conversation preview maintenance', () => {
     await expect(deleteDM('dm-2')).resolves.toEqual({ ok: true })
 
     expect(conversationBuilder.update).toHaveBeenCalledWith({
-      last_message: 'Previous message',
+      last_message: 'GIF',
       last_message_at: '2024-03-01T09:00:00Z',
     })
     expect(conversationBuilder.eq).toHaveBeenCalledWith('id', 'conv-1')
