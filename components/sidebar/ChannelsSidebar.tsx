@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import Avatar from '@/components/ui/Avatar'
 import MembersPanel from '@/components/sidebar/MembersPanel'
@@ -42,6 +42,7 @@ export default function ChannelsSidebar({
 }: ChannelsSidebarProps) {
   const params = useParams()
   const activeChannelId = params?.channelId as string | undefined
+  const [channelSearch, setChannelSearch] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const canManage    = userRole ? PERMISSIONS.canManageChannels(userRole) : false
@@ -50,6 +51,15 @@ export default function ChannelsSidebar({
   const visibleChannels = userRole === 'noob'
     ? channels.filter((c) => c.name === 'welcome')
     : channels
+  const normalizedChannelSearch = channelSearch.trim().toLowerCase()
+  const filteredChannels = useMemo(() => {
+    if (!normalizedChannelSearch) return visibleChannels
+
+    return visibleChannels.filter(channel => {
+      const values = [channel.name, channel.description ?? ''].map(value => value.toLowerCase())
+      return values.some(value => value.includes(normalizedChannelSearch))
+    })
+  }, [normalizedChannelSearch, visibleChannels])
 
   function handleDelete(channelId: string) {
     if (!group) return
@@ -179,8 +189,40 @@ export default function ChannelsSidebar({
               </p>
             )}
 
+            {visibleChannels.length > 0 && (
+              <div className="px-2 pb-2">
+                <div className="relative">
+                  <input
+                    data-testid="channel-search-input"
+                    className="w-full rounded border border-[var(--border-soft)] bg-[var(--bg-tertiary)] px-2 py-1.5 pr-7 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
+                    type="search"
+                    placeholder="Search channels..."
+                    value={channelSearch}
+                    onChange={e => setChannelSearch(e.target.value)}
+                  />
+                  {normalizedChannelSearch && (
+                    <button
+                      type="button"
+                      data-testid="channel-search-clear"
+                      aria-label="Clear channel search"
+                      className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-sm leading-none text-[var(--text-muted)] hover:bg-white/10 hover:text-[var(--text-primary)]"
+                      onClick={() => setChannelSearch('')}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {visibleChannels.length > 0 && filteredChannels.length === 0 && (
+              <p className="px-3 py-2 text-xs leading-relaxed text-[var(--text-muted)]">
+                No channels match your search.
+              </p>
+            )}
+
             {/* Channel rows */}
-            {visibleChannels.map((channel, idx) => {
+            {filteredChannels.map((channel) => {
               const isActive  = channel.id === activeChannelId
               const isUnread  = !isActive && unreadChannelIds.has(channel.id)
               const unreadCount = unreadCountsByChannelId.get(channel.id) ?? 0
