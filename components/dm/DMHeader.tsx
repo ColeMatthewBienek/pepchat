@@ -6,9 +6,10 @@ import type { Profile } from '@/lib/types'
 interface DMHeaderProps {
   otherUser: Profile
   onBack: () => void
+  isOnline?: boolean
 }
 
-export default function DMHeader({ otherUser, onBack }: DMHeaderProps) {
+export default function DMHeader({ otherUser, onBack, isOnline = false }: DMHeaderProps) {
   const displayName = otherUser.display_name ?? otherUser.username
 
   return (
@@ -41,7 +42,13 @@ export default function DMHeader({ otherUser, onBack }: DMHeaderProps) {
       <Avatar user={otherUser} size={28} className="flex-shrink-0" />
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate leading-tight">{displayName}</p>
-        <p className="text-[10px] text-[var(--text-muted)] leading-tight">Direct Message</p>
+        <p className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] leading-tight">
+          <span
+            data-testid="dm-presence-dot"
+            className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-[var(--online)]' : 'bg-[var(--text-faint)]'}`}
+          />
+          <span>{isOnline ? 'Online' : 'Offline'}</span>
+        </p>
       </div>
     </div>
   )

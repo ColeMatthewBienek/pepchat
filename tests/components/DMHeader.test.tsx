@@ -21,9 +21,16 @@ describe('DMHeader', () => {
     expect(onBack).toHaveBeenCalledOnce()
   })
 
-  it('shows "Direct Message" subtitle', () => {
+  it('shows offline presence by default', () => {
     render(<DMHeader otherUser={PROFILE_B} onBack={vi.fn()} />)
-    expect(screen.getByText(/direct message/i)).toBeInTheDocument()
+    expect(screen.getByText(/offline/i)).toBeInTheDocument()
+    expect(screen.getByTestId('dm-presence-dot')).toHaveClass('bg-[var(--text-faint)]')
+  })
+
+  it('shows online presence when the other user is online', () => {
+    render(<DMHeader otherUser={PROFILE_B} onBack={vi.fn()} isOnline />)
+    expect(screen.getByText(/online/i)).toBeInTheDocument()
+    expect(screen.getByTestId('dm-presence-dot')).toHaveClass('bg-[var(--online)]')
   })
 
   it('falls back to username when display_name is null', () => {
