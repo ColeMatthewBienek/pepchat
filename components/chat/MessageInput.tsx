@@ -21,6 +21,7 @@ interface MessageInputProps {
   onTyping?: () => void
   onSent?: (message: MessageWithProfile) => void
   placeholder?: string
+  draftStorageKey?: string
   /** When provided, called instead of the default sendMessage server action. */
   sendAction?: (content: string, replyToId: string | null, attachments: Attachment[]) => Promise<{ error: string } | { ok: true; message: MessageWithProfile }>
 }
@@ -34,9 +35,10 @@ export default function MessageInput({
   onTyping,
   onSent,
   placeholder,
+  draftStorageKey: providedDraftStorageKey,
   sendAction,
 }: MessageInputProps) {
-  const draftStorageKey = `pepchat:draft:${channelId}`
+  const draftStorageKey = providedDraftStorageKey ?? `pepchat:draft:${channelId}`
   const [content, setContent] = useState(() => readDraft(draftStorageKey))
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
