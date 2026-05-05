@@ -469,6 +469,15 @@ describe('MessageList — message search', () => {
     expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
   })
 
+  it('focuses loaded message search with slash when focus is not in an editable field', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
+    const input = screen.getByTestId('message-search-input')
+
+    fireEvent.keyDown(document, { key: '/' })
+
+    expect(input).toHaveFocus()
+  })
+
   it('jumps to the first matching message when next is clicked', () => {
     const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
     render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
