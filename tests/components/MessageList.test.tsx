@@ -434,6 +434,28 @@ describe('MessageList — message search', () => {
     expect(scrollSpy).toHaveBeenCalled()
   })
 
+  it('shows the active result position after navigating search matches', () => {
+    const secondPepperMsg: MessageWithProfile = {
+      ...SEARCH_MSG,
+      id: 'msg-6',
+      created_at: '2024-01-01T12:25:00.000Z',
+      content: 'Pepper status follow-up',
+    }
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG, secondPepperMsg]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'pepper' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('2 results')
+
+    fireEvent.click(screen.getByTestId('message-search-next'))
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1/2')
+
+    fireEvent.click(screen.getByTestId('message-search-next'))
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('2/2')
+  })
+
   it('disables search navigation when there are no matches', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG]} />)
 
