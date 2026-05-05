@@ -135,7 +135,15 @@ export default function MessageList({
     return messages.filter(msg => {
       if (msg.is_system) return false
       const author = `${msg.profiles?.display_name ?? ''} ${msg.profiles?.username ?? ''}`.toLowerCase()
-      return msg.content.toLowerCase().includes(normalizedSearch) || author.includes(normalizedSearch)
+      const attachmentText = (msg.attachments ?? [])
+        .map(attachment => `${attachment.type} ${attachment.name}`)
+        .join(' ')
+        .toLowerCase()
+      return (
+        msg.content.toLowerCase().includes(normalizedSearch) ||
+        author.includes(normalizedSearch) ||
+        attachmentText.includes(normalizedSearch)
+      )
     })
   }, [messages, normalizedSearch])
 

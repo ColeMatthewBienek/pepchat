@@ -424,6 +424,31 @@ describe('MessageList — message search', () => {
     expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
   })
 
+  it('searches loaded messages by attachment name and type', () => {
+    const attachmentMsg: MessageWithProfile = {
+      ...MSG,
+      id: 'msg-6',
+      content: '',
+      attachments: [
+        {
+          type: 'image',
+          name: 'launch-map.png',
+          url: 'https://example.com/launch-map.png',
+          size: 1024,
+        },
+      ],
+    }
+    render(<MessageList {...BASE_PROPS} messages={[MSG, attachmentMsg]} />)
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'launch-map' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'image' } })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
+  })
+
   it('jumps to the first matching message when next is clicked', () => {
     const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
     render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
