@@ -226,6 +226,16 @@ export default function MessageList({
     setActiveSearchIndex(-1)
   }
 
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    if (e.shiftKey) {
+      goToPrevSearchResult()
+    } else {
+      goToNextSearchResult()
+    }
+  }
+
   function handleJumpToReply(messageId: string) {
     if (!messages.some(m => m.id === messageId)) {
       setError('')
@@ -386,6 +396,7 @@ export default function MessageList({
             placeholder="Search loaded messages..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             style={{
               flex: 1,
               minWidth: 0,
