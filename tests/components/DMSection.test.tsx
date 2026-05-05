@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import DMSection from '@/components/dm/DMSection'
 import { PROFILE_A, PROFILE_B } from '@/tests/fixtures'
@@ -62,5 +62,43 @@ describe('DMSection', () => {
     render(<DMSection currentUserId={PROFILE_A.id} />)
 
     expect(screen.queryByTestId('dm-total-unread')).not.toBeInTheDocument()
+  })
+
+  it('filters conversations by display name and latest preview', () => {
+    mockUseParams.mockReturnValue({ conversationId: undefined })
+    mockUseDMConversations.mockReturnValue({
+      conversations: CONVERSATIONS,
+      totalUnread: 6,
+      loading: false,
+    })
+
+    render(<DMSection currentUserId={PROFILE_A.id} />)
+
+    fireEvent.change(screen.getByTestId('dm-search-input'), { target: { value: 'carol' } })
+
+    expect(screen.getByText('Carol')).toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByTestId('dm-search-input'), { target: { value: 'active unread' } })
+
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+    expect(screen.queryByText('Carol')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty search state when no conversations match', () => {
+    mockUseParams.mockReturnValue({ conversationId: undefined })
+    mockUseDMConversations.mockReturnValue({
+      conversations: CONVERSATIONS,
+      totalUnread: 6,
+      loading: false,
+    })
+
+    render(<DMSection currentUserId={PROFILE_A.id} />)
+
+    fireEvent.change(screen.getByTestId('dm-search-input'), { target: { value: 'zzznomatch' } })
+
+    expect(screen.getByText('No direct messages match your search.')).toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+    expect(screen.queryByText('Carol')).not.toBeInTheDocument()
   })
 })
