@@ -10,11 +10,13 @@ const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId, messageL
   </div>
 )))
 
-const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount } = vi.hoisted(() => ({
+const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUsers, mockDMHeader } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockBack: vi.fn(),
   mockMarkDMsRead: vi.fn().mockResolvedValue(undefined),
   mockDMMessageCount: { value: 1 },
+  mockOnlineUsers: { value: [] as Array<{ user_id: string; username: string; avatar_url: string | null }> },
+  mockDMHeader: vi.fn((_props: any) => <div data-testid="dm-header" />),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -24,11 +26,11 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/components/chat/MessageList', () => ({ default: (props: any) => mockMessageList(props) }))
 vi.mock('@/components/chat/MessageInput', () => ({ default: () => <div data-testid="message-input" /> }))
 vi.mock('@/components/chat/TypingIndicator', () => ({ default: () => <div data-testid="typing-indicator" /> }))
-vi.mock('@/components/dm/DMHeader', () => ({ default: () => <div data-testid="dm-header" /> }))
+vi.mock('@/components/dm/DMHeader', () => ({ default: (props: any) => mockDMHeader(props) }))
 vi.mock('@/components/dm/DMEmptyState', () => ({ default: () => <div data-testid="dm-empty-state" /> }))
 
 vi.mock('@/lib/hooks/usePresence', () => ({
-  usePresence: () => ({ typingUsernames: [], broadcastTyping: vi.fn() }),
+  usePresence: () => ({ onlineUsers: mockOnlineUsers.value, typingUsernames: [], broadcastTyping: vi.fn() }),
 }))
 
 vi.mock('@/lib/hooks/useDMs', () => ({
@@ -87,6 +89,7 @@ describe('DMConversationView — message links', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockDMMessageCount.value = 1
+    mockOnlineUsers.value = []
     window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}`)
   })
 
@@ -126,5 +129,15 @@ describe('DMConversationView — message links', () => {
     rerender(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
 
     await waitFor(() => expect(mockMarkDMsRead).toHaveBeenCalledWith(DM_MESSAGE.conversation_id))
+  })
+
+  it('passes online presence for the other DM participant to the header', async () => {
+    mockOnlineUsers.value = [{ user_id: PROFILE_B.id, username: PROFILE_B.username, avatar_url: PROFILE_B.avatar_url }]
+
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => {
+      expect(mockDMHeader).toHaveBeenLastCalledWith(expect.objectContaining({ isOnline: true }))
+    })
   })
 })

@@ -142,7 +142,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
     }
   }, [conversationId])
 
-  const { typingUsernames, broadcastTyping } = usePresence(
+  const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(
     currentUser ? `dm-presence:${conversationId}` : '__noop__',
     currentUser
       ? { user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url }
@@ -178,7 +178,11 @@ export default function DMConversationView({ conversationId }: DMConversationVie
 
   return (
     <div ref={swipeRef} className="flex flex-col flex-1 min-h-0">
-      <DMHeader otherUser={otherUser} onBack={() => router.back()} />
+      <DMHeader
+        otherUser={otherUser}
+        onBack={() => router.back()}
+        isOnline={onlineUsers.some(user => user.user_id === otherUser.id)}
+      />
       {messages.length === 0 ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1">
