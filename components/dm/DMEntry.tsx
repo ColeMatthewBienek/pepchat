@@ -35,8 +35,20 @@ export default function DMEntry({ conversation, isActive }: DMEntryProps) {
           />
         )}
       </div>
-      <span className={`text-sm truncate flex-1 ${hasUnread ? 'font-semibold text-[var(--text-primary)]' : ''}`}>
-        {displayName}
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm truncate ${hasUnread ? 'font-semibold text-[var(--text-primary)]' : ''}`}>
+          {displayName}
+        </span>
+        {conversation.last_message && (
+          <span
+            data-testid={`dm-preview-${conversation.id}`}
+            className={`block text-xs truncate leading-4 ${
+              hasUnread ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+            }`}
+          >
+            {conversation.last_message}
+          </span>
+        )}
       </span>
       {hasUnread && (
         <span

@@ -16,6 +16,18 @@ const CONVERSATION: DMConversation = {
 }
 
 describe('DMEntry', () => {
+  it('shows the latest message preview when one is available', () => {
+    render(<DMEntry conversation={CONVERSATION} isActive={false} />)
+
+    expect(screen.getByTestId('dm-preview-conv-1')).toHaveTextContent('Hello')
+  })
+
+  it('omits the latest message preview when the conversation has no preview', () => {
+    render(<DMEntry conversation={{ ...CONVERSATION, last_message: null }} isActive={false} />)
+
+    expect(screen.queryByTestId('dm-preview-conv-1')).not.toBeInTheDocument()
+  })
+
   it('shows unread dot and count for an unread inactive conversation', () => {
     render(<DMEntry conversation={CONVERSATION} isActive={false} />)
 
