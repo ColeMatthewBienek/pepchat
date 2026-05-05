@@ -456,6 +456,30 @@ describe('MessageList — message search', () => {
     expect(screen.getByTestId('message-search-count')).toHaveTextContent('2/2')
   })
 
+  it('navigates search matches with Enter and Shift+Enter', () => {
+    const secondPepperMsg: MessageWithProfile = {
+      ...SEARCH_MSG,
+      id: 'msg-6',
+      created_at: '2024-01-01T12:25:00.000Z',
+      content: 'Pepper status follow-up',
+    }
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG, secondPepperMsg]} />)
+    const input = screen.getByTestId('message-search-input')
+
+    fireEvent.change(input, { target: { value: 'pepper' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1/2')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('2/2')
+
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
+
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1/2')
+  })
+
   it('disables search navigation when there are no matches', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG]} />)
 
