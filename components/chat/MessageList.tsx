@@ -346,6 +346,13 @@ export default function MessageList({
 
   const canDeleteAny = userRole ? PERMISSIONS.canDeleteAnyMessage(userRole) : false
   const canPin = userRole ? PERMISSIONS.canPinMessages(userRole) : false
+  const searchCountLabel = normalizedSearch
+    ? (
+        searchMatches.length > 0 && activeSearchIndex >= 0
+          ? `${activeSearchIndex + 1}/${searchMatches.length}`
+          : `${searchMatches.length} ${searchMatches.length === 1 ? 'result' : 'results'}`
+      )
+    : ''
 
   return (
     <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -395,7 +402,7 @@ export default function MessageList({
             data-testid="message-search-count"
             style={{ width: 72, textAlign: 'right', fontSize: 12, color: 'var(--text-faint)' }}
           >
-            {normalizedSearch ? `${searchMatches.length} ${searchMatches.length === 1 ? 'result' : 'results'}` : ''}
+            {searchCountLabel}
           </span>
           {normalizedSearch && (
             <button
