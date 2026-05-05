@@ -42,7 +42,9 @@ export default function DMHeader({ otherUser, onBack, isOnline = false }: DMHead
       <Avatar user={otherUser} size={28} className="flex-shrink-0" />
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate leading-tight">{displayName}</p>
-        <p className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] leading-tight">
+        <p className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] leading-tight truncate">
+          <span className="truncate">@{otherUser.username}</span>
+          <span aria-hidden="true">·</span>
           <span
             data-testid="dm-presence-dot"
             className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-[var(--online)]' : 'bg-[var(--text-faint)]'}`}
