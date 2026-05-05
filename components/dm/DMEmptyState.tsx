@@ -5,9 +5,10 @@ import type { Profile } from '@/lib/types'
 
 interface DMEmptyStateProps {
   otherUser: Profile
+  isOnline?: boolean
 }
 
-export default function DMEmptyState({ otherUser }: DMEmptyStateProps) {
+export default function DMEmptyState({ otherUser, isOnline = false }: DMEmptyStateProps) {
   const displayName = otherUser.display_name ?? otherUser.username
 
   return (
@@ -19,6 +20,13 @@ export default function DMEmptyState({ otherUser }: DMEmptyStateProps) {
         {otherUser.display_name && (
           <p className="text-sm text-[var(--text-muted)]">@{otherUser.username}</p>
         )}
+        <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-[var(--text-muted)]">
+          <span
+            data-testid="dm-empty-presence-dot"
+            className={`h-2 w-2 rounded-full ${isOnline ? 'bg-[var(--online)]' : 'bg-[var(--text-faint)]'}`}
+          />
+          <span>{isOnline ? 'Online now' : 'Offline'}</span>
+        </p>
       </div>
       <p className="text-sm text-[var(--text-muted)] max-w-xs leading-relaxed">
         This is the beginning of your direct message history with{' '}
