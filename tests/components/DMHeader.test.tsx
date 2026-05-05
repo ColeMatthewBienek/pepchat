@@ -27,6 +27,11 @@ describe('DMHeader', () => {
     expect(screen.getByTestId('dm-presence-dot')).toHaveClass('bg-[var(--text-faint)]')
   })
 
+  it('shows the username alongside presence when display name is present', () => {
+    render(<DMHeader otherUser={PROFILE_B} onBack={vi.fn()} />)
+    expect(screen.getByText('@bob')).toBeInTheDocument()
+  })
+
   it('shows online presence when the other user is online', () => {
     render(<DMHeader otherUser={PROFILE_B} onBack={vi.fn()} isOnline />)
     expect(screen.getByText(/online/i)).toBeInTheDocument()
