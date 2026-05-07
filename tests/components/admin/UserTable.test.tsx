@@ -241,6 +241,21 @@ describe('UserTable — action feedback', () => {
     await waitFor(() => expect(screen.getByText('Banned @newbie.')).toBeInTheDocument())
   })
 
+  it('shows an error and keeps the ban dialog open when banning fails', async () => {
+    const { banUser } = await import('@/app/admin/actions')
+    vi.mocked(banUser).mockResolvedValueOnce({ error: 'Ban failed' })
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[2] as HTMLElement).getByTitle(/actions/i))
+    fireEvent.click(screen.getByText('Ban User'))
+    fireEvent.change(screen.getByPlaceholderText('Reason (optional)'), { target: { value: 'spam links' } })
+    fireEvent.click(screen.getByTestId('confirm-ban-user'))
+
+    await waitFor(() => expect(screen.getByText('Ban failed')).toBeInTheDocument())
+    expect(screen.getByText('Ban User?')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Reason (optional)')).toHaveValue('spam links')
+  })
+
   it('shows a success notice after unbanning a user', async () => {
     render(<UserTable {...defaultProps} />)
 
