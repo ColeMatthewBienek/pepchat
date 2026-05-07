@@ -113,6 +113,10 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
           {members.map((member) => {
             const isSelf = member.user_id === currentUserId
             const isTargetAdmin = member.role === 'admin'
+            const canKickTarget = canKick && !isSelf && (
+              currentUserRole === 'admin' ||
+              (currentUserRole === 'moderator' && (member.role === 'user' || member.role === 'noob'))
+            )
             const memberName = (member.profiles as any)?.display_name ?? member.profiles?.username ?? member.user_id
 
             return (
@@ -169,7 +173,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                 )}
 
                 {/* Kick button */}
-                {canKick && !isSelf && !isTargetAdmin && (
+                {canKickTarget && !isTargetAdmin && (
                   <button
                     onClick={() => handleKick(member)}
                     disabled={isPending}

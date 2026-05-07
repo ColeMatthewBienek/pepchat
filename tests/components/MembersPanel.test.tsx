@@ -123,6 +123,28 @@ describe('MembersPanel — role change regression', () => {
     expect(screen.getByRole('button', { name: 'Kick alice from group' })).toBeInTheDocument()
   })
 
+  it('limits moderator kick controls to user and noob targets', async () => {
+    fetchResult = {
+      data: [
+        { user_id: 'admin-u', group_id: 'grp-1', role: 'moderator', profiles: { username: 'me', avatar_url: null } },
+        { user_id: 'u1', group_id: 'grp-1', role: 'moderator', profiles: { username: 'alice', avatar_url: null } },
+        { user_id: 'u2', group_id: 'grp-1', role: 'user',      profiles: { username: 'bob',   avatar_url: null } },
+        { user_id: 'u3', group_id: 'grp-1', role: 'noob',      profiles: { username: 'newbie', avatar_url: null } },
+        { user_id: 'u4', group_id: 'grp-1', role: 'admin',     profiles: { username: 'owner',  avatar_url: null } },
+      ],
+      error: null,
+    }
+
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} currentUserRole="moderator" />)
+    })
+
+    expect(screen.queryByRole('button', { name: 'Kick alice from group' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Kick bob from group' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Kick newbie from group' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Kick owner from group' })).not.toBeInTheDocument()
+  })
+
   it('does not throw TypeError when assignRole returns undefined (action throws)', async () => {
     assignRoleMock.mockResolvedValueOnce(undefined)
 
