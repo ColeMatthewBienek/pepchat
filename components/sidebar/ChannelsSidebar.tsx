@@ -227,6 +227,15 @@ export default function ChannelsSidebar({
               const isUnread  = !isActive && unreadChannelIds.has(channel.id)
               const unreadCount = unreadCountsByChannelId.get(channel.id) ?? 0
               const allIdx    = channels.findIndex((c) => c.id === channel.id)
+              const channelLabel = [
+                `#${channel.name}`,
+                isActive ? 'current channel' : null,
+                isUnread
+                  ? unreadCount > 0
+                    ? `${unreadCount} unread ${unreadCount === 1 ? 'message' : 'messages'}`
+                    : 'unread'
+                  : null,
+              ].filter(Boolean).join(', ')
 
               return (
                 <div
@@ -236,6 +245,7 @@ export default function ChannelsSidebar({
                 >
                   <Link
                     href={`/channels/${channel.id}`}
+                    aria-label={channelLabel}
                     onClick={onMobileClose}
                     className={`channel-row${isUnread ? ' font-medium' : ''}`}
                     style={{
