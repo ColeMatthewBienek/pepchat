@@ -67,6 +67,17 @@ const ENTRIES: AuditEntry[] = [
     },
     created_at: '2026-04-18T13:00:00Z',
   },
+  {
+    id: 'a6',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'reset_password',
+    target_type: 'user',
+    target_id: 'u6',
+    metadata: { target_username: 'locked_user' },
+    created_at: '2026-04-18T12:00:00Z',
+  },
 ]
 
 const defaultProps = {
@@ -104,6 +115,11 @@ describe('AuditLogList — rendering', () => {
     expect(screen.getByText(/dismissed report r2 from @newbie \(not actionable\)/i)).toBeTruthy()
   })
 
+  it('shows human-readable password reset description', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/sent a password reset email to locked_user/i)).toBeTruthy()
+  })
+
   it('renders entries in reverse chronological order', () => {
     render(<AuditLogList {...defaultProps} />)
     const entries = document.querySelectorAll('.audit-entry')
@@ -136,6 +152,14 @@ describe('AuditLogList — filtering', () => {
     fireEvent.change(filter, { target: { value: 'report_reviewed' } })
     expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
     expect(screen.getByText(/reviewed report r1/i)).toBeTruthy()
+  })
+
+  it('filters entries by password reset action type', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+    fireEvent.change(filter, { target: { value: 'reset_password' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/password reset email to locked_user/i)).toBeTruthy()
   })
 
   it('shows all entries when filter reset to "all"', () => {
