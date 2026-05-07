@@ -82,6 +82,7 @@ export async function changeRole(
 ): Promise<ActionResult> {
   const adminId = await getAdminUserId()
   if (!adminId) return { error: 'Unauthorized' }
+  if (newRole === 'admin') return { error: 'Admin role assignment is disabled.' }
 
   const supabase = await createClient()
   const { error } = await supabase

@@ -10,7 +10,7 @@ import type { Role } from '@/lib/permissions'
 
 const PAGE_SIZE = 25
 
-const ROLES: Role[] = ['admin', 'moderator', 'user', 'noob']
+const ASSIGNABLE_ROLES: Role[] = ['moderator', 'user', 'noob']
 
 interface UserTableProps {
   users: AdminUser[]
@@ -218,7 +218,7 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                                 <div style={{ padding: '4px 10px', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                   Change Role
                                 </div>
-                                {ROLES.map(r => (
+                                {ASSIGNABLE_ROLES.map(r => (
                                   <button
                                     key={r}
                                     onClick={() => doRoleChange(user, r)}

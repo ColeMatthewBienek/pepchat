@@ -180,6 +180,18 @@ describe('UserTable — access control', () => {
     render(<UserTable {...defaultProps} users={adminUsers} currentUserId="u1" />)
     expect(screen.queryByText('Change Role')).toBeNull()
   })
+
+  it('does not offer admin as an assignable role', () => {
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
+
+    const menu = screen.getByText('Change Role').parentElement as HTMLElement
+    expect(within(menu).queryByRole('button', { name: 'admin' })).not.toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'moderator' })).toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'user' })).toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'noob' })).toBeInTheDocument()
+  })
 })
 
 describe('UserTable — reset password', () => {
