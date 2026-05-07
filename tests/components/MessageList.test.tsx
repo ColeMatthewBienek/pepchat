@@ -57,6 +57,12 @@ vi.mock('@/app/admin/actions', () => ({
   reportMessage: vi.fn(),
 }))
 vi.mock('@/lib/channelReadState', () => ({
+  getUnreadFromMessageLastReadAt: (messageCreatedAt: string) => {
+    const timestamp = new Date(messageCreatedAt).getTime()
+    return Number.isFinite(timestamp)
+      ? new Date(Math.max(0, timestamp - 1)).toISOString()
+      : new Date(0).toISOString()
+  },
   markChannelUnreadFromMessage: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -645,6 +651,16 @@ describe('MessageList — mark unread', () => {
       OTHER_MSG.created_at
     ))
     expect(screen.getByText('Marked unread from this message.')).toBeInTheDocument()
+  })
+
+  it('shows the unread divider immediately after marking a message unread', async () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
+
+    fireEvent.click(screen.getByTestId('context-btn-msg-2'))
+    fireEvent.click(screen.getByText('Mark Unread'))
+
+    await waitFor(() => expect(screen.getByTestId('unread-divider')).toHaveTextContent('2 new messages'))
+    expect(screen.getAllByTestId('unread-divider')).toHaveLength(1)
   })
 
   it('marks unread from the selected message in the mobile action modal', async () => {

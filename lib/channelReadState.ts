@@ -2,6 +2,13 @@
 
 import { createClient } from '@/lib/supabase/client'
 
+export function getUnreadFromMessageLastReadAt(messageCreatedAt: string): string {
+  const timestamp = new Date(messageCreatedAt).getTime()
+  return Number.isFinite(timestamp)
+    ? new Date(Math.max(0, timestamp - 1)).toISOString()
+    : new Date(0).toISOString()
+}
+
 export async function markChannelRead(channelId: string, userId: string): Promise<void> {
   const supabase = createClient()
   await supabase
@@ -17,10 +24,7 @@ export async function markChannelUnreadFromMessage(
   userId: string,
   messageCreatedAt: string
 ): Promise<void> {
-  const timestamp = new Date(messageCreatedAt).getTime()
-  const lastReadAt = Number.isFinite(timestamp)
-    ? new Date(Math.max(0, timestamp - 1)).toISOString()
-    : new Date(0).toISOString()
+  const lastReadAt = getUnreadFromMessageLastReadAt(messageCreatedAt)
 
   const supabase = createClient()
   await supabase
