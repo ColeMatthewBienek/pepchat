@@ -158,6 +158,16 @@ describe('ReportsTable — actions', () => {
     await waitFor(() => expect(defaultProps.onDeleteMessage).toHaveBeenCalledWith('msg-1'))
   })
 
+  it('shows actions only for pending reports', () => {
+    render(<ReportsTable {...defaultProps} />)
+
+    expect(screen.getByRole('button', { name: 'Mark report r1 from cool42 reviewed' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Mark report r2 from newbie reviewed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Dismiss report r3 from modfan' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('report-actions-closed-r2')).toHaveTextContent('Closed')
+    expect(screen.getByTestId('report-actions-closed-r3')).toHaveTextContent('Closed')
+  })
+
   it('shows success feedback after marking a report reviewed', async () => {
     render(<ReportsTable {...defaultProps} />)
     fireEvent.click(screen.getAllByTitle(/mark reviewed/i)[0])
