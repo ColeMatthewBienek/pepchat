@@ -60,6 +60,7 @@ export default function PinnedMessagesPanel({
           <button
             data-testid="pinned-panel-close"
             onClick={onClose}
+            aria-label="Close pinned messages"
             className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -94,17 +95,21 @@ export default function PinnedMessagesPanel({
               <p className="text-xs">Pin important messages to save them here for easy reference.</p>
             </div>
           ) : (
-            pinnedMessages.map(pin => (
-              <div
-                key={pin.id}
-                data-testid={`pinned-card-${pin.id}`}
-                style={{
-                  background: 'var(--bg-tertiary)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 12,
-                  border: '1px solid var(--border-soft)',
-                }}
-              >
+            pinnedMessages.map(pin => {
+              const author = pin.message?.profiles?.display_name ?? pin.message?.profiles?.username ?? 'Unknown'
+              const preview = pin.message?.content ? `: ${pin.message.content}` : ''
+
+              return (
+                <div
+                  key={pin.id}
+                  data-testid={`pinned-card-${pin.id}`}
+                  style={{
+                    background: 'var(--bg-tertiary)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 12,
+                    border: '1px solid var(--border-soft)',
+                  }}
+                >
                 {/* Card header */}
                 <div className="flex items-center gap-2 mb-2">
                   <Avatar
@@ -121,7 +126,7 @@ export default function PinnedMessagesPanel({
                     className="text-sm font-semibold"
                     style={{ color: pin.message?.profiles?.username_color ?? 'var(--text-primary)' }}
                   >
-                    {pin.message?.profiles?.display_name ?? pin.message?.profiles?.username ?? 'Unknown'}
+                    {author}
                   </span>
                   <span className="text-xs ml-auto" style={{ color: 'var(--text-faint)' }}>
                     {pin.message ? formatDate(pin.message.created_at) : ''}
@@ -142,6 +147,7 @@ export default function PinnedMessagesPanel({
                   <button
                     data-testid={`pinned-jump-${pin.id}`}
                     onClick={() => onJump(pin.message_id)}
+                    aria-label={`Jump to pinned message from ${author}${preview}`}
                     className="text-xs px-2 py-1 rounded border border-[var(--border-soft)] hover:bg-white/10 transition-colors"
                     style={{ color: 'var(--text-muted)' }}
                   >
@@ -151,6 +157,7 @@ export default function PinnedMessagesPanel({
                     <button
                       data-testid={`pinned-unpin-${pin.id}`}
                       onClick={() => onUnpin(pin.id)}
+                      aria-label={`Unpin message from ${author}${preview}`}
                       className="text-xs px-2 py-1 rounded border border-[var(--border-soft)] hover:bg-white/10 transition-colors"
                       style={{ color: 'var(--accent)' }}
                     >
@@ -159,7 +166,8 @@ export default function PinnedMessagesPanel({
                   )}
                 </div>
               </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
