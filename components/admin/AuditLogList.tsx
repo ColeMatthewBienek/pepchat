@@ -14,6 +14,7 @@ const ACTION_LABELS: Record<string, string> = {
   unban:              'Unban',
   delete_message:     'Delete Message',
   delete_group:       'Delete Group',
+  reset_password:     'Password Reset',
   report_reviewed:    'Report Reviewed',
   report_dismissed:   'Report Dismissed',
   transfer_ownership: 'Transfer Ownership',
@@ -32,6 +33,8 @@ function describeEntry(entry: AuditEntry): string {
       return `deleted a message in channel ${m.channel_id}: "${m.message_preview}"`
     case 'delete_group':
       return `deleted group "${m.group_name}"`
+    case 'reset_password':
+      return `sent a password reset email to ${m.target_username ?? entry.target_id}`
     case 'report_reviewed':
       return `reviewed report ${m.report_id ?? entry.target_id}${m.reporter_username ? ` from @${m.reporter_username}` : ''}${m.message_preview ? `: "${m.message_preview}"` : ''}`
     case 'report_dismissed':
