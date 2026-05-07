@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { reportMessage } from '@/app/admin/actions'
+import { changeRole, reportMessage } from '@/app/admin/actions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -27,6 +27,25 @@ function setupReportClient(userId: string | null, insertError: ReportInsertError
   })
 
   return { from, getUser, insert }
+}
+
+function setupAdminClient() {
+  const single = vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
+  const limit = vi.fn(() => ({ single }))
+  const eq = vi.fn(() => ({ eq, limit }))
+  const select = vi.fn(() => ({ eq }))
+  const from = vi.fn(() => ({ select }))
+  const getUser = vi.fn().mockResolvedValue({
+    data: { user: { id: 'admin-1' } },
+    error: null,
+  })
+
+  mockCreateClient.mockResolvedValue({
+    auth: { getUser },
+    from,
+  })
+
+  return { from }
 }
 
 describe('admin actions — reportMessage', () => {
@@ -66,5 +85,22 @@ describe('admin actions — reportMessage', () => {
     setupReportClient('user-1', { message: 'permission denied' })
 
     await expect(reportMessage('msg-1', 'Spam')).resolves.toEqual({ error: 'permission denied' })
+  })
+})
+
+describe('admin actions — changeRole', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects direct admin role assignment', async () => {
+    const { from } = setupAdminClient()
+
+    await expect(changeRole('user-1', 'group-1', 'admin', 'target', 'user')).resolves.toEqual({
+      error: 'Admin role assignment is disabled.',
+    })
+
+    expect(from).toHaveBeenCalledWith('group_members')
+    expect(from).not.toHaveBeenCalledWith('audit_log')
   })
 })
