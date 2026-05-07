@@ -101,4 +101,24 @@ describe('GroupTable — delete flow', () => {
     fireEvent.click(screen.getByTestId('cancel-delete-group'))
     expect(defaultProps.onDelete).not.toHaveBeenCalled()
   })
+
+  it('shows error feedback when custom delete handler fails', async () => {
+    render(<GroupTable {...defaultProps} onDelete={vi.fn().mockRejectedValue(new Error('Delete failed'))} />)
+    const deleteBtn = screen.getAllByTitle(/delete group/i)[0]
+    fireEvent.click(deleteBtn)
+    fireEvent.click(screen.getByTestId('confirm-delete-group'))
+    await waitFor(() => expect(screen.getByText('Delete failed')).toBeInTheDocument())
+    expect(screen.getByText(/are you sure/i)).toBeInTheDocument()
+  })
+
+  it('shows error feedback when admin deleteGroup returns an error', async () => {
+    const { deleteGroup } = await import('@/app/admin/actions')
+    vi.mocked(deleteGroup).mockResolvedValueOnce({ error: 'Cannot delete group' })
+
+    render(<GroupTable groups={GROUPS} />)
+    const deleteBtn = screen.getAllByTitle(/delete group/i)[0]
+    fireEvent.click(deleteBtn)
+    fireEvent.click(screen.getByTestId('confirm-delete-group'))
+    await waitFor(() => expect(screen.getByText('Cannot delete group')).toBeInTheDocument())
+  })
 })
