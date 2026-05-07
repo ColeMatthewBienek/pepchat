@@ -110,6 +110,7 @@ export default function MessageList({
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
   const [localLastReadAt, setLocalLastReadAt] = useState(initialLastReadAt)
+  const [reportedMessageIds, setReportedMessageIds] = useState(() => new Set<string>())
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -360,6 +361,7 @@ export default function MessageList({
   }
 
   function handleReport(messageId: string) {
+    if (reportedMessageIds.has(messageId)) return
     const target = messages.find(m => m.id === messageId)
     if (!target || target.user_id === currentUserId) return
     setError('')
@@ -391,6 +393,7 @@ export default function MessageList({
       if ('error' in result) {
         setError(result.error)
       } else {
+        setReportedMessageIds(prev => new Set(prev).add(reportTarget.id))
         setReportTarget(null)
         setNotice('Report submitted for review.')
       }
@@ -686,7 +689,11 @@ export default function MessageList({
         onReply={msg => { onReply(msg); setModalMsg(null) }}
         onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setModalMsg(null) }}
         onMarkUnread={allowMarkUnread ? handleMarkUnread : undefined}
-        onReport={allowReports && modalMsg && modalMsg.user_id !== currentUserId ? handleReport : undefined}
+        onReport={
+          allowReports && modalMsg && modalMsg.user_id !== currentUserId && !reportedMessageIds.has(modalMsg.id)
+            ? handleReport
+            : undefined
+        }
         messageLinkBasePath={messageLinkBasePath}
       />
 
@@ -707,7 +714,11 @@ export default function MessageList({
           onReply={msg => { onReply(msg); setContextMenu(null) }}
           onEmojiSelect={(msgId, emoji) => { onReact(msgId, emoji); setContextMenu(null) }}
           onMarkUnread={allowMarkUnread ? handleMarkUnread : undefined}
-          onReport={allowReports && contextMenu.msg.user_id !== currentUserId ? handleReport : undefined}
+          onReport={
+            allowReports && contextMenu.msg.user_id !== currentUserId && !reportedMessageIds.has(contextMenu.msg.id)
+              ? handleReport
+              : undefined
+          }
           messageLinkBasePath={messageLinkBasePath}
         />
       )}

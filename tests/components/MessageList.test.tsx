@@ -767,4 +767,34 @@ describe('MessageList — report message', () => {
     await waitFor(() => expect(screen.getByText('Report submitted for review.')).toBeInTheDocument())
     expect(screen.queryByTestId('report-submit')).not.toBeInTheDocument()
   })
+
+  it('hides the mobile report action after a successful report', async () => {
+    const reportAction = vi.fn().mockResolvedValue({ ok: true })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    fireEvent.click(screen.getByTestId('modal-action-report'))
+    fireEvent.click(screen.getByTestId('report-reason-spam'))
+    fireEvent.click(screen.getByTestId('report-submit'))
+
+    await waitFor(() => expect(screen.getByText('Report submitted for review.')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTestId('actions-btn-msg-2'))
+    expect(screen.queryByTestId('modal-action-report')).not.toBeInTheDocument()
+  })
+
+  it('hides the desktop report action after a successful report', async () => {
+    const reportAction = vi.fn().mockResolvedValue({ ok: true })
+    render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG]} reportAction={reportAction} />)
+
+    fireEvent.click(screen.getByTestId('context-btn-msg-2'))
+    fireEvent.click(screen.getByText('Report Message'))
+    fireEvent.click(screen.getByTestId('report-reason-spam'))
+    fireEvent.click(screen.getByTestId('report-submit'))
+
+    await waitFor(() => expect(screen.getByText('Report submitted for review.')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTestId('context-btn-msg-2'))
+    expect(screen.queryByText('Report Message')).not.toBeInTheDocument()
+  })
 })
