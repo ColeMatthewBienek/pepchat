@@ -49,7 +49,7 @@ async function getReportAuditMetadata(reportId: string): Promise<Record<string, 
       reason,
       status,
       reported_by,
-      messages(content),
+      messages(content, channel_id, user_id),
       profiles!reports_reported_by_fkey(username)
     `)
     .eq('id', reportId)
@@ -63,6 +63,8 @@ async function getReportAuditMetadata(reportId: string): Promise<Record<string, 
     previous_status: report?.status ?? null,
     reported_by: report?.reported_by ?? null,
     reporter_username: report?.profiles?.username ?? null,
+    channel_id: report?.messages?.channel_id ?? null,
+    message_author_id: report?.messages?.user_id ?? null,
     message_preview: report?.messages?.content?.slice(0, 160) ?? null,
   }
 }
@@ -235,6 +237,39 @@ export async function dismissReport(reportId: string): Promise<ActionResult> {
   await logAudit(adminId, 'report_dismissed', 'report', reportId, {
     ...auditMetadata,
     status: 'dismissed',
+  })
+
+  return { ok: true }
+}
+
+export async function deleteReportedMessage(reportId: string): Promise<ActionResult> {
+  const adminId = await getAdminUserId()
+  if (!adminId) return { error: 'Unauthorized' }
+
+  const supabase = await createClient()
+  const auditMetadata = await getReportAuditMetadata(reportId)
+  const messageId = auditMetadata.message_id
+
+  if (!messageId) return { error: 'Report is missing a message.' }
+
+  const { error: deleteError } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId)
+
+  if (deleteError) return { error: deleteError.message }
+
+  const { error: updateError } = await supabase
+    .from('reports')
+    .update({ status: 'reviewed' })
+    .eq('id', reportId)
+
+  if (updateError) return { error: updateError.message }
+
+  await logAudit(adminId, 'delete_message', 'message', messageId, {
+    ...auditMetadata,
+    status: 'reviewed',
+    source: 'report_queue',
   })
 
   return { ok: true }
