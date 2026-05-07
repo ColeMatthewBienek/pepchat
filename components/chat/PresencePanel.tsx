@@ -15,7 +15,9 @@ export default function PresencePanel({ onlineUsers }: PresencePanelProps) {
   if (collapsed) {
     return (
       <button
+        data-testid="presence-expand"
         onClick={() => setCollapsed(false)}
+        aria-label={`Show online members (${onlineUsers.length})`}
         className="hidden lg:flex flex-col items-center pt-3 w-8 flex-shrink-0 border-l border-black/20 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
         title={`Show online members (${onlineUsers.length})`}
         style={{ background: 'var(--bg-secondary)' }}
@@ -41,7 +43,9 @@ export default function PresencePanel({ onlineUsers }: PresencePanelProps) {
           Online — {onlineUsers.length}
         </span>
         <button
+          data-testid="presence-collapse"
           onClick={() => setCollapsed(true)}
+          aria-label="Collapse online members panel"
           title="Collapse panel"
           className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
         >
