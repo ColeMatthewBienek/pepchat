@@ -52,6 +52,7 @@ describe('PinnedMessagesPanel — rendering', () => {
   it('renders a close button', () => {
     render(<PinnedMessagesPanel {...BASE} />)
     expect(screen.getByTestId('pinned-panel-close')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close pinned messages' })).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', () => {
@@ -81,6 +82,11 @@ describe('PinnedMessagesPanel — pinned message cards', () => {
   it('renders a Jump button on each card', () => {
     render(<PinnedMessagesPanel {...BASE} />)
     expect(screen.getByTestId('pinned-jump-pin-1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: 'Jump to pinned message from Alice: Important announcement',
+      })
+    ).toBeInTheDocument()
   })
 
   it('calls onJump with the message_id when Jump is clicked', () => {
@@ -100,6 +106,11 @@ describe('PinnedMessagesPanel — unpin', () => {
   it('shows Unpin button when canPin=true', () => {
     render(<PinnedMessagesPanel {...BASE} canPin={true} />)
     expect(screen.getByTestId('pinned-unpin-pin-1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: 'Unpin message from Alice: Important announcement',
+      })
+    ).toBeInTheDocument()
   })
 
   it('calls onUnpin with the pin id when Unpin is clicked', () => {
