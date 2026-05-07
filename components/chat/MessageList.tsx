@@ -10,7 +10,7 @@ import MessageContextMenu from '@/components/chat/MessageContextMenu'
 import ReportMessageDialog from '@/components/chat/ReportMessageDialog'
 import SystemMessage from '@/components/chat/SystemMessage'
 import { PERMISSIONS } from '@/lib/permissions'
-import { markChannelUnreadFromMessage } from '@/lib/channelReadState'
+import { getUnreadFromMessageLastReadAt, markChannelUnreadFromMessage } from '@/lib/channelReadState'
 import type { MessageWithProfile } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
@@ -109,6 +109,7 @@ export default function MessageList({
   const [notice, setNotice] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
+  const [localLastReadAt, setLocalLastReadAt] = useState(initialLastReadAt)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -118,16 +119,21 @@ export default function MessageList({
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
   const newIdsRef = useRef(new Set<string>())
+
+  useEffect(() => {
+    setLocalLastReadAt(initialLastReadAt)
+  }, [initialLastReadAt])
+
   const unreadMessages = useMemo(() => {
-    if (!initialLastReadAt) return []
-    const lastReadMs = new Date(initialLastReadAt).getTime()
+    if (!localLastReadAt) return []
+    const lastReadMs = new Date(localLastReadAt).getTime()
     if (!Number.isFinite(lastReadMs)) return []
     return messages.filter(msg => (
       !msg.is_system &&
       msg.user_id !== currentUserId &&
       new Date(msg.created_at).getTime() > lastReadMs
     ))
-  }, [currentUserId, initialLastReadAt, messages])
+  }, [currentUserId, localLastReadAt, messages])
   const unreadMessageId = unreadMessages[0]?.id ?? null
   const unreadDividerLabel = `${unreadMessages.length} new ${unreadMessages.length === 1 ? 'message' : 'messages'}`
   const normalizedSearch = searchQuery.trim().toLowerCase()
@@ -367,6 +373,7 @@ export default function MessageList({
     startTransition(async () => {
       try {
         await markChannelUnreadFromMessage(msg.channel_id, currentUserId, msg.created_at)
+        setLocalLastReadAt(getUnreadFromMessageLastReadAt(msg.created_at))
         setNotice('Marked unread from this message.')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to mark message unread.')

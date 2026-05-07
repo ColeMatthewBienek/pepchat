@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { markChannelRead, markChannelUnread, markChannelUnreadFromMessage } from '@/lib/channelReadState'
+import {
+  getUnreadFromMessageLastReadAt,
+  markChannelRead,
+  markChannelUnread,
+  markChannelUnreadFromMessage,
+} from '@/lib/channelReadState'
 
 const mockUpsert = vi.fn().mockResolvedValue({ error: null })
 const mockMaybeSingle = vi.fn().mockResolvedValue({ data: { created_at: '2024-01-01T12:00:00.000Z' }, error: null })
@@ -15,6 +20,16 @@ const mockFrom = vi.fn((table: string) => {
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
+
+describe('getUnreadFromMessageLastReadAt', () => {
+  it('returns one millisecond before the selected message timestamp', () => {
+    expect(getUnreadFromMessageLastReadAt('2024-01-01T12:00:00.000Z')).toBe('2024-01-01T11:59:59.999Z')
+  })
+
+  it('falls back to the epoch for invalid timestamps', () => {
+    expect(getUnreadFromMessageLastReadAt('not-a-date')).toBe('1970-01-01T00:00:00.000Z')
+  })
+})
 
 describe('markChannelRead', () => {
   afterEach(() => { vi.clearAllMocks() })
