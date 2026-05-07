@@ -20,16 +20,21 @@ export default function GroupTable({ groups, onDelete }: GroupTableProps) {
   async function doDelete(groupId: string) {
     setPending(groupId)
     setError(null)
-    if (onDelete) {
-      await onDelete(groupId)
-    } else {
-      const group = groups.find(g => g.id === groupId)
-      const result = await deleteGroup(groupId, group?.name ?? groupId)
-      if ('error' in result) { setError(result.error); setPending(null); return }
-      router.refresh()
+    try {
+      if (onDelete) {
+        await onDelete(groupId)
+      } else {
+        const group = groups.find(g => g.id === groupId)
+        const result = await deleteGroup(groupId, group?.name ?? groupId)
+        if ('error' in result) throw new Error(result.error)
+        router.refresh()
+      }
+      setConfirmDelete(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete group.')
+    } finally {
+      setPending(null)
     }
-    setPending(null)
-    setConfirmDelete(null)
   }
 
   function formatDate(iso: string) {
