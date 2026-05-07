@@ -12,6 +12,9 @@ interface ChatHeaderProps {
 
 export default function ChatHeader({ channelName, channelTopic, pinnedCount = 0, pinnedPanelOpen = false, onTogglePinnedPanel }: ChatHeaderProps) {
   const { open } = useMobileSidebar()
+  const pinnedLabel = pinnedPanelOpen
+    ? `Close pinned messages (${pinnedCount})`
+    : `Open pinned messages (${pinnedCount})`
 
   return (
     <div
@@ -77,6 +80,8 @@ export default function ChatHeader({ channelName, channelTopic, pinnedCount = 0,
           data-testid="pin-header-btn"
           onClick={onTogglePinnedPanel}
           className="icon-btn relative"
+          aria-label={pinnedLabel}
+          aria-pressed={pinnedPanelOpen}
           title="Pinned messages"
           style={{ color: pinnedCount > 0 ? 'var(--accent)' : 'var(--text-muted)' }}
         >

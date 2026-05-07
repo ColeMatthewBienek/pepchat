@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import ChatHeader from '@/components/chat/ChatHeader'
 
 vi.mock('@/lib/context/MobileSidebarContext', () => ({
@@ -36,5 +37,32 @@ describe('ChatHeader', () => {
   it('renders mobile menu button', () => {
     render(<ChatHeader channelName="general" />)
     expect(screen.getByTestId('mobile-menu-btn')).toBeInTheDocument()
+  })
+
+  it('labels pinned messages toggle when closed', async () => {
+    const user = userEvent.setup()
+    const onTogglePinnedPanel = vi.fn()
+
+    render(<ChatHeader channelName="general" pinnedCount={2} onTogglePinnedPanel={onTogglePinnedPanel} />)
+
+    const button = screen.getByRole('button', { name: 'Open pinned messages (2)' })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+
+    await user.click(button)
+    expect(onTogglePinnedPanel).toHaveBeenCalledTimes(1)
+  })
+
+  it('labels pinned messages toggle when open', () => {
+    render(
+      <ChatHeader
+        channelName="general"
+        pinnedCount={1}
+        pinnedPanelOpen
+        onTogglePinnedPanel={vi.fn()}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'Close pinned messages (1)' })
+    expect(button).toHaveAttribute('aria-pressed', 'true')
   })
 })
