@@ -84,9 +84,15 @@ describe('ReportsTable — rendering', () => {
 
   it('shows status for each report', () => {
     render(<ReportsTable {...defaultProps} />)
-    expect(screen.getByText('pending')).toBeTruthy()
-    expect(screen.getByText('reviewed')).toBeTruthy()
-    expect(screen.getByText('dismissed')).toBeTruthy()
+    expect(screen.getByText('Needs review')).toBeTruthy()
+    expect(screen.getByText('Reviewed')).toBeTruthy()
+    expect(screen.getByText('Dismissed')).toBeTruthy()
+  })
+
+  it('shows report queue lifecycle summary', () => {
+    render(<ReportsTable {...defaultProps} />)
+    expect(screen.getByTestId('report-queue-summary')).toHaveTextContent('1 active report')
+    expect(screen.getByTestId('report-queue-summary')).toHaveTextContent('2 closed')
   })
 })
 
@@ -139,19 +145,19 @@ describe('ReportsTable — filtering', () => {
 describe('ReportsTable — actions', () => {
   it('calls onMarkReviewed when Mark Reviewed clicked', async () => {
     render(<ReportsTable {...defaultProps} />)
-    fireEvent.click(screen.getAllByTitle(/mark reviewed/i)[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Mark report r1 from cool42 reviewed' }))
     await waitFor(() => expect(defaultProps.onMarkReviewed).toHaveBeenCalledWith('r1'))
   })
 
   it('calls onDismiss when Dismiss clicked', async () => {
     render(<ReportsTable {...defaultProps} />)
-    fireEvent.click(screen.getAllByTitle(/dismiss/i)[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss report r1 from cool42' }))
     await waitFor(() => expect(defaultProps.onDismiss).toHaveBeenCalledWith('r1'))
   })
 
   it('calls onDeleteMessage when Delete Message clicked', async () => {
     render(<ReportsTable {...defaultProps} />)
-    fireEvent.click(screen.getAllByTitle(/delete message/i)[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Delete message for report r1 from cool42' }))
     await waitFor(() => expect(defaultProps.onDeleteMessage).toHaveBeenCalledWith('msg-1'))
   })
 
