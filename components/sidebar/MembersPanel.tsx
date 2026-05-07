@@ -91,6 +91,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
       <button
         onClick={() => setExpanded((v) => !v)}
         className="flex items-center justify-between w-full px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+        aria-expanded={expanded}
       >
         <span>Members — {members.length}</span>
         <svg
@@ -112,12 +113,14 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
           {members.map((member) => {
             const isSelf = member.user_id === currentUserId
             const isTargetAdmin = member.role === 'admin'
+            const memberName = (member.profiles as any)?.display_name ?? member.profiles?.username ?? member.user_id
 
             return (
               <li key={member.user_id} className="group/member flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded mx-1">
                 <button
                   className="rounded-full flex-shrink-0 focus:outline-none"
                   onClick={e => setProfileCard({ userId: member.user_id, anchor: e.currentTarget })}
+                  aria-label={`Open ${memberName}'s profile`}
                 >
                   <Avatar
                     user={{
@@ -129,7 +132,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                   />
                 </button>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={e => setProfileCard({ userId: member.user_id, anchor: e.currentTarget })}>
-                  <p className="text-sm truncate">{(member.profiles as any)?.display_name ?? member.profiles?.username ?? member.user_id}</p>
+                  <p className="text-sm truncate">{memberName}</p>
                   {(member.profiles as any)?.display_name && (
                     <p className="text-xs text-[var(--text-muted)] truncate">@{member.profiles?.username}</p>
                   )}
@@ -156,6 +159,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                   <button
                     onClick={() => handleMessage(member.user_id)}
                     title="Send message"
+                    aria-label={`Send message to ${memberName}`}
                     className="hidden group-hover/member:flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors flex-shrink-0"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -170,6 +174,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                     onClick={() => handleKick(member)}
                     disabled={isPending}
                     title="Kick member"
+                    aria-label={`Kick ${memberName} from group`}
                     className="hidden group-hover/member:flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors flex-shrink-0"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
