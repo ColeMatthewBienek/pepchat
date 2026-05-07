@@ -14,6 +14,8 @@ const ACTION_LABELS: Record<string, string> = {
   unban:              'Unban',
   delete_message:     'Delete Message',
   delete_group:       'Delete Group',
+  report_reviewed:    'Report Reviewed',
+  report_dismissed:   'Report Dismissed',
   transfer_ownership: 'Transfer Ownership',
 }
 
@@ -30,6 +32,10 @@ function describeEntry(entry: AuditEntry): string {
       return `deleted a message in channel ${m.channel_id}: "${m.message_preview}"`
     case 'delete_group':
       return `deleted group "${m.group_name}"`
+    case 'report_reviewed':
+      return `reviewed report ${m.report_id ?? entry.target_id}${m.reporter_username ? ` from @${m.reporter_username}` : ''}${m.message_preview ? `: "${m.message_preview}"` : ''}`
+    case 'report_dismissed':
+      return `dismissed report ${m.report_id ?? entry.target_id}${m.reporter_username ? ` from @${m.reporter_username}` : ''}${m.reason ? ` (${m.reason})` : ''}`
     case 'transfer_ownership':
       return `transferred ownership of "${m.group_name}" from ${m.from_user} to ${m.to_user}`
     default:

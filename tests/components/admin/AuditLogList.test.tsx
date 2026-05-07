@@ -37,6 +37,36 @@ const ENTRIES: AuditEntry[] = [
     metadata: { channel_id: 'ch-1', message_preview: 'bad content' },
     created_at: '2026-04-18T15:00:00Z',
   },
+  {
+    id: 'a4',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'report_reviewed',
+    target_type: 'report',
+    target_id: 'r1',
+    metadata: {
+      report_id: 'r1',
+      reporter_username: 'cool42',
+      message_preview: 'reported message text',
+    },
+    created_at: '2026-04-18T14:00:00Z',
+  },
+  {
+    id: 'a5',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'report_dismissed',
+    target_type: 'report',
+    target_id: 'r2',
+    metadata: {
+      report_id: 'r2',
+      reporter_username: 'newbie',
+      reason: 'not actionable',
+    },
+    created_at: '2026-04-18T13:00:00Z',
+  },
 ]
 
 const defaultProps = {
@@ -64,6 +94,16 @@ describe('AuditLogList — rendering', () => {
     expect(screen.getByText(/banned.*banned_user|banned_user.*banned/i)).toBeTruthy()
   })
 
+  it('shows human-readable report reviewed description', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/reviewed report r1 from @cool42: "reported message text"/i)).toBeTruthy()
+  })
+
+  it('shows human-readable report dismissed description', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/dismissed report r2 from @newbie \(not actionable\)/i)).toBeTruthy()
+  })
+
   it('renders entries in reverse chronological order', () => {
     render(<AuditLogList {...defaultProps} />)
     const entries = document.querySelectorAll('.audit-entry')
@@ -88,6 +128,14 @@ describe('AuditLogList — filtering', () => {
     const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
     fireEvent.change(filter, { target: { value: 'ban' } })
     expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+  })
+
+  it('filters entries by report review action type', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+    fireEvent.change(filter, { target: { value: 'report_reviewed' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/reviewed report r1/i)).toBeTruthy()
   })
 
   it('shows all entries when filter reset to "all"', () => {
