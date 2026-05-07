@@ -105,6 +105,24 @@ describe('MembersPanel — role change regression', () => {
     expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0)
   })
 
+  it('labels the collapsible members section state', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    expect(screen.getByRole('button', { name: 'Members — 2' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('labels member row profile and action buttons', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    expect(screen.getByRole('button', { name: "Open alice's profile" })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send message to alice' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Kick alice from group' })).toBeInTheDocument()
+  })
+
   it('does not throw TypeError when assignRole returns undefined (action throws)', async () => {
     assignRoleMock.mockResolvedValueOnce(undefined)
 
