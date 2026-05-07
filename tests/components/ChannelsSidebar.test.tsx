@@ -146,6 +146,24 @@ describe('ChannelsSidebar channel rows', () => {
     expect(screen.getByTestId('unread-count-ch-unread')).toHaveTextContent('3')
   })
 
+  it('labels unread channel links with unread context', () => {
+    render(
+      <ChannelsSidebar
+        {...BASE_PROPS}
+        unreadChannelIds={new Set(['ch-unread'])}
+        unreadCountsByChannelId={new Map([['ch-unread', 3]])}
+      />
+    )
+
+    expect(screen.getByRole('link', { name: '#announcements, 3 unread messages' })).toHaveAttribute('href', '/channels/ch-unread')
+  })
+
+  it('labels the active channel link as current', () => {
+    render(<ChannelsSidebar {...BASE_PROPS} />)
+
+    expect(screen.getByRole('link', { name: '#general, current channel' })).toHaveAttribute('href', '/channels/ch-active')
+  })
+
   it('caps unread count at 99+', () => {
     render(
       <ChannelsSidebar
