@@ -32,6 +32,11 @@ create table if not exists reports (
   created_at   timestamptz default now()
 );
 
+create unique index if not exists idx_reports_unique_message_reporter
+  on reports(message_id, reported_by)
+  where message_id is not null
+    and reported_by is not null;
+
 alter table reports enable row level security;
 
 -- Anyone authenticated can insert a report
