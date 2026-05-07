@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { markReportReviewed, dismissReport } from '@/app/admin/actions'
-import { deleteMessage } from '@/app/(app)/messages/actions'
+import { markReportReviewed, dismissReport, deleteReportedMessage } from '@/app/admin/actions'
 import type { AdminReport } from '@/lib/types'
 
 interface ReportsTableProps {
@@ -94,11 +93,11 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
       if (onDeleteMessage) {
         await onDeleteMessage(report.message_id)
       } else {
-        const result = await deleteMessage(report.message_id)
+        const result = await deleteReportedMessage(report.id)
         if ('error' in result) throw new Error(result.error)
         router.refresh()
       }
-      setNotice('Reported message deleted.')
+      setNotice('Reported message deleted and report marked reviewed.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete reported message.')
     } finally {

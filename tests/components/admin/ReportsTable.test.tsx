@@ -6,10 +6,7 @@ import type { AdminReport } from '@/lib/types'
 vi.mock('@/app/admin/actions', () => ({
   markReportReviewed: vi.fn().mockResolvedValue({ ok: true }),
   dismissReport: vi.fn().mockResolvedValue({ ok: true }),
-}))
-
-vi.mock('@/app/(app)/messages/actions', () => ({
-  deleteMessage: vi.fn().mockResolvedValue({ ok: true }),
+  deleteReportedMessage: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -176,7 +173,16 @@ describe('ReportsTable — actions', () => {
   it('shows success feedback after deleting a reported message', async () => {
     render(<ReportsTable {...defaultProps} />)
     fireEvent.click(screen.getAllByTitle(/delete message/i)[0])
-    await waitFor(() => expect(screen.getByText('Reported message deleted.')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Reported message deleted and report marked reviewed.')).toBeInTheDocument())
+  })
+
+  it('uses admin deleteReportedMessage when no test handler is provided', async () => {
+    const { deleteReportedMessage } = await import('@/app/admin/actions')
+
+    render(<ReportsTable reports={REPORTS} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete message for report r1 from cool42' }))
+
+    await waitFor(() => expect(deleteReportedMessage).toHaveBeenCalledWith('r1'))
   })
 
   it('shows error feedback when an action fails', async () => {
