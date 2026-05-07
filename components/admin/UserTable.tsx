@@ -62,13 +62,14 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
     setNotice(null)
     const result = await banUser(banTarget, user.username, banReason)
     setPending(null)
+    if ('error' in result) {
+      setError(result.error)
+      return
+    }
     setBanTarget(null)
     setBanReason('')
-    if ('error' in result) setError(result.error)
-    else {
-      setNotice(`Banned @${user.username}.`)
-      router.refresh()
-    }
+    setNotice(`Banned @${user.username}.`)
+    router.refresh()
   }
 
   async function doUnban(userId: string) {
