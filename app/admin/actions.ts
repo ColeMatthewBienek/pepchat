@@ -39,6 +39,34 @@ async function logAudit(
   })
 }
 
+async function getReportAuditMetadata(reportId: string): Promise<Record<string, any>> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('reports')
+    .select(`
+      id,
+      message_id,
+      reason,
+      status,
+      reported_by,
+      messages(content),
+      profiles!reports_reported_by_fkey(username)
+    `)
+    .eq('id', reportId)
+    .single()
+
+  const report = data as any
+  return {
+    report_id: reportId,
+    message_id: report?.message_id ?? null,
+    reason: report?.reason ?? null,
+    previous_status: report?.status ?? null,
+    reported_by: report?.reported_by ?? null,
+    reporter_username: report?.profiles?.username ?? null,
+    message_preview: report?.messages?.content?.slice(0, 160) ?? null,
+  }
+}
+
 export async function changeRole(
   userId: string,
   groupId: string,
@@ -175,12 +203,19 @@ export async function markReportReviewed(reportId: string): Promise<ActionResult
   if (!adminId) return { error: 'Unauthorized' }
 
   const supabase = await createClient()
+  const auditMetadata = await getReportAuditMetadata(reportId)
   const { error } = await supabase
     .from('reports')
     .update({ status: 'reviewed' })
     .eq('id', reportId)
 
   if (error) return { error: error.message }
+
+  await logAudit(adminId, 'report_reviewed', 'report', reportId, {
+    ...auditMetadata,
+    status: 'reviewed',
+  })
+
   return { ok: true }
 }
 
@@ -189,11 +224,18 @@ export async function dismissReport(reportId: string): Promise<ActionResult> {
   if (!adminId) return { error: 'Unauthorized' }
 
   const supabase = await createClient()
+  const auditMetadata = await getReportAuditMetadata(reportId)
   const { error } = await supabase
     .from('reports')
     .update({ status: 'dismissed' })
     .eq('id', reportId)
 
   if (error) return { error: error.message }
+
+  await logAudit(adminId, 'report_dismissed', 'report', reportId, {
+    ...auditMetadata,
+    status: 'dismissed',
+  })
+
   return { ok: true }
 }

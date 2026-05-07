@@ -44,6 +44,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
     reviewed: reports.filter(report => report.status === 'reviewed').length,
     dismissed: reports.filter(report => report.status === 'dismissed').length,
   }
+  const activeCount = statusCounts.pending
 
   async function handleMarkReviewed(reportId: string) {
     setPendingAction(`review:${reportId}`)
@@ -134,6 +135,32 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
         {notice}
       </p>
     )}
+    <div
+      data-testid="report-queue-summary"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '10px 12px',
+        marginBottom: 12,
+        border: '1px solid var(--border-soft)',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--bg-tertiary)',
+      }}
+    >
+      <div>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+          {activeCount} active {activeCount === 1 ? 'report' : 'reports'}
+        </p>
+        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-faint)' }}>
+          Reviewed and dismissed reports are kept for audit history.
+        </p>
+      </div>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        {statusCounts.reviewed + statusCounts.dismissed} closed
+      </span>
+    </div>
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 16 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {(['all', 'pending', 'reviewed', 'dismissed'] as const).map(status => (
@@ -195,57 +222,72 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
         </tr>
       </thead>
       <tbody>
-        {filteredReports.map(report => (
-          <tr key={report.id} className="report-row" style={{ borderBottom: '1px solid var(--border-soft)' }}>
-            <td style={{ padding: '10px 12px', maxWidth: 260 }}>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                {report.message_content}
-              </span>
-            </td>
-            <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>
-              @{report.reporter_username}
-            </td>
-            <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>
-              {report.reason ?? '—'}
-            </td>
-            <td style={{ padding: '10px 12px' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, ...STATUS_STYLE[report.status] }}>
-                {report.status}
-              </span>
-            </td>
-            <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-              {formatDate(report.created_at)}
-            </td>
-            <td style={{ padding: '10px 12px' }}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button
-                  title="mark reviewed"
-                  disabled={pendingAction !== null}
-                  onClick={() => handleMarkReviewed(report.id)}
-                  style={actionBtn('#6aa08a', pendingAction !== null)}
+        {filteredReports.map(report => {
+          const reportLabel = `report ${report.id} from ${report.reporter_username}`
+          const statusDescription = report.status === 'pending'
+            ? 'Needs review'
+            : report.status === 'reviewed'
+              ? 'Reviewed'
+              : 'Dismissed'
+
+          return (
+            <tr key={report.id} className="report-row" style={{ borderBottom: '1px solid var(--border-soft)' }}>
+              <td style={{ padding: '10px 12px', maxWidth: 260 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {report.message_content}
+                </span>
+              </td>
+              <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>
+                @{report.reporter_username}
+              </td>
+              <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>
+                {report.reason ?? '—'}
+              </td>
+              <td style={{ padding: '10px 12px' }}>
+                <span
+                  aria-label={`${statusDescription} report`}
+                  style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, ...STATUS_STYLE[report.status] }}
                 >
-                  ✓
-                </button>
-                <button
-                  title="dismiss"
-                  disabled={pendingAction !== null}
-                  onClick={() => handleDismiss(report.id)}
-                  style={actionBtn('var(--text-faint)', pendingAction !== null)}
-                >
-                  ✕
-                </button>
-                <button
-                  title="delete message"
-                  disabled={pendingAction !== null}
-                  onClick={() => handleDeleteMessage(report)}
-                  style={actionBtn('var(--danger)', pendingAction !== null)}
-                >
-                  🗑
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))}
+                  {statusDescription}
+                </span>
+              </td>
+              <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+                {formatDate(report.created_at)}
+              </td>
+              <td style={{ padding: '10px 12px' }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    title="mark reviewed"
+                    disabled={pendingAction !== null}
+                    onClick={() => handleMarkReviewed(report.id)}
+                    aria-label={`Mark ${reportLabel} reviewed`}
+                    style={actionBtn('#6aa08a', pendingAction !== null)}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    title="dismiss"
+                    disabled={pendingAction !== null}
+                    onClick={() => handleDismiss(report.id)}
+                    aria-label={`Dismiss ${reportLabel}`}
+                    style={actionBtn('var(--text-faint)', pendingAction !== null)}
+                  >
+                    ✕
+                  </button>
+                  <button
+                    title="delete message"
+                    disabled={pendingAction !== null}
+                    onClick={() => handleDeleteMessage(report)}
+                    aria-label={`Delete message for ${reportLabel}`}
+                    style={actionBtn('var(--danger)', pendingAction !== null)}
+                  >
+                    🗑
+                  </button>
+                </div>
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
     </div>
