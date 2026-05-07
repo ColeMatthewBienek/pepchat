@@ -27,10 +27,18 @@ export default function DMEntry({ conversation, isActive }: DMEntryProps) {
   const visibleUnreadCount = isActive ? 0 : unread_count
   const hasUnread = visibleUnreadCount > 0
   const lastMessageTime = formatDMEntryTime(conversation.last_message_at)
+  const linkLabelParts = [
+    displayName,
+    hasUnread
+      ? `${visibleUnreadCount} unread direct ${visibleUnreadCount === 1 ? 'message' : 'messages'}`
+      : null,
+    conversation.last_message ? `Last message: ${conversation.last_message}` : null,
+  ].filter(Boolean)
 
   return (
     <Link
       href={`/dm/${conversation.id}`}
+      aria-label={linkLabelParts.join(', ')}
       title={conversation.last_message ? `Last: ${conversation.last_message}` : displayName}
       className={`dm-entry flex items-center gap-2 px-3 py-1.5 mx-1 rounded transition-colors ${
         isActive

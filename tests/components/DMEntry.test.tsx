@@ -28,6 +28,26 @@ describe('DMEntry', () => {
     expect(screen.getByTestId('dm-last-time-conv-1')).toHaveTextContent('Mar 1')
   })
 
+  it('labels the conversation link with unread and preview context', () => {
+    render(<DMEntry conversation={CONVERSATION} isActive={false} />)
+
+    expect(
+      screen.getByRole('link', {
+        name: 'Bob, 3 unread direct messages, Last message: Hello',
+      })
+    ).toHaveAttribute('href', '/dm/conv-1')
+  })
+
+  it('omits unread context from the active conversation link label', () => {
+    render(<DMEntry conversation={CONVERSATION} isActive />)
+
+    expect(
+      screen.getByRole('link', {
+        name: 'Bob, Last message: Hello',
+      })
+    ).toBeInTheDocument()
+  })
+
   it('omits the latest message timestamp when the conversation has no timestamp', () => {
     render(<DMEntry conversation={{ ...CONVERSATION, last_message_at: null }} isActive={false} />)
 
