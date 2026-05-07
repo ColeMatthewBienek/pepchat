@@ -6,6 +6,10 @@ import type { Role } from '@/lib/permissions'
 
 type ActionResult = { ok: true } | { error: string }
 
+function isUniqueViolation(error: { code?: string } | null | undefined): boolean {
+  return error?.code === '23505'
+}
+
 async function getAdminUserId(): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -196,6 +200,7 @@ export async function reportMessage(
     .from('reports')
     .insert({ message_id: messageId, reported_by: user.id, reason })
 
+  if (isUniqueViolation(error)) return { ok: true }
   if (error) return { error: error.message }
   return { ok: true }
 }
