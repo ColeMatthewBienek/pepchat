@@ -228,6 +228,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
             : report.status === 'reviewed'
               ? 'Reviewed'
               : 'Dismissed'
+          const canAct = report.status === 'pending'
 
           return (
             <tr key={report.id} className="report-row" style={{ borderBottom: '1px solid var(--border-soft)' }}>
@@ -254,35 +255,44 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
                 {formatDate(report.created_at)}
               </td>
               <td style={{ padding: '10px 12px' }}>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button
-                    title="mark reviewed"
-                    disabled={pendingAction !== null}
-                    onClick={() => handleMarkReviewed(report.id)}
-                    aria-label={`Mark ${reportLabel} reviewed`}
-                    style={actionBtn('#6aa08a', pendingAction !== null)}
+                {canAct ? (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      title="mark reviewed"
+                      disabled={pendingAction !== null}
+                      onClick={() => handleMarkReviewed(report.id)}
+                      aria-label={`Mark ${reportLabel} reviewed`}
+                      style={actionBtn('#6aa08a', pendingAction !== null)}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      title="dismiss"
+                      disabled={pendingAction !== null}
+                      onClick={() => handleDismiss(report.id)}
+                      aria-label={`Dismiss ${reportLabel}`}
+                      style={actionBtn('var(--text-faint)', pendingAction !== null)}
+                    >
+                      ✕
+                    </button>
+                    <button
+                      title="delete message"
+                      disabled={pendingAction !== null}
+                      onClick={() => handleDeleteMessage(report)}
+                      aria-label={`Delete message for ${reportLabel}`}
+                      style={actionBtn('var(--danger)', pendingAction !== null)}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ) : (
+                  <span
+                    data-testid={`report-actions-closed-${report.id}`}
+                    style={{ fontSize: 12, color: 'var(--text-faint)' }}
                   >
-                    ✓
-                  </button>
-                  <button
-                    title="dismiss"
-                    disabled={pendingAction !== null}
-                    onClick={() => handleDismiss(report.id)}
-                    aria-label={`Dismiss ${reportLabel}`}
-                    style={actionBtn('var(--text-faint)', pendingAction !== null)}
-                  >
-                    ✕
-                  </button>
-                  <button
-                    title="delete message"
-                    disabled={pendingAction !== null}
-                    onClick={() => handleDeleteMessage(report)}
-                    aria-label={`Delete message for ${reportLabel}`}
-                    style={actionBtn('var(--danger)', pendingAction !== null)}
-                  >
-                    🗑
-                  </button>
-                </div>
+                    Closed
+                  </span>
+                )}
               </td>
             </tr>
           )
