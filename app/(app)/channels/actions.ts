@@ -65,25 +65,38 @@ export async function moveChannel(
   if (!user) return { error: 'Not authenticated.' }
 
   // Get the channel we're moving
-  const { data: ch } = await supabase
+  const { data: ch, error: channelError } = await supabase
     .from('channels')
     .select('id, group_id, position')
     .eq('id', channelId)
     .single()
 
+  if (channelError) return { error: channelError.message }
   if (!ch) return { error: 'Channel not found.' }
 
   // Find the adjacent channel
-  const { data: adjacent } = await supabase
+  const { data: adjacent, error: adjacentError } = await supabase
     .from('channels')
     .select('id, position')
     .eq('group_id', ch.group_id)
     .eq('position', direction === 'up' ? ch.position - 1 : ch.position + 1)
     .single()
 
+  if (adjacentError) return { error: adjacentError.message }
   if (!adjacent) return // already at boundary
 
   // Swap positions
-  await supabase.from('channels').update({ position: adjacent.position }).eq('id', ch.id)
-  await supabase.from('channels').update({ position: ch.position }).eq('id', adjacent.id)
+  const { error: channelUpdateError } = await supabase
+    .from('channels')
+    .update({ position: adjacent.position })
+    .eq('id', ch.id)
+
+  if (channelUpdateError) return { error: channelUpdateError.message }
+
+  const { error: adjacentUpdateError } = await supabase
+    .from('channels')
+    .update({ position: ch.position })
+    .eq('id', adjacent.id)
+
+  if (adjacentUpdateError) return { error: adjacentUpdateError.message }
 }
