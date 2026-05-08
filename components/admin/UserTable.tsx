@@ -222,6 +222,7 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                                 {ASSIGNABLE_ROLES.map(r => (
                                   <button
                                     key={r}
+                                    disabled={user.role === r || pending !== null}
                                     onClick={() => doRoleChange(user, r)}
                                     style={{
                                       display: 'block',
@@ -232,7 +233,8 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                                       border: 'none',
                                       color: 'var(--text-primary)',
                                       fontSize: 13,
-                                      cursor: 'pointer',
+                                      cursor: user.role === r || pending !== null ? 'not-allowed' : 'pointer',
+                                      opacity: user.role === r || pending !== null ? 0.55 : 1,
                                       borderRadius: 'var(--radius-sm)',
                                     }}
                                   >

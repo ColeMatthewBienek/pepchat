@@ -255,6 +255,15 @@ describe('admin actions — changeRole', () => {
     expect(auditInsert).not.toHaveBeenCalled()
   })
 
+  it('ignores no-op role changes without auditing', async () => {
+    const { auditInsert, update } = setupRoleChangeClient({ targetRole: 'moderator' })
+
+    await expect(changeRole('user-1', 'group-1', 'moderator', 'target', 'user')).resolves.toEqual({ ok: true })
+
+    expect(update).not.toHaveBeenCalled()
+    expect(auditInsert).not.toHaveBeenCalled()
+  })
+
   it('audits the fetched previous role instead of the client-provided role', async () => {
     const { auditInsert } = setupRoleChangeClient({ targetRole: 'noob' })
 

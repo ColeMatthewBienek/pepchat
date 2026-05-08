@@ -106,6 +106,7 @@ export async function changeRole(
   const targetRole = targetMembership?.role as Role | undefined
   if (!targetRole) return { error: 'Target user is not a member of this group.' }
   if (targetRole === 'admin') return { error: 'Cannot change an admin\'s role.' }
+  if (targetRole === newRole) return { ok: true }
 
   const { error } = await supabase
     .from('group_members')
