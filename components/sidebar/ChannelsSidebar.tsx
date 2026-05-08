@@ -43,6 +43,7 @@ export default function ChannelsSidebar({
   const params = useParams()
   const activeChannelId = params?.channelId as string | undefined
   const [channelSearch, setChannelSearch] = useState('')
+  const [channelActionError, setChannelActionError] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const canManage    = userRole ? PERMISSIONS.canManageChannels(userRole) : false
@@ -64,11 +65,19 @@ export default function ChannelsSidebar({
   function handleDelete(channelId: string) {
     if (!group) return
     if (!confirm('Delete this channel? All messages will be lost.')) return
-    startTransition(async () => { await deleteChannel(channelId, group.id) })
+    setChannelActionError('')
+    startTransition(async () => {
+      const result = await deleteChannel(channelId, group.id)
+      if (result && 'error' in result) setChannelActionError(result.error)
+    })
   }
 
   function handleMove(channelId: string, direction: 'up' | 'down') {
-    startTransition(async () => { await moveChannel(channelId, direction) })
+    setChannelActionError('')
+    startTransition(async () => {
+      const result = await moveChannel(channelId, direction)
+      if (result && 'error' in result) setChannelActionError(result.error)
+    })
   }
 
   const displayName = profile.display_name ?? profile.username
@@ -218,6 +227,15 @@ export default function ChannelsSidebar({
             {visibleChannels.length > 0 && filteredChannels.length === 0 && (
               <p className="px-3 py-2 text-xs leading-relaxed text-[var(--text-muted)]">
                 No channels match your search.
+              </p>
+            )}
+
+            {channelActionError && (
+              <p
+                data-testid="channel-action-error"
+                className="mx-2 mb-2 rounded border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-2 py-1 text-xs text-[var(--danger)]"
+              >
+                {channelActionError}
               </p>
             )}
 
