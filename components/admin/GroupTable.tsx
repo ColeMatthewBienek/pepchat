@@ -13,9 +13,19 @@ interface GroupTableProps {
 
 export default function GroupTable({ groups, onDelete }: GroupTableProps) {
   const router = useRouter()
+  const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const filteredGroups = groups.filter(group => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      group.name.toLowerCase().includes(q) ||
+      group.owner_username.toLowerCase().includes(q)
+    )
+  })
 
   async function doDelete(groupId: string) {
     setPending(groupId)
@@ -56,6 +66,29 @@ export default function GroupTable({ groups, onDelete }: GroupTableProps) {
           {error}
         </p>
       )}
+      <input
+        className="group-search"
+        type="text"
+        placeholder="Search groups..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          marginBottom: 16,
+          background: 'var(--bg-tertiary)',
+          border: '1px solid var(--border-soft)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--text-primary)',
+          fontSize: 14,
+          outline: 'none',
+        }}
+      />
+      {filteredGroups.length === 0 ? (
+        <p style={{ color: 'var(--text-faint)', fontSize: 13, textAlign: 'center', padding: 32 }}>
+          No groups match the current search.
+        </p>
+      ) : (
       <div className="table-scroll-wrapper">
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
@@ -68,7 +101,7 @@ export default function GroupTable({ groups, onDelete }: GroupTableProps) {
           </tr>
         </thead>
         <tbody>
-          {groups.map(group => (
+          {filteredGroups.map(group => (
             <tr key={group.id} className="group-row" style={{ borderBottom: '1px solid var(--border-soft)', opacity: pending === group.id ? 0.5 : 1 }}>
               <td style={{ padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -110,6 +143,7 @@ export default function GroupTable({ groups, onDelete }: GroupTableProps) {
         </tbody>
       </table>
       </div>
+      )}
 
       {confirmDelete && (
         <div style={{
