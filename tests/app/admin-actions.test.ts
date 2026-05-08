@@ -1,14 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { changeRole, deleteReportedMessage, dismissReport, markReportReviewed, reportMessage } from '@/app/admin/actions'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { banUser, changeRole, deleteReportedMessage, dismissReport, markReportReviewed, reportMessage, unbanUser } from '@/app/admin/actions'
 
-const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
+const { mockCreateAdminClient, mockCreateClient } = vi.hoisted(() => ({
+  mockCreateAdminClient: vi.fn(),
+  mockCreateClient: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: mockCreateClient,
 }))
 
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: vi.fn(),
+  createAdminClient: mockCreateAdminClient,
 }))
 
 type ReportInsertError = { message: string; code?: string } | null
@@ -46,6 +49,37 @@ function setupAdminClient() {
   })
 
   return { from }
+}
+
+function setupUserModerationClient() {
+  const groupSingle = vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
+  const groupLimit = vi.fn(() => ({ single: groupSingle }))
+  const groupEq = vi.fn(() => ({ eq: groupEq, limit: groupLimit }))
+  const groupSelect = vi.fn(() => ({ eq: groupEq }))
+
+  const bannedUpsert = vi.fn().mockResolvedValue({ error: null })
+  const bannedDeleteEq = vi.fn().mockResolvedValue({ error: null })
+  const bannedDelete = vi.fn(() => ({ eq: bannedDeleteEq }))
+
+  const auditInsert = vi.fn().mockResolvedValue({ error: null })
+
+  const from = vi.fn((table: string) => {
+    if (table === 'group_members') return { select: groupSelect }
+    if (table === 'banned_users') return { upsert: bannedUpsert, delete: bannedDelete }
+    if (table === 'audit_log') return { insert: auditInsert }
+    throw new Error(`Unexpected table: ${table}`)
+  })
+  const getUser = vi.fn().mockResolvedValue({
+    data: { user: { id: 'admin-1' } },
+    error: null,
+  })
+
+  mockCreateClient.mockResolvedValue({
+    auth: { getUser },
+    from,
+  })
+
+  return { auditInsert, bannedDelete, bannedUpsert }
 }
 
 function setupReportModerationClient(reportStatus: 'pending' | 'reviewed' | 'dismissed') {
@@ -150,6 +184,45 @@ describe('admin actions — changeRole', () => {
 
     expect(from).toHaveBeenCalledWith('group_members')
     expect(from).not.toHaveBeenCalledWith('audit_log')
+  })
+})
+
+describe('admin actions — user moderation', () => {
+  const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+  })
+
+  afterEach(() => {
+    if (originalServiceRoleKey === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey
+    }
+  })
+
+  it('surfaces Auth admin errors when banning a user', async () => {
+    const { auditInsert } = setupUserModerationClient()
+    const updateUserById = vi.fn().mockResolvedValue({ error: { message: 'Auth ban failed' } })
+    mockCreateAdminClient.mockReturnValue({ auth: { admin: { updateUserById } } })
+
+    await expect(banUser('user-1', 'target', 'spam')).resolves.toEqual({ error: 'Auth ban failed' })
+
+    expect(updateUserById).toHaveBeenCalledWith('user-1', { ban_duration: '876600h' })
+    expect(auditInsert).not.toHaveBeenCalled()
+  })
+
+  it('surfaces Auth admin errors when unbanning a user', async () => {
+    const { auditInsert } = setupUserModerationClient()
+    const updateUserById = vi.fn().mockResolvedValue({ error: { message: 'Auth unban failed' } })
+    mockCreateAdminClient.mockReturnValue({ auth: { admin: { updateUserById } } })
+
+    await expect(unbanUser('user-1', 'target')).resolves.toEqual({ error: 'Auth unban failed' })
+
+    expect(updateUserById).toHaveBeenCalledWith('user-1', { ban_duration: 'none' })
+    expect(auditInsert).not.toHaveBeenCalled()
   })
 })
 
