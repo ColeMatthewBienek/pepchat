@@ -18,13 +18,14 @@ export async function assignRole(
   if (!user) return { error: 'Not authenticated.' }
 
   // Enforce: caller must be admin
-  const { data: callerMembership } = await supabase
+  const { data: callerMembership, error: callerError } = await supabase
     .from('group_members')
     .select('role')
     .eq('group_id', groupId)
     .eq('user_id', user.id)
     .single()
 
+  if (callerError) return { error: callerError.message }
   if (callerMembership?.role !== 'admin') {
     return { error: 'Only admins can assign roles.' }
   }
@@ -40,13 +41,17 @@ export async function assignRole(
   }
 
   // Enforce: cannot touch another admin's row
-  const { data: targetMembership } = await supabase
+  const { data: targetMembership, error: targetError } = await supabase
     .from('group_members')
     .select('role')
     .eq('group_id', groupId)
     .eq('user_id', targetUserId)
     .single()
 
+  if (targetError) return { error: targetError.message }
+  if (!targetMembership?.role) {
+    return { error: 'Target member was not found.' }
+  }
   if (targetMembership?.role === 'admin') {
     return { error: 'Cannot change an admin\'s role.' }
   }
@@ -75,13 +80,14 @@ export async function kickMember(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
-  const { data: callerMembership } = await supabase
+  const { data: callerMembership, error: callerError } = await supabase
     .from('group_members')
     .select('role')
     .eq('group_id', groupId)
     .eq('user_id', user.id)
     .single()
 
+  if (callerError) return { error: callerError.message }
   const callerRole = callerMembership?.role
   if (!callerRole || !['admin', 'moderator'].includes(callerRole)) {
     return { error: 'You do not have permission to kick members.' }
@@ -91,14 +97,18 @@ export async function kickMember(
     return { error: 'Use "Leave Group" to remove yourself.' }
   }
 
-  const { data: targetMembership } = await supabase
+  const { data: targetMembership, error: targetError } = await supabase
     .from('group_members')
     .select('role')
     .eq('group_id', groupId)
     .eq('user_id', targetUserId)
     .single()
 
+  if (targetError) return { error: targetError.message }
   const targetRole = targetMembership?.role
+  if (!targetRole) {
+    return { error: 'Target member was not found.' }
+  }
 
   // Moderators cannot kick admins or other moderators
   if (callerRole === 'moderator' && targetRole && ['admin', 'moderator'].includes(targetRole)) {
