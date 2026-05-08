@@ -87,13 +87,26 @@ export async function changeRole(
   groupId: string,
   newRole: Role,
   targetUsername: string,
-  fromRole: Role,
+  _fromRole: Role,
 ): Promise<ActionResult> {
   const adminId = await getAdminUserId()
   if (!adminId) return { error: 'Unauthorized' }
   if (newRole === 'admin') return { error: 'Admin role assignment is disabled.' }
+  if (userId === adminId) return { error: 'You cannot change your own role.' }
 
   const supabase = await createClient()
+  const { data: targetMembership, error: targetError } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('group_id', groupId)
+    .single()
+
+  if (targetError) return { error: targetError.message }
+  const targetRole = targetMembership?.role as Role | undefined
+  if (!targetRole) return { error: 'Target user is not a member of this group.' }
+  if (targetRole === 'admin') return { error: 'Cannot change an admin\'s role.' }
+
   const { error } = await supabase
     .from('group_members')
     .update({ role: newRole })
@@ -103,7 +116,7 @@ export async function changeRole(
   if (error) return { error: error.message }
 
   await logAudit(adminId, 'role_change', 'user', userId, {
-    from_role: fromRole,
+    from_role: targetRole,
     to_role: newRole,
     target_username: targetUsername,
   })
