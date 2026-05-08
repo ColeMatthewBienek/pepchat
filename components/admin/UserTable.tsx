@@ -315,8 +315,9 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button
                 data-testid="confirm-ban-user"
+                disabled={pending === banTarget}
                 onClick={doBan}
-                style={{ flex: 1, padding: '8px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '8px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: pending === banTarget ? 'not-allowed' : 'pointer', opacity: pending === banTarget ? 0.65 : 1 }}
               >
                 Ban
               </button>

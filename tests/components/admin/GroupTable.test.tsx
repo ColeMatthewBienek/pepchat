@@ -39,6 +39,14 @@ const defaultProps = {
   onDelete: vi.fn().mockResolvedValue(undefined),
 }
 
+function deferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(res => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 beforeEach(() => vi.clearAllMocks())
 
 describe('GroupTable — rendering', () => {
@@ -131,6 +139,19 @@ describe('GroupTable — delete flow', () => {
     fireEvent.click(deleteBtn)
     fireEvent.click(screen.getByTestId('confirm-delete-group'))
     await waitFor(() => expect(defaultProps.onDelete).toHaveBeenCalledWith('g1'))
+  })
+
+  it('disables delete confirmation while deletion is pending', async () => {
+    const pendingDelete = deferred()
+    render(<GroupTable {...defaultProps} onDelete={vi.fn(() => pendingDelete.promise)} />)
+
+    fireEvent.click(screen.getAllByTitle(/delete group/i)[0])
+    const confirm = screen.getByTestId('confirm-delete-group')
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(confirm).toBeDisabled())
+    pendingDelete.resolve()
+    await waitFor(() => expect(screen.queryByText(/are you sure/i)).not.toBeInTheDocument())
   })
 
   it('cancels deletion without calling onDelete', () => {
