@@ -77,6 +77,45 @@ describe('GroupTable — rendering', () => {
   })
 })
 
+describe('GroupTable — search', () => {
+  it('has a search input with .group-search class', () => {
+    render(<GroupTable {...defaultProps} />)
+    expect(document.querySelector('.group-search')).toBeTruthy()
+  })
+
+  it('filters groups by name', () => {
+    render(<GroupTable {...defaultProps} />)
+    const search = document.querySelector('.group-search') as HTMLInputElement
+
+    fireEvent.change(search, { target: { value: 'dev' } })
+
+    expect(document.querySelectorAll('.group-row')).toHaveLength(1)
+    expect(screen.getByText('Dev Corner')).toBeInTheDocument()
+    expect(screen.queryByText('PepChat HQ')).toBeNull()
+  })
+
+  it('filters groups by owner username', () => {
+    render(<GroupTable {...defaultProps} />)
+    const search = document.querySelector('.group-search') as HTMLInputElement
+
+    fireEvent.change(search, { target: { value: 'panic' } })
+
+    expect(document.querySelectorAll('.group-row')).toHaveLength(1)
+    expect(screen.getByText('PepChat HQ')).toBeInTheDocument()
+    expect(screen.queryByText('Dev Corner')).toBeNull()
+  })
+
+  it('shows a filtered empty state when no groups match', () => {
+    render(<GroupTable {...defaultProps} />)
+    const search = document.querySelector('.group-search') as HTMLInputElement
+
+    fireEvent.change(search, { target: { value: 'zzznomatch' } })
+
+    expect(document.querySelectorAll('.group-row')).toHaveLength(0)
+    expect(screen.getByText(/no groups match/i)).toBeInTheDocument()
+  })
+})
+
 describe('GroupTable — delete flow', () => {
   it('shows a confirmation before deleting', () => {
     render(<GroupTable {...defaultProps} />)
