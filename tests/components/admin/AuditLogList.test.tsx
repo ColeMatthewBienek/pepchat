@@ -84,6 +84,66 @@ const defaultProps = {
   entries: ENTRIES,
 }
 
+function mockCsvDownload() {
+  const originalCreateObjectURL = URL.createObjectURL
+  const originalRevokeObjectURL = URL.revokeObjectURL
+  const OriginalBlob = globalThis.Blob
+  const createObjectURL = vi.fn<(object: Blob | MediaSource) => string>(() => 'blob:audit-csv')
+  const revokeObjectURL = vi.fn()
+  const click = vi.fn()
+  let blobParts: BlobPart[] = []
+  let anchor: HTMLAnchorElement | null = null
+  const originalCreateElement = document.createElement.bind(document)
+
+  class TestBlob extends OriginalBlob {
+    constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+      blobParts = parts ?? []
+      super(parts, options)
+    }
+  }
+
+  Object.defineProperty(globalThis, 'Blob', { configurable: true, value: TestBlob })
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+
+  const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((
+    (tagName: string, options?: ElementCreationOptions) => {
+      const element = originalCreateElement(tagName, options)
+      if (tagName.toLowerCase() === 'a') {
+        anchor = element as HTMLAnchorElement
+        Object.defineProperty(element, 'click', { configurable: true, value: click })
+      }
+      return element
+    }
+  ) as typeof document.createElement)
+
+  return {
+    createObjectURL,
+    revokeObjectURL,
+    click,
+    get csv() {
+      return blobParts.join('')
+    },
+    get anchor() {
+      return anchor
+    },
+    restore() {
+      createElementSpy.mockRestore()
+      Object.defineProperty(globalThis, 'Blob', { configurable: true, value: OriginalBlob })
+      if (originalCreateObjectURL) {
+        Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: originalCreateObjectURL })
+      } else {
+        Reflect.deleteProperty(URL, 'createObjectURL')
+      }
+      if (originalRevokeObjectURL) {
+        Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: originalRevokeObjectURL })
+      } else {
+        Reflect.deleteProperty(URL, 'revokeObjectURL')
+      }
+    },
+  }
+}
+
 describe('AuditLogList — rendering', () => {
   it('renders an .audit-entry for each log entry', () => {
     render(<AuditLogList {...defaultProps} />)
@@ -264,5 +324,31 @@ describe('AuditLogList — CSV export', () => {
   it('CSV export button has data-testid="export-csv"', () => {
     render(<AuditLogList {...defaultProps} />)
     expect(document.querySelector('[data-testid="export-csv"]')).toBeTruthy()
+  })
+
+  it('exports only the currently filtered audit entries', () => {
+    const download = mockCsvDownload()
+
+    try {
+      render(<AuditLogList {...defaultProps} />)
+
+      fireEvent.change(screen.getByTestId('audit-search'), { target: { value: 'locked_user' } })
+      fireEvent.click(screen.getByTestId('export-csv'))
+
+      expect(download.createObjectURL).toHaveBeenCalledTimes(1)
+      const csv = download.csv
+
+      expect(csv.split('\n')).toHaveLength(2)
+      expect(csv).toContain('"a6","panicmonkey","reset_password","user","u6"')
+      expect(csv).toContain('""target_username"":""locked_user""')
+      expect(csv).not.toContain('"a1","panicmonkey","role_change"')
+      expect(csv).not.toContain('"a4","panicmonkey","report_reviewed"')
+      expect(download.anchor?.href).toBe('blob:audit-csv')
+      expect(download.anchor?.download).toMatch(/^audit-log-\d{4}-\d{2}-\d{2}\.csv$/)
+      expect(download.click).toHaveBeenCalledTimes(1)
+      expect(download.revokeObjectURL).toHaveBeenCalledWith('blob:audit-csv')
+    } finally {
+      download.restore()
+    }
   })
 })
