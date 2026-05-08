@@ -192,6 +192,17 @@ describe('UserTable — access control', () => {
     expect(within(menu).getByRole('button', { name: 'user' })).toBeInTheDocument()
     expect(within(menu).getByRole('button', { name: 'noob' })).toBeInTheDocument()
   })
+
+  it('disables the user current role in the role menu', () => {
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
+
+    const menu = screen.getByText('Change Role').parentElement as HTMLElement
+    expect(within(menu).getByRole('button', { name: 'moderator' })).toBeDisabled()
+    expect(within(menu).getByRole('button', { name: 'user' })).toBeEnabled()
+    expect(within(menu).getByRole('button', { name: 'noob' })).toBeEnabled()
+  })
 })
 
 describe('UserTable — reset password', () => {
