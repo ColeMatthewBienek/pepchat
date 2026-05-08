@@ -66,6 +66,14 @@ const defaultProps = {
   currentUserId: 'u1',
 }
 
+function deferred<T = { ok: true }>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(res => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 beforeEach(() => vi.clearAllMocks())
 
 describe('UserTable — rendering', () => {
@@ -249,6 +257,22 @@ describe('UserTable — action feedback', () => {
     fireEvent.click(screen.getByText('Ban User'))
     fireEvent.click(screen.getByTestId('confirm-ban-user'))
 
+    await waitFor(() => expect(screen.getByText('Banned @newbie.')).toBeInTheDocument())
+  })
+
+  it('disables ban confirmation while ban is pending', async () => {
+    const { banUser } = await import('@/app/admin/actions')
+    const pendingBan = deferred()
+    vi.mocked(banUser).mockReturnValueOnce(pendingBan.promise)
+    render(<UserTable {...defaultProps} />)
+
+    fireEvent.click(within(document.querySelectorAll('.user-row')[2] as HTMLElement).getByTitle(/actions/i))
+    fireEvent.click(screen.getByText('Ban User'))
+    const confirm = screen.getByTestId('confirm-ban-user')
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(confirm).toBeDisabled())
+    pendingBan.resolve({ ok: true })
     await waitFor(() => expect(screen.getByText('Banned @newbie.')).toBeInTheDocument())
   })
 

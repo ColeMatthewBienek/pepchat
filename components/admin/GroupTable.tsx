@@ -163,8 +163,9 @@ export default function GroupTable({ groups, onDelete }: GroupTableProps) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 data-testid="confirm-delete-group"
+                disabled={pending === confirmDelete}
                 onClick={() => doDelete(confirmDelete)}
-                style={{ flex: 1, padding: '8px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '8px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: pending === confirmDelete ? 'not-allowed' : 'pointer', opacity: pending === confirmDelete ? 0.65 : 1 }}
               >
                 Delete
               </button>
