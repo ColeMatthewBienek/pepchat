@@ -80,13 +80,32 @@ const ALL_ACTIONS = Object.keys(ACTION_LABELS)
 
 export default function AuditLogList({ entries }: AuditLogListProps) {
   const [filterAction, setFilterAction] = useState('all')
+  const [search, setSearch] = useState('')
 
   const sorted = useMemo(
     () => [...entries].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [entries]
   )
 
-  const filtered = filterAction === 'all' ? sorted : sorted.filter(e => e.action === filterAction)
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return sorted.filter(entry => {
+      if (filterAction !== 'all' && entry.action !== filterAction) return false
+      if (!q) return true
+
+      const haystack = [
+        entry.admin_username,
+        entry.action,
+        ACTION_LABELS[entry.action] ?? '',
+        entry.target_type ?? '',
+        entry.target_id ?? '',
+        describeEntry(entry),
+        JSON.stringify(entry.metadata ?? {}),
+      ].join(' ').toLowerCase()
+
+      return haystack.includes(q)
+    })
+  }, [filterAction, search, sorted])
 
   return (
     <div>
@@ -110,6 +129,25 @@ export default function AuditLogList({ entries }: AuditLogListProps) {
             <option key={a} value={a}>{ACTION_LABELS[a]}</option>
           ))}
         </select>
+
+        <input
+          data-testid="audit-search"
+          type="search"
+          placeholder="Search audit log..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            minWidth: 220,
+            flex: '1 1 260px',
+            padding: '6px 10px',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-soft)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--text-primary)',
+            fontSize: 13,
+            outline: 'none',
+          }}
+        />
 
         <button
           data-testid="export-csv"
