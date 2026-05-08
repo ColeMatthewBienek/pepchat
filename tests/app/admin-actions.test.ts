@@ -51,6 +51,53 @@ function setupAdminClient() {
   return { from }
 }
 
+function setupRoleChangeClient(options: {
+  adminId?: string
+  targetRole?: 'admin' | 'moderator' | 'user' | 'noob'
+  targetError?: { message: string } | null
+} = {}) {
+  const adminId = options.adminId ?? 'admin-1'
+  const targetRole = options.targetRole ?? 'user'
+  const adminSingle = vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
+  const adminLimit = vi.fn(() => ({ single: adminSingle }))
+  const adminRoleEq = vi.fn(() => ({ limit: adminLimit }))
+  const adminUserEq = vi.fn(() => ({ eq: adminRoleEq }))
+
+  const targetSingle = vi.fn().mockResolvedValue({
+    data: options.targetError ? null : { role: targetRole },
+    error: options.targetError ?? null,
+  })
+  const targetGroupEq = vi.fn(() => ({ single: targetSingle }))
+  const targetUserEq = vi.fn(() => ({ eq: targetGroupEq }))
+
+  const select = vi
+    .fn()
+    .mockReturnValueOnce({ eq: adminUserEq })
+    .mockReturnValueOnce({ eq: targetUserEq })
+
+  const updateEqGroup = vi.fn().mockResolvedValue({ error: null })
+  const updateEqUser = vi.fn(() => ({ eq: updateEqGroup }))
+  const update = vi.fn(() => ({ eq: updateEqUser }))
+  const auditInsert = vi.fn().mockResolvedValue({ error: null })
+
+  const from = vi.fn((table: string) => {
+    if (table === 'group_members') return { select, update }
+    if (table === 'audit_log') return { insert: auditInsert }
+    throw new Error(`Unexpected table: ${table}`)
+  })
+  const getUser = vi.fn().mockResolvedValue({
+    data: { user: { id: adminId } },
+    error: null,
+  })
+
+  mockCreateClient.mockResolvedValue({
+    auth: { getUser },
+    from,
+  })
+
+  return { auditInsert, update }
+}
+
 function setupUserModerationClient() {
   const groupSingle = vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
   const groupLimit = vi.fn(() => ({ single: groupSingle }))
@@ -184,6 +231,43 @@ describe('admin actions — changeRole', () => {
 
     expect(from).toHaveBeenCalledWith('group_members')
     expect(from).not.toHaveBeenCalledWith('audit_log')
+  })
+
+  it('rejects changing your own role', async () => {
+    const { auditInsert, update } = setupRoleChangeClient()
+
+    await expect(changeRole('admin-1', 'group-1', 'user', 'admin', 'admin')).resolves.toEqual({
+      error: 'You cannot change your own role.',
+    })
+
+    expect(update).not.toHaveBeenCalled()
+    expect(auditInsert).not.toHaveBeenCalled()
+  })
+
+  it('rejects changing another admin role', async () => {
+    const { auditInsert, update } = setupRoleChangeClient({ targetRole: 'admin' })
+
+    await expect(changeRole('target-admin', 'group-1', 'moderator', 'target_admin', 'user')).resolves.toEqual({
+      error: 'Cannot change an admin\'s role.',
+    })
+
+    expect(update).not.toHaveBeenCalled()
+    expect(auditInsert).not.toHaveBeenCalled()
+  })
+
+  it('audits the fetched previous role instead of the client-provided role', async () => {
+    const { auditInsert } = setupRoleChangeClient({ targetRole: 'noob' })
+
+    await expect(changeRole('user-1', 'group-1', 'moderator', 'target', 'user')).resolves.toEqual({ ok: true })
+
+    expect(auditInsert).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'role_change',
+      metadata: expect.objectContaining({
+        from_role: 'noob',
+        to_role: 'moderator',
+        target_username: 'target',
+      }),
+    }))
   })
 })
 
