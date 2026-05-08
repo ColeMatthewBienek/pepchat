@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ChannelsSidebar from '@/components/sidebar/ChannelsSidebar'
+import { deleteChannel, moveChannel } from '@/app/(app)/channels/actions'
 import type { Channel, Group, Profile } from '@/lib/types'
 
 vi.mock('next/link', () => ({
@@ -108,6 +109,12 @@ describe('ChannelsSidebar layout', () => {
 })
 
 describe('ChannelsSidebar channel rows', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(deleteChannel).mockResolvedValue(undefined as never)
+    vi.mocked(moveChannel).mockResolvedValue(undefined)
+  })
+
   it('shows dot indicator for unread channel', () => {
     render(<ChannelsSidebar {...BASE_PROPS} unreadChannelIds={new Set(['ch-unread'])} />)
     expect(screen.getByTestId('unread-dot-ch-unread')).toBeInTheDocument()
@@ -250,6 +257,25 @@ describe('ChannelsSidebar channel rows', () => {
     fireEvent.click(screen.getByTestId('mark-unread-ch-read'))
 
     expect(onMarkChannelUnread).toHaveBeenCalledWith('ch-read')
+  })
+
+  it('shows channel move errors inline', async () => {
+    vi.mocked(moveChannel).mockResolvedValueOnce({ error: 'Move failed' })
+    render(<ChannelsSidebar {...BASE_PROPS} userRole="admin" />)
+
+    fireEvent.click(screen.getAllByTitle('Move down')[0])
+
+    await waitFor(() => expect(screen.getByTestId('channel-action-error')).toHaveTextContent('Move failed'))
+  })
+
+  it('shows channel delete errors inline', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    vi.mocked(deleteChannel).mockResolvedValueOnce({ error: 'Delete failed' } as never)
+    render(<ChannelsSidebar {...BASE_PROPS} userRole="admin" />)
+
+    fireEvent.click(screen.getAllByTitle('Delete channel')[0])
+
+    await waitFor(() => expect(screen.getByTestId('channel-action-error')).toHaveTextContent('Delete failed'))
   })
 })
 
