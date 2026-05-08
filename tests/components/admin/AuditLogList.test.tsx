@@ -144,6 +144,12 @@ describe('AuditLogList — filtering', () => {
     expect(screen.getByTestId('audit-search')).toBeInTheDocument()
   })
 
+  it('has date range filters for audit entries', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByTestId('audit-start-date')).toBeInTheDocument()
+    expect(screen.getByTestId('audit-end-date')).toBeInTheDocument()
+  })
+
   it('filters entries by action type', () => {
     render(<AuditLogList {...defaultProps} />)
     const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
@@ -209,6 +215,43 @@ describe('AuditLogList — filtering', () => {
     fireEvent.change(search, { target: { value: 'locked_user' } })
     expect(document.querySelectorAll('.audit-entry')).toHaveLength(0)
     expect(screen.getByText(/no audit entries/i)).toBeTruthy()
+  })
+
+  it('filters entries by start date', () => {
+    render(<AuditLogList {...defaultProps} />)
+
+    fireEvent.change(screen.getByTestId('audit-start-date'), { target: { value: '2026-04-19' } })
+
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(2)
+    expect(screen.getByText(/changed cool42's role/i)).toBeTruthy()
+    expect(screen.getByText(/banned.*banned_user/i)).toBeTruthy()
+    expect(screen.queryByText(/deleted a message/i)).toBeNull()
+  })
+
+  it('filters entries by end date inclusively', () => {
+    render(<AuditLogList {...defaultProps} />)
+
+    fireEvent.change(screen.getByTestId('audit-end-date'), { target: { value: '2026-04-18' } })
+
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(4)
+    expect(screen.queryByText(/changed cool42's role/i)).toBeNull()
+    expect(screen.getByText(/password reset email to locked_user/i)).toBeTruthy()
+  })
+
+  it('combines date range, action, and search filters', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+
+    fireEvent.change(screen.getByTestId('audit-start-date'), { target: { value: '2026-04-18' } })
+    fireEvent.change(screen.getByTestId('audit-end-date'), { target: { value: '2026-04-18' } })
+    fireEvent.change(filter, { target: { value: 'report_dismissed' } })
+    fireEvent.change(screen.getByTestId('audit-search'), { target: { value: 'newbie' } })
+
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/dismissed report r2 from @newbie/i)).toBeTruthy()
+
+    fireEvent.change(screen.getByTestId('audit-search'), { target: { value: 'cool42' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(0)
   })
 })
 

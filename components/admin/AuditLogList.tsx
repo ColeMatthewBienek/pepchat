@@ -81,6 +81,8 @@ const ALL_ACTIONS = Object.keys(ACTION_LABELS)
 export default function AuditLogList({ entries }: AuditLogListProps) {
   const [filterAction, setFilterAction] = useState('all')
   const [search, setSearch] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const sorted = useMemo(
     () => [...entries].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
@@ -89,8 +91,14 @@ export default function AuditLogList({ entries }: AuditLogListProps) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
+    const startTime = startDate ? new Date(`${startDate}T00:00:00`).getTime() : null
+    const endTime = endDate ? new Date(`${endDate}T23:59:59.999`).getTime() : null
+
     return sorted.filter(entry => {
       if (filterAction !== 'all' && entry.action !== filterAction) return false
+      const entryTime = new Date(entry.created_at).getTime()
+      if (startTime !== null && entryTime < startTime) return false
+      if (endTime !== null && entryTime > endTime) return false
       if (!q) return true
 
       const haystack = [
@@ -105,7 +113,7 @@ export default function AuditLogList({ entries }: AuditLogListProps) {
 
       return haystack.includes(q)
     })
-  }, [filterAction, search, sorted])
+  }, [endDate, filterAction, search, sorted, startDate])
 
   return (
     <div>
@@ -148,6 +156,44 @@ export default function AuditLogList({ entries }: AuditLogListProps) {
             outline: 'none',
           }}
         />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+          From
+          <input
+            data-testid="audit-start-date"
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            style={{
+              padding: '5px 8px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+          To
+          <input
+            data-testid="audit-end-date"
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            style={{
+              padding: '5px 8px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+        </label>
 
         <button
           data-testid="export-csv"
