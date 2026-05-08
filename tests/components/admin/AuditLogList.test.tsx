@@ -139,6 +139,11 @@ describe('AuditLogList — filtering', () => {
     expect(document.querySelector('[data-testid="audit-filter-action"]')).toBeTruthy()
   })
 
+  it('has a search input for audit entries', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByTestId('audit-search')).toBeInTheDocument()
+  })
+
   it('filters entries by action type', () => {
     render(<AuditLogList {...defaultProps} />)
     const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
@@ -168,6 +173,42 @@ describe('AuditLogList — filtering', () => {
     fireEvent.change(filter, { target: { value: 'ban' } })
     fireEvent.change(filter, { target: { value: 'all' } })
     expect(document.querySelectorAll('.audit-entry')).toHaveLength(ENTRIES.length)
+  })
+
+  it('searches entries by admin username and description', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const search = screen.getByTestId('audit-search')
+
+    fireEvent.change(search, { target: { value: 'locked_user' } })
+
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/password reset email to locked_user/i)).toBeTruthy()
+  })
+
+  it('searches entries by metadata content', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const search = screen.getByTestId('audit-search')
+
+    fireEvent.change(search, { target: { value: 'bad content' } })
+
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/deleted a message in channel ch-1/i)).toBeTruthy()
+  })
+
+  it('combines action filtering with search', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+    const search = screen.getByTestId('audit-search')
+
+    fireEvent.change(filter, { target: { value: 'report_reviewed' } })
+    fireEvent.change(search, { target: { value: 'cool42' } })
+
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/reviewed report r1/i)).toBeTruthy()
+
+    fireEvent.change(search, { target: { value: 'locked_user' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(0)
+    expect(screen.getByText(/no audit entries/i)).toBeTruthy()
   })
 })
 
