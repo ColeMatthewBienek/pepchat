@@ -18,6 +18,10 @@ const REPORTS: AdminReport[] = [
     id: 'r1',
     message_id: 'msg-1',
     message_content: 'offensive content here',
+    message_author_id: 'u5',
+    message_author_username: 'loud_user',
+    channel_id: 'ch-1',
+    channel_name: 'general',
     reported_by: 'u2',
     reporter_username: 'cool42',
     reason: 'harassment',
@@ -28,6 +32,10 @@ const REPORTS: AdminReport[] = [
     id: 'r2',
     message_id: 'msg-2',
     message_content: 'another bad message',
+    message_author_id: 'u6',
+    message_author_username: 'spammer',
+    channel_id: 'ch-2',
+    channel_name: 'random',
     reported_by: 'u3',
     reporter_username: 'newbie',
     reason: 'spam',
@@ -38,6 +46,10 @@ const REPORTS: AdminReport[] = [
     id: 'r3',
     message_id: 'msg-3',
     message_content: 'case closed message',
+    message_author_id: null,
+    message_author_username: null,
+    channel_id: null,
+    channel_name: null,
     reported_by: 'u4',
     reporter_username: 'modfan',
     reason: 'not actionable',
@@ -77,6 +89,14 @@ describe('ReportsTable — rendering', () => {
   it('shows reporter username', () => {
     render(<ReportsTable {...defaultProps} />)
     expect(screen.getByText('@cool42')).toBeTruthy()
+  })
+
+  it('shows reported message author and channel context', () => {
+    render(<ReportsTable {...defaultProps} />)
+    expect(screen.getByText('@loud_user')).toBeInTheDocument()
+    expect(screen.getByText('#general')).toBeInTheDocument()
+    expect(screen.getByText('Unknown author')).toBeInTheDocument()
+    expect(screen.getByText('Unknown channel')).toBeInTheDocument()
   })
 
   it('shows status for each report', () => {
@@ -128,6 +148,19 @@ describe('ReportsTable — filtering', () => {
     fireEvent.change(search, { target: { value: 'spam' } })
     expect(screen.getByText('spam')).toBeTruthy()
     expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+  })
+
+  it('searches by reported message author and channel', () => {
+    render(<ReportsTable {...defaultProps} />)
+    const search = document.querySelector('.report-search') as HTMLInputElement
+
+    fireEvent.change(search, { target: { value: 'loud_user' } })
+    expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+    expect(screen.getByText('@loud_user')).toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: 'random' } })
+    expect(document.querySelectorAll('.report-row')).toHaveLength(1)
+    expect(screen.getByText('#random')).toBeInTheDocument()
   })
 
   it('shows a filtered empty state when no reports match', () => {

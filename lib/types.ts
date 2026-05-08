@@ -197,6 +197,10 @@ export interface AdminReport {
   id: string
   message_id: string
   message_content: string
+  message_author_id: string | null
+  message_author_username: string | null
+  channel_id: string | null
+  channel_name: string | null
   reported_by: string
   reporter_username: string
   reason: string | null

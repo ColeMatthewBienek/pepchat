@@ -33,6 +33,8 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
     return (
       report.message_content.toLowerCase().includes(q) ||
       report.reporter_username.toLowerCase().includes(q) ||
+      (report.message_author_username ?? '').toLowerCase().includes(q) ||
+      (report.channel_name ?? '').toLowerCase().includes(q) ||
       (report.reason ?? '').toLowerCase().includes(q)
     )
   })
@@ -213,7 +215,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '1px solid var(--border-soft)' }}>
-          {['Message', 'Reported by', 'Reason', 'Status', 'Date', 'Actions'].map(h => (
+          {['Message', 'Context', 'Reported by', 'Reason', 'Status', 'Date', 'Actions'].map(h => (
             <th key={h} style={{ textAlign: 'left', padding: '6px 12px', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {h}
             </th>
@@ -235,6 +237,14 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
               <td style={{ padding: '10px 12px', maxWidth: 260 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {report.message_content}
+                </span>
+              </td>
+              <td style={{ padding: '10px 12px', minWidth: 140 }}>
+                <span style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)' }}>
+                  {report.message_author_username ? `@${report.message_author_username}` : 'Unknown author'}
+                </span>
+                <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--text-faint)' }}>
+                  {report.channel_name ? `#${report.channel_name}` : 'Unknown channel'}
                 </span>
               </td>
               <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>

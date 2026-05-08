@@ -12,7 +12,13 @@ export default async function ReportsPage() {
     .select(`
       id, message_id, reason, status, created_at,
       reported_by,
-      messages(content),
+      messages(
+        content,
+        channel_id,
+        user_id,
+        channels(name),
+        profiles(username)
+      ),
       profiles!reports_reported_by_fkey(username)
     `)
     .order('created_at', { ascending: false })
@@ -21,6 +27,10 @@ export default async function ReportsPage() {
     id: r.id,
     message_id: r.message_id,
     message_content: r.messages?.content ?? '[deleted]',
+    message_author_id: r.messages?.user_id ?? null,
+    message_author_username: r.messages?.profiles?.username ?? null,
+    channel_id: r.messages?.channel_id ?? null,
+    channel_name: r.messages?.channels?.name ?? null,
     reported_by: r.reported_by,
     reporter_username: r.profiles?.username ?? 'unknown',
     reason: r.reason,
