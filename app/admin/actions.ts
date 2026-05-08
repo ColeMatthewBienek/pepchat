@@ -5,6 +5,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { Role } from '@/lib/permissions'
 
 type ActionResult = { ok: true } | { error: string }
+type ReportAuditMetadata = Record<string, any> & {
+  message_id: string | null
+  previous_status: string | null
+}
 
 function isUniqueViolation(error: { code?: string } | null | undefined): boolean {
   return error?.code === '23505'
@@ -43,7 +47,7 @@ async function logAudit(
   })
 }
 
-async function getReportAuditMetadata(reportId: string): Promise<Record<string, any>> {
+async function getReportAuditMetadata(reportId: string): Promise<ReportAuditMetadata> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('reports')
@@ -71,6 +75,11 @@ async function getReportAuditMetadata(reportId: string): Promise<Record<string, 
     message_author_id: report?.messages?.user_id ?? null,
     message_preview: report?.messages?.content?.slice(0, 160) ?? null,
   }
+}
+
+function reportActionClosedError(metadata: ReportAuditMetadata): ActionResult | null {
+  if (metadata.previous_status === 'pending') return null
+  return { error: 'Only pending reports can be modified.' }
 }
 
 export async function changeRole(
@@ -212,6 +221,9 @@ export async function markReportReviewed(reportId: string): Promise<ActionResult
 
   const supabase = await createClient()
   const auditMetadata = await getReportAuditMetadata(reportId)
+  const closedError = reportActionClosedError(auditMetadata)
+  if (closedError) return closedError
+
   const { error } = await supabase
     .from('reports')
     .update({ status: 'reviewed' })
@@ -233,6 +245,9 @@ export async function dismissReport(reportId: string): Promise<ActionResult> {
 
   const supabase = await createClient()
   const auditMetadata = await getReportAuditMetadata(reportId)
+  const closedError = reportActionClosedError(auditMetadata)
+  if (closedError) return closedError
+
   const { error } = await supabase
     .from('reports')
     .update({ status: 'dismissed' })
@@ -254,6 +269,9 @@ export async function deleteReportedMessage(reportId: string): Promise<ActionRes
 
   const supabase = await createClient()
   const auditMetadata = await getReportAuditMetadata(reportId)
+  const closedError = reportActionClosedError(auditMetadata)
+  if (closedError) return closedError
+
   const messageId = auditMetadata.message_id
 
   if (!messageId) return { error: 'Report is missing a message.' }
