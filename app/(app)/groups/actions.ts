@@ -27,17 +27,19 @@ export async function createGroup(
   if (groupError || !group) return { error: groupError?.message ?? 'Failed to create group.' }
 
   // Creator is the admin
-  await supabase.from('group_members').insert({
+  const { error: memberError } = await supabase.from('group_members').insert({
     group_id: group.id,
     user_id: user.id,
     role: 'admin',
   })
+  if (memberError) return { error: memberError.message }
 
   // Seed #welcome (position 0) and #general (position 1)
-  await supabase.from('channels').insert([
+  const { error: channelError } = await supabase.from('channels').insert([
     { group_id: group.id, name: 'welcome', position: 0 },
     { group_id: group.id, name: 'general', position: 1 },
   ])
+  if (channelError) return { error: channelError.message }
 
   const { data: generalChannel } = await supabase
     .from('channels')
@@ -111,12 +113,13 @@ export async function leaveGroup(
     return { error: 'Admins cannot leave. Delete the group instead.' }
   }
 
-  await supabase
+  const { error } = await supabase
     .from('group_members')
     .delete()
     .eq('group_id', groupId)
     .eq('user_id', user.id)
 
+  if (error) return { error: error.message }
   redirect('/channels')
 }
 
@@ -187,10 +190,13 @@ export async function removeGroupIcon(
   }
 
   const files = await supabase.storage.from('avatars').list(`groups/${groupId}`)
+  if (files.error) return { error: files.error.message }
+
   if (files.data?.length) {
-    await supabase.storage
+    const { error: removeError } = await supabase.storage
       .from('avatars')
       .remove(files.data.map(f => `groups/${groupId}/${f.name}`))
+    if (removeError) return { error: removeError.message }
   }
 
   const { error } = await supabase
