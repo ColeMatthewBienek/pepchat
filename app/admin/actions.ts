@@ -129,7 +129,8 @@ export async function banUser(
   // Ban via Supabase Auth admin API if service role key available
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const adminClient = createAdminClient()
-    await adminClient.auth.admin.updateUserById(userId, { ban_duration: '876600h' }) // ~100 years
+    const { error: authError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: '876600h' }) // ~100 years
+    if (authError) return { error: authError.message }
   }
 
   await logAudit(adminId, 'ban', 'user', userId, { reason, target_username: targetUsername })
@@ -153,7 +154,8 @@ export async function unbanUser(
 
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const adminClient = createAdminClient()
-    await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+    const { error: authError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+    if (authError) return { error: authError.message }
   }
 
   await logAudit(adminId, 'unban', 'user', userId, { target_username: targetUsername })
