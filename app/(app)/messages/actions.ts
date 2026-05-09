@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { MessageWithProfile, Attachment } from '@/lib/types'
 import { MESSAGE_SELECT } from '@/lib/queries'
+import { enqueueMentionNotifications } from '@/lib/server-notifications'
 
 export async function sendMessage(
   channelId: string,
@@ -32,7 +33,21 @@ export async function sendMessage(
     .single()
 
   if (error || !message) return { error: error?.message ?? 'Failed to send message.' }
-  return { ok: true, message: message as MessageWithProfile }
+  const sentMessage = message as MessageWithProfile
+
+  try {
+    await enqueueMentionNotifications(supabase, {
+      senderId: user.id,
+      senderName: sentMessage.profiles.display_name ?? sentMessage.profiles.username,
+      messageId: sentMessage.id,
+      channelId,
+      content: trimmed,
+    })
+  } catch {
+    // Notification fanout should never block the core message send path.
+  }
+
+  return { ok: true, message: sentMessage }
 }
 
 export async function editMessage(
