@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  enqueueMentionNotifications,
   enqueueDirectMessageNotification,
+  extractMentionUsernames,
   notificationBody,
 } from '@/lib/server-notifications'
 
@@ -13,7 +15,7 @@ function makeBuilder(result: QueryResult = {}) {
     error: result.error ?? null,
   })
 
-  for (const method of ['select', 'eq', 'maybeSingle']) {
+  for (const method of ['select', 'eq', 'in', 'maybeSingle']) {
     builder[method] = vi.fn(() => builder)
   }
   builder.insert = vi.fn(() => builder)
@@ -59,6 +61,10 @@ describe('server notification helpers', () => {
       { type: 'image', url: 'https://example.com/a.jpg', name: 'a.jpg', size: 1 },
       { type: 'image', url: 'https://example.com/b.jpg', name: 'b.jpg', size: 1 },
     ])).toBe('2 attachments')
+  })
+
+  it('extracts unique mention usernames', () => {
+    expect(extractMentionUsernames('@Bob hello @alice, @bob again, email@test.com')).toEqual(['bob', 'alice'])
   })
 
   it('enqueues a direct message notification when enabled', async () => {
@@ -119,5 +125,63 @@ describe('server notification helpers', () => {
 
     expect(supabase.from).not.toHaveBeenCalled()
     expect(eventBuilder.insert).not.toHaveBeenCalled()
+  })
+
+  it('enqueues mention notifications for mentioned users with mention preferences enabled', async () => {
+    const profileBuilder = makeBuilder({
+      data: [
+        { id: 'user-b', username: 'bob', display_name: 'Bob' },
+        { id: 'user-c', username: 'carol', display_name: 'Carol' },
+        { id: 'user-a', username: 'alice', display_name: 'Alice' },
+      ],
+    })
+    const preferenceBuilder = makeBuilder({
+      data: [
+        { user_id: 'user-b', mentions: true },
+        { user_id: 'user-c', mentions: false },
+      ],
+    })
+    const eventBuilder = makeBuilder()
+    const supabase = setupClient([profileBuilder, preferenceBuilder, eventBuilder])
+
+    await enqueueMentionNotifications(supabase as any, {
+      senderId: 'user-a',
+      senderName: 'Alice',
+      messageId: 'msg-1',
+      channelId: 'ch-1',
+      content: 'Hi @bob and @carol and @alice',
+    })
+
+    expect(profileBuilder.in).toHaveBeenCalledWith('username', ['bob', 'carol', 'alice'])
+    expect(preferenceBuilder.in).toHaveBeenCalledWith('user_id', ['user-b', 'user-c'])
+    expect(eventBuilder.insert).toHaveBeenCalledWith([
+      {
+        user_id: 'user-b',
+        actor_id: 'user-a',
+        type: 'mention',
+        source_table: 'messages',
+        source_id: 'msg-1',
+        conversation_id: null,
+        channel_id: 'ch-1',
+        title: 'Alice mentioned you',
+        body: 'Hi @bob and @carol and @alice',
+        url: '/channels/ch-1#msg-1',
+      },
+    ])
+  })
+
+  it('skips mention notification work when no mentions are present', async () => {
+    const profileBuilder = makeBuilder()
+    const supabase = setupClient([profileBuilder])
+
+    await enqueueMentionNotifications(supabase as any, {
+      senderId: 'user-a',
+      senderName: 'Alice',
+      messageId: 'msg-1',
+      channelId: 'ch-1',
+      content: 'No mentions here',
+    })
+
+    expect(supabase.from).not.toHaveBeenCalled()
   })
 })
