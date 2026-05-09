@@ -54,17 +54,26 @@ describe('GroupsSidebar layout', () => {
     expect(link).toHaveAttribute('href', '/groups/grp-1')
   })
 
-  it('renders the create/join button', () => {
+  it('renders the create and join buttons', () => {
     render(<GroupsSidebar {...BASE_PROPS} />)
-    expect(screen.getByTestId('create-join-button')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create or Join Group' })).toBeInTheDocument()
+    expect(screen.getByTestId('create-group-button')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create Group' })).toBeInTheDocument()
+    expect(screen.getByTestId('join-group-button')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Join Group' })).toBeInTheDocument()
   })
 
-  it('calls onCreateGroup when create/join button is clicked', () => {
+  it('calls onCreateGroup when create button is clicked', () => {
     const onCreateGroup = vi.fn()
     render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
-    fireEvent.click(screen.getByTestId('create-join-button'))
+    fireEvent.click(screen.getByTestId('create-group-button'))
     expect(onCreateGroup).toHaveBeenCalled()
+  })
+
+  it('calls onJoinGroup when join button is clicked', () => {
+    const onJoinGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onJoinGroup={onJoinGroup} />)
+    fireEvent.click(screen.getByTestId('join-group-button'))
+    expect(onJoinGroup).toHaveBeenCalled()
   })
 
   it('calls onDMsHome when Direct Messages is activated with keyboard', () => {
@@ -76,13 +85,22 @@ describe('GroupsSidebar layout', () => {
     expect(onDMsHome).toHaveBeenCalled()
   })
 
-  it('calls onCreateGroup when create/join is activated with keyboard', () => {
+  it('calls onCreateGroup when create is activated with keyboard', () => {
     const onCreateGroup = vi.fn()
     render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
 
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Create or Join Group' }), { key: ' ' })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Create Group' }), { key: ' ' })
 
     expect(onCreateGroup).toHaveBeenCalled()
+  })
+
+  it('calls onJoinGroup when join is activated with keyboard', () => {
+    const onJoinGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onJoinGroup={onJoinGroup} />)
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Join Group' }), { key: 'Enter' })
+
+    expect(onJoinGroup).toHaveBeenCalled()
   })
 
   it('shows tooltip for group on hover', () => {
@@ -127,15 +145,29 @@ describe('GroupsSidebar — touch navigation (pointerDown)', () => {
   it('fires onCreateGroup on pointerdown with pointerType=touch (first tap)', () => {
     const onCreateGroup = vi.fn()
     render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
-    fireEvent.pointerDown(screen.getByTestId('create-join-tile'), { pointerType: 'touch' })
+    fireEvent.pointerDown(screen.getByTestId('create-group-tile'), { pointerType: 'touch' })
     expect(onCreateGroup).toHaveBeenCalled()
   })
 
   it('does NOT fire onCreateGroup on pointerdown with pointerType=mouse (onClick handles mouse)', () => {
     const onCreateGroup = vi.fn()
     render(<GroupsSidebar {...BASE_PROPS} onCreateGroup={onCreateGroup} />)
-    fireEvent.pointerDown(screen.getByTestId('create-join-tile'), { pointerType: 'mouse' })
+    fireEvent.pointerDown(screen.getByTestId('create-group-tile'), { pointerType: 'mouse' })
     expect(onCreateGroup).not.toHaveBeenCalled()
+  })
+
+  it('fires onJoinGroup on pointerdown with pointerType=touch (first tap)', () => {
+    const onJoinGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onJoinGroup={onJoinGroup} />)
+    fireEvent.pointerDown(screen.getByTestId('join-group-tile'), { pointerType: 'touch' })
+    expect(onJoinGroup).toHaveBeenCalled()
+  })
+
+  it('does NOT fire onJoinGroup on pointerdown with pointerType=mouse (onClick handles mouse)', () => {
+    const onJoinGroup = vi.fn()
+    render(<GroupsSidebar {...BASE_PROPS} onJoinGroup={onJoinGroup} />)
+    fireEvent.pointerDown(screen.getByTestId('join-group-tile'), { pointerType: 'mouse' })
+    expect(onJoinGroup).not.toHaveBeenCalled()
   })
 })
 

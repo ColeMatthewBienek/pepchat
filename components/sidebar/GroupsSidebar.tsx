@@ -22,6 +22,7 @@ export default function GroupsSidebar({
   unreadGroupIds = new Set(),
   isDMActive = false,
   onCreateGroup,
+  onJoinGroup,
   onDMsHome,
 }: GroupsSidebarProps) {
   const params = useParams()
@@ -140,12 +141,12 @@ export default function GroupsSidebar({
 
       <Divider />
 
-      {/* Create / Join group */}
+      {/* Create group */}
       <div
-        data-testid="create-join-tile"
+        data-testid="create-group-tile"
         role="button"
         tabIndex={0}
-        aria-label="Create or Join Group"
+        aria-label="Create Group"
         onMouseEnter={() => setHovered('create')}
         onMouseLeave={() => setHovered(null)}
         onClick={onCreateGroup}
@@ -163,7 +164,7 @@ export default function GroupsSidebar({
       >
         <AccentBar active={false} hovered={hovered === 'create'} />
         <div
-          data-testid="create-join-button"
+          data-testid="create-group-button"
           style={{
             width: 44, height: 44,
             borderRadius: 12,
@@ -175,7 +176,50 @@ export default function GroupsSidebar({
             transition: 'all 180ms ease',
           }}
         >+</div>
-        {hovered === 'create' && <Tooltip>Create or Join Group</Tooltip>}
+        {hovered === 'create' && <Tooltip>Create Group</Tooltip>}
+      </div>
+
+      {/* Join group */}
+      <div
+        data-testid="join-group-tile"
+        role="button"
+        tabIndex={0}
+        aria-label="Join Group"
+        onMouseEnter={() => setHovered('join')}
+        onMouseLeave={() => setHovered(null)}
+        onClick={onJoinGroup}
+        onKeyDown={(e) => handleKeyboardActivate(e, onJoinGroup)}
+        onPointerDown={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); onJoinGroup() } }}
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4px 0',
+          cursor: 'pointer',
+          touchAction: 'manipulation',
+        }}
+      >
+        <AccentBar active={false} hovered={hovered === 'join'} />
+        <div
+          data-testid="join-group-button"
+          style={{
+            width: 44, height: 44,
+            borderRadius: 12,
+            background: 'transparent',
+            border: '1.5px solid var(--border-strong)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--accent)',
+            transition: 'all 180ms ease',
+          }}
+        >
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+          </svg>
+        </div>
+        {hovered === 'join' && <Tooltip>Join Group</Tooltip>}
       </div>
     </nav>
   )
