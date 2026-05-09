@@ -49,8 +49,11 @@ export default function ChatHeader({ channelName, channelTopic, pinnedCount = 0,
             fontSize: 15,
             fontWeight: 600,
             color: 'var(--text-primary)',
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            flexShrink: 0,
+            flexShrink: 1,
           }}
         >
           {channelName}
