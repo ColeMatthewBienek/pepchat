@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { markReportReviewed, dismissReport, deleteReportedMessage } from '@/app/admin/actions'
 import type { AdminReport } from '@/lib/types'
@@ -226,6 +227,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
       <tbody>
         {filteredReports.map(report => {
           const reportLabel = `report ${report.id} from ${report.reporter_username}`
+          const messageHref = report.channel_id ? `/channels/${report.channel_id}#${report.message_id}` : null
           const statusDescription = report.status === 'pending'
             ? 'Needs review'
             : report.status === 'reviewed'
@@ -247,6 +249,21 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
                 <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--text-faint)' }}>
                   {report.channel_name ? `#${report.channel_name}` : 'Unknown channel'}
                 </span>
+                {messageHref && (
+                  <Link
+                    href={messageHref}
+                    data-testid={`report-message-link-${report.id}`}
+                    style={{
+                      display: 'inline-block',
+                      marginTop: 6,
+                      fontSize: 11,
+                      color: 'var(--accent)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    View message
+                  </Link>
+                )}
               </td>
               <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>
                 @{report.reporter_username}

@@ -13,6 +13,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }))
 
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a>,
+}))
+
 const REPORTS: AdminReport[] = [
   {
     id: 'r1',
@@ -97,6 +101,14 @@ describe('ReportsTable — rendering', () => {
     expect(screen.getByText('#general')).toBeInTheDocument()
     expect(screen.getByText('Unknown author')).toBeInTheDocument()
     expect(screen.getByText('Unknown channel')).toBeInTheDocument()
+  })
+
+  it('links reports to the original message when channel context is available', () => {
+    render(<ReportsTable {...defaultProps} />)
+
+    expect(screen.getByTestId('report-message-link-r1')).toHaveAttribute('href', '/channels/ch-1#msg-1')
+    expect(screen.getByTestId('report-message-link-r2')).toHaveAttribute('href', '/channels/ch-2#msg-2')
+    expect(screen.queryByTestId('report-message-link-r3')).not.toBeInTheDocument()
   })
 
   it('shows status for each report', () => {
