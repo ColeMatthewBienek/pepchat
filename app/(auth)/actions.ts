@@ -3,6 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
+function safeRedirectPath(value: FormDataEntryValue | null): string {
+  if (typeof value !== 'string') return '/channels'
+  if (!value.startsWith('/') || value.startsWith('//')) return '/channels'
+  if (value.includes('\\')) return '/channels'
+  return value
+}
+
 /**
  * Signs the user in with email + password.
  * Returns an error string on failure; redirects on success.
@@ -14,6 +21,7 @@ export async function login(
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const next = safeRedirectPath(formData.get('next'))
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: error.message }
@@ -30,10 +38,10 @@ export async function login(
       .eq('id', user.id)
       .single()
 
-    if (!profile) redirect('/setup-profile')
+    if (!profile) redirect(`/setup-profile?next=${encodeURIComponent(next)}`)
   }
 
-  redirect('/channels')
+  redirect(next)
 }
 
 /**
@@ -70,6 +78,7 @@ export async function setupProfile(
 ): Promise<{ error: string } | never> {
   const supabase = await createClient()
   const username = (formData.get('username') as string).trim()
+  const next = safeRedirectPath(formData.get('next'))
 
   if (!username || username.length < 2) {
     return { error: 'Username must be at least 2 characters.' }
@@ -99,7 +108,7 @@ export async function setupProfile(
 
   if (error) return { error: error.message }
 
-  redirect('/channels')
+  redirect(next)
 }
 
 /**

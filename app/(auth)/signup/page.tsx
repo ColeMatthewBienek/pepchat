@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition, useState } from 'react'
+import { useEffect, useTransition, useState } from 'react'
 import Link from 'next/link'
 import { signup } from '../actions'
 import { CheckEmailView } from '@/components/auth/CheckEmailView'
@@ -9,6 +9,15 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
   const [confirmedEmail, setConfirmedEmail] = useState<string | null>(null)
+  const [nextPath, setNextPath] = useState('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const value = new URLSearchParams(window.location.search).get('next')
+    if (value?.startsWith('/') && !value.startsWith('//')) {
+      setNextPath(value)
+    }
+  }, [])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -45,6 +54,7 @@ export default function SignupPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {nextPath && <input type="hidden" name="next" value={nextPath} />}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="email"
@@ -117,7 +127,10 @@ export default function SignupPage() {
 
       <p className="text-center text-sm text-[var(--text-muted)] mt-6">
         Already have an account?{' '}
-        <Link href="/login" className="text-[var(--accent)] hover:underline">
+        <Link
+          href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : '/login'}
+          className="text-[var(--accent)] hover:underline"
+        >
           Log in
         </Link>
       </p>

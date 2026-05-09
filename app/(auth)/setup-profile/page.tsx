@@ -1,11 +1,20 @@
 'use client'
 
-import { useTransition, useState } from 'react'
+import { useEffect, useTransition, useState } from 'react'
 import { setupProfile } from '../actions'
 
 export default function SetupProfilePage() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [nextPath, setNextPath] = useState('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const value = new URLSearchParams(window.location.search).get('next')
+    if (value?.startsWith('/') && !value.startsWith('//')) {
+      setNextPath(value)
+    }
+  }, [])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -25,6 +34,7 @@ export default function SetupProfilePage() {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {nextPath && <input type="hidden" name="next" value={nextPath} />}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="username"
