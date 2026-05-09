@@ -337,6 +337,7 @@ export default function ChannelsSidebar({
                       {isUnread && onMarkChannelRead && (
                         <button
                           data-testid={`mark-read-${channel.id}`}
+                          aria-label={`Mark #${channel.name} read`}
                           onClick={() => onMarkChannelRead(channel.id)}
                           className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
                           title="Mark channel read"
@@ -349,6 +350,7 @@ export default function ChannelsSidebar({
                       {!isActive && !isUnread && onMarkChannelUnread && (
                         <button
                           data-testid={`mark-unread-${channel.id}`}
+                          aria-label={`Mark #${channel.name} unread`}
                           onClick={() => onMarkChannelUnread(channel.id)}
                           className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
                           title="Mark channel unread"
@@ -362,6 +364,7 @@ export default function ChannelsSidebar({
                         <>
                       <button
                         disabled={allIdx === 0 || isPending}
+                        aria-label={`Move #${channel.name} up`}
                         onClick={() => handleMove(channel.id, 'up')}
                         className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-default transition-colors"
                         title="Move up"
@@ -372,6 +375,7 @@ export default function ChannelsSidebar({
                       </button>
                       <button
                         disabled={allIdx === channels.length - 1 || isPending}
+                        aria-label={`Move #${channel.name} down`}
                         onClick={() => handleMove(channel.id, 'down')}
                         className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-default transition-colors"
                         title="Move down"
@@ -383,6 +387,7 @@ export default function ChannelsSidebar({
                       <button
                         onClick={() => handleDelete(channel.id)}
                         disabled={isPending}
+                        aria-label={`Delete #${channel.name}`}
                         className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
                         title="Delete channel"
                       >
