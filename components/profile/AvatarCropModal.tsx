@@ -137,7 +137,13 @@ export default function AvatarCropModal({ src, onApply, onClose, shape = 'circle
       <div className="rounded-xl border border-white/10 p-5 flex flex-col gap-4" style={{ background: 'var(--bg-secondary)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">{shape === 'square' ? 'Crop Photo' : 'Crop Avatar'}</h3>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">✕</button>
+          <button
+            onClick={onClose}
+            aria-label={shape === 'square' ? 'Close photo cropper' : 'Close avatar cropper'}
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            ✕
+          </button>
         </div>
 
         <p className="text-xs text-[var(--text-muted)]">Drag to reposition · Scroll to zoom</p>
