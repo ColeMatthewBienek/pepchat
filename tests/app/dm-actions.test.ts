@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deleteDM, editDM, sendDM } from '@/app/(app)/dm/actions'
 
-const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
+const { mockCreateClient, mockEnqueueDirectMessageNotification } = vi.hoisted(() => ({
+  mockCreateClient: vi.fn(),
+  mockEnqueueDirectMessageNotification: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: mockCreateClient,
+}))
+
+vi.mock('@/lib/server-notifications', () => ({
+  enqueueDirectMessageNotification: mockEnqueueDirectMessageNotification,
 }))
 
 type QueryResult = { data?: unknown; error?: { message: string } | null }
@@ -54,6 +61,7 @@ function setupClient(builders: Record<string, unknown>[]) {
 describe('DM actions — conversation preview maintenance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockEnqueueDirectMessageNotification.mockResolvedValue(undefined)
   })
 
   it('updates the conversation preview after editing the latest DM', async () => {
@@ -115,6 +123,16 @@ describe('DM actions — conversation preview maintenance', () => {
       last_message: 'Image',
       last_message_at: expect.any(String),
     })
+    expect(mockEnqueueDirectMessageNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        recipientId: 'user-b',
+        senderId: 'user-a',
+        senderName: 'alice',
+        messageId: 'dm-1',
+        conversationId: 'conv-1',
+      })
+    )
   })
 
   it('uses a GIF label for GIF-only DM previews', async () => {
@@ -174,6 +192,33 @@ describe('DM actions — conversation preview maintenance', () => {
     expect(conversationBuilder.update).toHaveBeenCalledWith({
       last_message: '2 attachments',
       last_message_at: expect.any(String),
+    })
+  })
+
+  it('still sends the DM when notification enqueue fails', async () => {
+    const message = {
+      id: 'dm-1',
+      conversation_id: 'conv-1',
+      sender_id: 'user-a',
+      recipient_id: 'user-b',
+      content: 'Hello',
+      attachments: [],
+      edited_at: null,
+      read_at: null,
+      created_at: '2024-03-01T10:00:00Z',
+      sender: { id: 'user-a', username: 'alice' },
+    }
+    const messageBuilder = makeBuilder({
+      data: message,
+    })
+    const conversationBuilder = makeBuilder()
+    mockEnqueueDirectMessageNotification.mockRejectedValue(new Error('notification failed'))
+
+    setupClient([messageBuilder, conversationBuilder])
+
+    await expect(sendDM('conv-1', 'user-b', 'Hello')).resolves.toEqual({
+      ok: true,
+      message,
     })
   })
 

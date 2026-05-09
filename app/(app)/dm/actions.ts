@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { DirectMessageWithProfile, Attachment } from '@/lib/types'
+import { enqueueDirectMessageNotification } from '@/lib/server-notifications'
 
 const DM_SELECT = '*, sender:profiles!sender_id(id, username, avatar_url, display_name, username_color, banner_color, badge, pronouns, bio, location, website, member_since, updated_at, created_at)'
 
@@ -84,7 +85,22 @@ export async function sendDM(
     .update({ last_message: formatDMPreview(trimmed, attachments), last_message_at: new Date().toISOString() })
     .eq('id', conversationId)
 
-  return { ok: true, message: msg as unknown as DirectMessageWithProfile }
+  const sentMessage = msg as unknown as DirectMessageWithProfile
+  try {
+    await enqueueDirectMessageNotification(supabase, {
+      recipientId,
+      senderId: user.id,
+      senderName: sentMessage.sender.display_name ?? sentMessage.sender.username,
+      messageId: sentMessage.id,
+      conversationId,
+      content: trimmed,
+      attachments: attachments ?? [],
+    })
+  } catch {
+    // Notification fanout should never block the core message send path.
+  }
+
+  return { ok: true, message: sentMessage }
 }
 
 export async function editDM(
