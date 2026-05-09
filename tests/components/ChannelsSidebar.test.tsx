@@ -250,6 +250,18 @@ describe('ChannelsSidebar channel rows', () => {
     expect(onMarkChannelRead).toHaveBeenCalledWith('ch-unread')
   })
 
+  it('labels unread row actions with channel names', () => {
+    render(
+      <ChannelsSidebar
+        {...BASE_PROPS}
+        unreadChannelIds={new Set(['ch-unread'])}
+        onMarkChannelRead={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Mark #announcements read' })).toBeInTheDocument()
+  })
+
   it('calls onMarkChannelUnread from read row action', () => {
     const onMarkChannelUnread = vi.fn()
     render(<ChannelsSidebar {...BASE_PROPS} onMarkChannelUnread={onMarkChannelUnread} />)
@@ -257,6 +269,23 @@ describe('ChannelsSidebar channel rows', () => {
     fireEvent.click(screen.getByTestId('mark-unread-ch-read'))
 
     expect(onMarkChannelUnread).toHaveBeenCalledWith('ch-read')
+  })
+
+  it('labels read row actions with channel names', () => {
+    render(<ChannelsSidebar {...BASE_PROPS} onMarkChannelUnread={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Mark #random unread' })).toBeInTheDocument()
+  })
+
+  it('labels channel management actions with channel names', () => {
+    render(<ChannelsSidebar {...BASE_PROPS} userRole="admin" />)
+
+    expect(screen.getByRole('button', { name: 'Move #general up' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move #general down' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete #general' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Move #random up' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Move #random down' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Delete #random' })).toBeInTheDocument()
   })
 
   it('shows channel move errors inline', async () => {
