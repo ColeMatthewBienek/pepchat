@@ -23,7 +23,13 @@ export default function AdminNav({ activeTab: activeProp }: AdminNavProps) {
       {NAV_ITEMS.map(item => {
         const isActive = activeTab === item.tab
         return (
-          <a key={item.href} href={item.href} data-active={isActive ? 'true' : 'false'} className="admin-nav-link">
+          <a
+            key={item.href}
+            href={item.href}
+            aria-current={isActive ? 'page' : undefined}
+            data-active={isActive ? 'true' : 'false'}
+            className="admin-nav-link"
+          >
             {item.label}
           </a>
         )
