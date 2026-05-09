@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  deleteNotificationSubscription,
   getNotificationPreferences,
+  saveNotificationSubscription,
   updateNotificationPreferences,
 } from '@/app/(app)/notifications/actions'
 
@@ -39,9 +41,25 @@ function makeSelectBuilder(result: QueryResult) {
 
 function makeUpsertBuilder(result: QueryResult) {
   const builder: Record<string, unknown> = {}
+  const resolved = Promise.resolve({
+    data: result.data ?? null,
+    error: result.error ?? null,
+  })
   builder.upsert = vi.fn(() => builder)
   builder.select = vi.fn(() => builder)
   builder.single = vi.fn().mockResolvedValue({
+    data: result.data ?? null,
+    error: result.error ?? null,
+  })
+  builder.then = resolved.then.bind(resolved)
+  return builder
+}
+
+function makeDeleteBuilder(result: QueryResult) {
+  const builder: Record<string, unknown> = {}
+  builder.delete = vi.fn(() => builder)
+  builder.eq = vi.fn(() => builder)
+  ;(builder.eq as ReturnType<typeof vi.fn>).mockReturnValueOnce(builder).mockResolvedValueOnce({
     data: result.data ?? null,
     error: result.error ?? null,
   })
@@ -55,6 +73,15 @@ const PREFERENCES = {
   group_messages: false,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',
+}
+
+const SUBSCRIPTION = {
+  endpoint: 'https://push.example/subscription-1',
+  keys: {
+    p256dh: 'p256dh-key',
+    auth: 'auth-secret',
+  },
+  user_agent: 'Vitest Browser',
 }
 
 describe('notification actions — getNotificationPreferences', () => {
@@ -153,6 +180,90 @@ describe('notification actions — updateNotificationPreferences', () => {
 
     await expect(updateNotificationPreferences({ mentions: false })).resolves.toEqual({
       error: 'Save failed',
+    })
+  })
+})
+
+describe('notification actions — saveNotificationSubscription', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects unauthenticated users', async () => {
+    setupClient(makeUpsertBuilder({}), null)
+
+    await expect(saveNotificationSubscription(SUBSCRIPTION)).resolves.toEqual({
+      error: 'Not authenticated.',
+    })
+  })
+
+  it('rejects invalid subscriptions', async () => {
+    setupClient(makeUpsertBuilder({}))
+
+    await expect(saveNotificationSubscription({
+      endpoint: '',
+      keys: { p256dh: 'key', auth: 'secret' },
+    })).resolves.toEqual({ error: 'Invalid push subscription.' })
+  })
+
+  it('upserts the browser push subscription for the current user', async () => {
+    const builder = makeUpsertBuilder({})
+    const { from } = setupClient(builder)
+
+    await expect(saveNotificationSubscription(SUBSCRIPTION)).resolves.toEqual({ ok: true })
+
+    expect(from).toHaveBeenCalledWith('notification_subscriptions')
+    expect(builder.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'user-1',
+        endpoint: SUBSCRIPTION.endpoint,
+        p256dh: SUBSCRIPTION.keys.p256dh,
+        auth: SUBSCRIPTION.keys.auth,
+        user_agent: SUBSCRIPTION.user_agent,
+        updated_at: expect.any(String),
+      }),
+      { onConflict: 'endpoint' }
+    )
+  })
+
+  it('surfaces subscription save errors', async () => {
+    setupClient(makeUpsertBuilder({ error: { message: 'Subscription failed' } }))
+
+    await expect(saveNotificationSubscription(SUBSCRIPTION)).resolves.toEqual({
+      error: 'Subscription failed',
+    })
+  })
+})
+
+describe('notification actions — deleteNotificationSubscription', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects unauthenticated users', async () => {
+    setupClient(makeDeleteBuilder({}), null)
+
+    await expect(deleteNotificationSubscription(SUBSCRIPTION.endpoint)).resolves.toEqual({
+      error: 'Not authenticated.',
+    })
+  })
+
+  it('deletes the current user subscription by endpoint', async () => {
+    const builder = makeDeleteBuilder({})
+    setupClient(builder)
+
+    await expect(deleteNotificationSubscription(SUBSCRIPTION.endpoint)).resolves.toEqual({ ok: true })
+
+    expect(builder.delete).toHaveBeenCalled()
+    expect(builder.eq).toHaveBeenNthCalledWith(1, 'user_id', 'user-1')
+    expect(builder.eq).toHaveBeenNthCalledWith(2, 'endpoint', SUBSCRIPTION.endpoint)
+  })
+
+  it('surfaces subscription delete errors', async () => {
+    setupClient(makeDeleteBuilder({ error: { message: 'Delete failed' } }))
+
+    await expect(deleteNotificationSubscription(SUBSCRIPTION.endpoint)).resolves.toEqual({
+      error: 'Delete failed',
     })
   })
 })

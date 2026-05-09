@@ -7,16 +7,22 @@ import type { NotificationPreferences } from '@/lib/types'
 
 const mockGetNotificationStatus = vi.fn<() => NotificationStatus>()
 const mockRequestNotificationPermission = vi.fn<() => Promise<NotificationPermission | 'unsupported'>>()
+const mockIsPushConfigured = vi.fn<() => boolean>()
+const mockEnsurePushSubscription = vi.fn()
 const mockGetNotificationPreferences = vi.fn()
 const mockUpdateNotificationPreferences = vi.fn()
+const mockSaveNotificationSubscription = vi.fn()
 
 vi.mock('@/lib/notifications', () => ({
+  ensurePushSubscription: () => mockEnsurePushSubscription(),
   getNotificationStatus: () => mockGetNotificationStatus(),
+  isPushConfigured: () => mockIsPushConfigured(),
   requestNotificationPermission: () => mockRequestNotificationPermission(),
 }))
 
 vi.mock('@/app/(app)/notifications/actions', () => ({
   getNotificationPreferences: () => mockGetNotificationPreferences(),
+  saveNotificationSubscription: (subscription: unknown) => mockSaveNotificationSubscription(subscription),
   updateNotificationPreferences: (update: unknown) => mockUpdateNotificationPreferences(update),
 }))
 
@@ -45,16 +51,31 @@ const PREFERENCES: NotificationPreferences = {
   updated_at: '2026-01-01T00:00:00.000Z',
 }
 
+const SUBSCRIPTION = {
+  endpoint: 'https://push.example/subscription-1',
+  keys: {
+    p256dh: 'p256dh-key',
+    auth: 'auth-secret',
+  },
+  user_agent: 'Vitest Browser',
+}
+
 describe('NotificationSettingsPanel', () => {
   beforeEach(() => {
     mockGetNotificationStatus.mockReset()
     mockRequestNotificationPermission.mockReset()
+    mockIsPushConfigured.mockReset()
+    mockEnsurePushSubscription.mockReset()
     mockGetNotificationPreferences.mockReset()
     mockUpdateNotificationPreferences.mockReset()
+    mockSaveNotificationSubscription.mockReset()
     mockGetNotificationStatus.mockReturnValue(AVAILABLE_STATUS)
     mockRequestNotificationPermission.mockResolvedValue('granted')
+    mockIsPushConfigured.mockReturnValue(true)
+    mockEnsurePushSubscription.mockResolvedValue({ ok: true, subscription: SUBSCRIPTION })
     mockGetNotificationPreferences.mockResolvedValue({ ok: true, preferences: PREFERENCES })
     mockUpdateNotificationPreferences.mockResolvedValue({ ok: true, preferences: PREFERENCES })
+    mockSaveNotificationSubscription.mockResolvedValue({ ok: true })
   })
 
   it('shows available notification status and enables the request action', async () => {
@@ -106,6 +127,33 @@ describe('NotificationSettingsPanel', () => {
     await waitFor(() => expect(mockRequestNotificationPermission).toHaveBeenCalled())
     expect(screen.getByTestId('notification-status')).toHaveTextContent('Notifications are enabled on this device.')
     expect(await screen.findByRole('checkbox', { name: /direct messages/i })).toBeChecked()
+  })
+
+  it('registers and stores this device after enabling permission', async () => {
+    const user = userEvent.setup()
+    mockGetNotificationStatus
+      .mockReturnValueOnce(AVAILABLE_STATUS)
+      .mockReturnValueOnce(ENABLED_STATUS)
+
+    render(<NotificationSettingsPanel />)
+    await user.click(await screen.findByRole('button', { name: 'Enable notifications' }))
+
+    await waitFor(() => expect(mockSaveNotificationSubscription).toHaveBeenCalledWith(SUBSCRIPTION))
+    expect(screen.getByTestId('notification-subscription-status')).toHaveTextContent('This device is registered for push notifications.')
+  })
+
+  it('shows unconfigured push storage without saving a subscription', async () => {
+    const user = userEvent.setup()
+    mockIsPushConfigured.mockReturnValue(false)
+    mockGetNotificationStatus
+      .mockReturnValueOnce(AVAILABLE_STATUS)
+      .mockReturnValueOnce(ENABLED_STATUS)
+
+    render(<NotificationSettingsPanel />)
+    await user.click(await screen.findByRole('button', { name: 'Enable notifications' }))
+
+    expect(await screen.findByTestId('notification-subscription-status')).toHaveTextContent('Push subscription is not configured for this deployment.')
+    expect(mockSaveNotificationSubscription).not.toHaveBeenCalled()
   })
 
   it('surfaces request failures', async () => {

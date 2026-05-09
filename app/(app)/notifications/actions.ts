@@ -1,11 +1,17 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { NotificationPreferences, NotificationPreferenceUpdate } from '@/lib/types'
+import type {
+  NotificationPreferences,
+  NotificationPreferenceUpdate,
+  NotificationSubscriptionInput,
+} from '@/lib/types'
 
 type PreferencesResult =
   | { error: string }
   | { ok: true; preferences: NotificationPreferences }
+
+type SubscriptionResult = { error: string } | { ok: true }
 
 function defaultPreferences(userId: string): NotificationPreferences {
   const now = new Date().toISOString()
@@ -71,4 +77,61 @@ export async function updateNotificationPreferences(
   }
 
   return { ok: true, preferences: data as NotificationPreferences }
+}
+
+export async function saveNotificationSubscription(
+  input: NotificationSubscriptionInput
+): Promise<SubscriptionResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const endpoint = input.endpoint?.trim()
+  const p256dh = input.keys?.p256dh?.trim()
+  const auth = input.keys?.auth?.trim()
+
+  if (!endpoint || !p256dh || !auth) {
+    return { error: 'Invalid push subscription.' }
+  }
+
+  const { error } = await supabase
+    .from('notification_subscriptions')
+    .upsert(
+      {
+        user_id: user.id,
+        endpoint,
+        p256dh,
+        auth,
+        user_agent: input.user_agent ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'endpoint' }
+    )
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { ok: true }
+}
+
+export async function deleteNotificationSubscription(endpoint: string): Promise<SubscriptionResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const normalizedEndpoint = endpoint.trim()
+  if (!normalizedEndpoint) return { error: 'Invalid push subscription.' }
+
+  const { error } = await supabase
+    .from('notification_subscriptions')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('endpoint', normalizedEndpoint)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { ok: true }
 }
