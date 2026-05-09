@@ -19,6 +19,13 @@ describe('AdminNav', () => {
     expect(activeLink?.textContent).toContain('Users')
   })
 
+  it('marks the active tab as the current page', () => {
+    render(<AdminNav activeTab="reports" />)
+
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Users' })).not.toHaveAttribute('aria-current')
+  })
+
   it('only one tab is active at a time', () => {
     render(<AdminNav activeTab="groups" />)
     const activeLinks = document.querySelectorAll('[data-active="true"]')
