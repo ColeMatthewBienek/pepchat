@@ -6,6 +6,11 @@ import {
   requestNotificationPermission,
   type NotificationStatus,
 } from '@/lib/notifications'
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from '@/app/(app)/notifications/actions'
+import type { NotificationPreferences, NotificationPreferenceUpdate } from '@/lib/types'
 
 function statusCopy(status: NotificationStatus | null) {
   if (!status) return 'Checking this device...'
@@ -19,12 +24,30 @@ function statusCopy(status: NotificationStatus | null) {
 
 export default function NotificationSettingsPanel() {
   const [status, setStatus] = useState<NotificationStatus | null>(null)
+  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [savingKey, setSavingKey] = useState<keyof NotificationPreferenceUpdate | null>(null)
 
   useEffect(() => {
     setStatus(getNotificationStatus())
   }, [])
+
+  useEffect(() => {
+    if (status?.permission !== 'granted') return
+
+    let ignore = false
+    getNotificationPreferences().then(result => {
+      if (ignore) return
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setPreferences(result.preferences)
+      }
+    })
+
+    return () => { ignore = true }
+  }, [status?.permission])
 
   function handleEnable() {
     setError('')
@@ -36,6 +59,18 @@ export default function NotificationSettingsPanel() {
         setError('Could not update notification permission.')
       }
     })
+  }
+
+  async function handlePreferenceChange(key: keyof NotificationPreferenceUpdate, value: boolean) {
+    setError('')
+    setSavingKey(key)
+    const result = await updateNotificationPreferences({ [key]: value })
+    if ('error' in result) {
+      setError(result.error)
+    } else {
+      setPreferences(result.preferences)
+    }
+    setSavingKey(null)
   }
 
   return (
@@ -53,9 +88,35 @@ export default function NotificationSettingsPanel() {
         </p>
       </div>
 
-      {status?.permission === 'granted' && (
-        <p className="text-xs text-[var(--text-muted)]" data-testid="notification-delivery-note">
-          Message delivery settings are coming next.
+      {status?.permission === 'granted' && preferences && (
+        <fieldset className="space-y-2" aria-label="Notification delivery preferences">
+          <PreferenceToggle
+            label="Direct messages"
+            description="Notify me when someone sends me a DM."
+            checked={preferences.dm_messages}
+            disabled={savingKey !== null}
+            onChange={checked => handlePreferenceChange('dm_messages', checked)}
+          />
+          <PreferenceToggle
+            label="Mentions"
+            description="Notify me when someone mentions me."
+            checked={preferences.mentions}
+            disabled={savingKey !== null}
+            onChange={checked => handlePreferenceChange('mentions', checked)}
+          />
+          <PreferenceToggle
+            label="Group messages"
+            description="Notify me about all visible group channel messages."
+            checked={preferences.group_messages}
+            disabled={savingKey !== null}
+            onChange={checked => handlePreferenceChange('group_messages', checked)}
+          />
+        </fieldset>
+      )}
+
+      {status?.permission === 'granted' && !preferences && (
+        <p className="text-xs text-[var(--text-muted)]" data-testid="notification-preferences-loading">
+          Loading notification delivery settings...
         </p>
       )}
 
@@ -74,5 +135,35 @@ export default function NotificationSettingsPanel() {
         {isPending ? 'Enabling...' : 'Enable notifications'}
       </button>
     </section>
+  )
+}
+
+function PreferenceToggle({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string
+  description: string
+  checked: boolean
+  disabled: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex items-start gap-3 rounded-lg border border-white/10 p-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={e => onChange(e.currentTarget.checked)}
+        className="mt-0.5"
+      />
+      <span>
+        <span className="block text-sm font-medium text-[var(--text-primary)]">{label}</span>
+        <span className="block text-xs text-[var(--text-muted)]">{description}</span>
+      </span>
+    </label>
   )
 }

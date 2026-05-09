@@ -109,6 +109,15 @@ create table if not exists public.channel_read_state (
   unique(user_id, channel_id)
 );
 
+create table if not exists public.notification_preferences (
+  user_id        uuid references public.profiles(id) on delete cascade primary key,
+  dm_messages    boolean not null default true,
+  mentions       boolean not null default true,
+  group_messages boolean not null default false,
+  created_at     timestamptz default now() not null,
+  updated_at     timestamptz default now() not null
+);
+
 -- ────────────────────────────────────────────────────────────
 -- 2. ENABLE RLS
 -- ────────────────────────────────────────────────────────────
@@ -121,6 +130,7 @@ alter table public.messages            enable row level security;
 alter table public.message_reactions   enable row level security;
 alter table public.direct_messages     enable row level security;
 alter table public.channel_read_state  enable row level security;
+alter table public.notification_preferences enable row level security;
 
 -- ────────────────────────────────────────────────────────────
 -- 3. SECURITY DEFINER HELPERS
@@ -397,7 +407,24 @@ create policy "Users can update their own read states"
   using (user_id = auth.uid());
 
 -- ────────────────────────────────────────────────────────────
--- 12. REALTIME
+-- 12. POLICIES — notification_preferences
+-- ────────────────────────────────────────────────────────────
+
+create policy "Users can view their own notification preferences"
+  on public.notification_preferences for select to authenticated
+  using (user_id = auth.uid());
+
+create policy "Users can insert their own notification preferences"
+  on public.notification_preferences for insert to authenticated
+  with check (user_id = auth.uid());
+
+create policy "Users can update their own notification preferences"
+  on public.notification_preferences for update to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- ────────────────────────────────────────────────────────────
+-- 13. REALTIME
 -- ────────────────────────────────────────────────────────────
 
 alter publication supabase_realtime add table public.messages;
