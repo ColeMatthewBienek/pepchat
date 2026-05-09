@@ -32,7 +32,9 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
     const q = search.toLowerCase()
     return (
       u.username.toLowerCase().includes(q) ||
-      (u.display_name ?? '').toLowerCase().includes(q)
+      (u.display_name ?? '').toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q) ||
+      (u.is_banned ? 'banned' : 'active').includes(q)
     )
   })
 

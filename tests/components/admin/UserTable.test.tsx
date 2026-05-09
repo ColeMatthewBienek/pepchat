@@ -129,6 +129,29 @@ describe('UserTable — search', () => {
     expect(document.querySelectorAll('.user-row')).toHaveLength(1)
   })
 
+  it('filters rows by role', () => {
+    render(<UserTable {...defaultProps} />)
+    const search = document.querySelector('.user-search') as HTMLInputElement
+
+    fireEvent.change(search, { target: { value: 'moderator' } })
+    expect(document.querySelectorAll('.user-row')).toHaveLength(1)
+    expect(screen.getByText('@cool42')).toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: 'admin' } })
+    expect(document.querySelectorAll('.user-row')).toHaveLength(1)
+    expect(screen.getByText('@panicmonkey')).toBeInTheDocument()
+  })
+
+  it('filters rows by banned status', () => {
+    render(<UserTable {...defaultProps} />)
+    const search = document.querySelector('.user-search') as HTMLInputElement
+
+    fireEvent.change(search, { target: { value: 'banned' } })
+
+    expect(document.querySelectorAll('.user-row')).toHaveLength(1)
+    expect(screen.getByText('@banned_user')).toBeInTheDocument()
+  })
+
   it('shows all rows when search is cleared', () => {
     render(<UserTable {...defaultProps} />)
     const search = document.querySelector('.user-search') as HTMLInputElement
