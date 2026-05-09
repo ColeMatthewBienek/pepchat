@@ -7,6 +7,56 @@ function generateInviteCode(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 }
 
+type InviteRecord = {
+  id: string
+  group_id: string
+  code: string
+  created_by: string | null
+  max_uses: number | null
+  uses_count: number
+  expires_at: string | null
+  revoked_at: string | null
+  created_at: string
+  profiles?: { username: string | null } | null
+}
+
+function parseInviteOptions(formData?: FormData) {
+  const maxUsesRaw = formData?.get('max_uses')?.toString().trim() ?? ''
+  const expiresRaw = formData?.get('expires_at')?.toString().trim() ?? ''
+  const max_uses = maxUsesRaw ? Number(maxUsesRaw) : null
+  const expires_at = expiresRaw ? new Date(expiresRaw).toISOString() : null
+
+  if (max_uses !== null && (!Number.isInteger(max_uses) || max_uses < 1 || max_uses > 1000)) {
+    return { error: 'Usage limit must be between 1 and 1000.' } as const
+  }
+
+  if (expiresRaw) {
+    const expiresAt = new Date(expiresRaw)
+    if (Number.isNaN(expiresAt.getTime())) return { error: 'Expiration date is invalid.' } as const
+    if (expiresAt.getTime() <= Date.now()) return { error: 'Expiration date must be in the future.' } as const
+  }
+
+  return { max_uses, expires_at } as const
+}
+
+function inviteIsUsable(invite: Pick<InviteRecord, 'revoked_at' | 'expires_at' | 'max_uses' | 'uses_count'>) {
+  if (invite.revoked_at) return false
+  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return false
+  if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return false
+  return true
+}
+
+async function getAdminMembership(supabase: Awaited<ReturnType<typeof createClient>>, groupId: string, userId: string) {
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', userId)
+    .single()
+
+  return membership?.role === 'admin'
+}
+
 /**
  * Creates a new group. Creator gets the 'admin' role.
  * Seeds both a #general and a #welcome channel.
@@ -69,13 +119,21 @@ export async function joinGroup(
   const inviteCode = (formData.get('invite_code') as string).trim()
   if (!inviteCode) return { error: 'Invite code is required.' }
 
-  const { data: group } = await supabase
+  const { data: invite } = await supabase
+    .from('group_invites')
+    .select('id, group_id, max_uses, uses_count, expires_at, revoked_at')
+    .eq('code', inviteCode)
+    .single()
+
+  const { data: legacyGroup } = invite ? { data: null } : await supabase
     .from('groups')
     .select('id')
     .eq('invite_code', inviteCode)
     .single()
 
+  const group = invite ? { id: invite.group_id } : legacyGroup
   if (!group) return { error: 'Invalid invite code.' }
+  if (invite && !inviteIsUsable(invite)) return { error: 'Invite link has expired or reached its usage limit.' }
 
   const { data: existing } = await supabase
     .from('group_members')
@@ -91,6 +149,18 @@ export async function joinGroup(
       role: 'noob',
     })
     if (error) return { error: error.message }
+
+    if (invite) {
+      await supabase.from('group_invite_uses').insert({
+        invite_id: invite.id,
+        group_id: invite.group_id,
+        user_id: user.id,
+      })
+      await supabase
+        .from('group_invites')
+        .update({ uses_count: invite.uses_count + 1 })
+        .eq('id', invite.id)
+    }
   }
 
   return { redirectTo: `/groups/${group.id}` }
@@ -140,23 +210,34 @@ export async function updateGroupDetails(
  */
 export async function regenerateGroupInvite(
   groupId: string,
-): Promise<{ error: string } | { ok: true; invite_code: string }> {
+  formData?: FormData,
+): Promise<{ error: string } | { ok: true; invite_code: string; invite: InviteRecord }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
-  const { data: membership } = await supabase
-    .from('group_members')
-    .select('role')
-    .eq('group_id', groupId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (membership?.role !== 'admin') {
+  if (!(await getAdminMembership(supabase, groupId, user.id))) {
     return { error: 'Only group admins can regenerate invite links.' }
   }
 
+  const options = parseInviteOptions(formData)
+  if ('error' in options) return { error: options.error ?? 'Invalid invite options.' }
+
   const invite_code = generateInviteCode()
+  const { data: invite, error: inviteError } = await supabase
+    .from('group_invites')
+    .insert({
+      group_id: groupId,
+      code: invite_code,
+      created_by: user.id,
+      max_uses: options.max_uses,
+      expires_at: options.expires_at,
+    })
+    .select()
+    .single()
+
+  if (inviteError || !invite) return { error: inviteError?.message ?? 'Failed to create invite.' }
+
   const { error } = await supabase
     .from('groups')
     .update({ invite_code })
@@ -164,7 +245,60 @@ export async function regenerateGroupInvite(
     .eq('owner_id', user.id)
 
   if (error) return { error: error.message }
-  return { ok: true, invite_code }
+  return { ok: true, invite_code, invite: invite as InviteRecord }
+}
+
+export async function listGroupInvites(
+  groupId: string,
+): Promise<{ error: string } | { ok: true; invites: InviteRecord[]; uses: any[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  if (!(await getAdminMembership(supabase, groupId, user.id))) {
+    return { error: 'Only group admins can view invite history.' }
+  }
+
+  const { data: invites, error: invitesError } = await supabase
+    .from('group_invites')
+    .select('*, profiles!group_invites_created_by_fkey(username)')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+
+  if (invitesError) return { error: invitesError.message }
+
+  const { data: uses, error: usesError } = await supabase
+    .from('group_invite_uses')
+    .select('*, group_invites(code), profiles(username)')
+    .eq('group_id', groupId)
+    .order('used_at', { ascending: false })
+    .limit(25)
+
+  if (usesError) return { error: usesError.message }
+
+  return { ok: true, invites: (invites ?? []) as InviteRecord[], uses: uses ?? [] }
+}
+
+export async function revokeGroupInvite(
+  inviteId: string,
+  groupId: string,
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  if (!(await getAdminMembership(supabase, groupId, user.id))) {
+    return { error: 'Only group admins can revoke invites.' }
+  }
+
+  const { error } = await supabase
+    .from('group_invites')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', inviteId)
+    .eq('group_id', groupId)
+
+  if (error) return { error: error.message }
+  return { ok: true }
 }
 
 /**

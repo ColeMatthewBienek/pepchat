@@ -46,6 +46,10 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
           .some(value => value.toLowerCase().includes(normalizedMemberSearch))
       })
     : members
+  const roleCounts = members.reduce<Record<Role, number>>((counts, member) => {
+    counts[member.role as Role] += 1
+    return counts
+  }, { admin: 0, moderator: 0, user: 0, noob: 0 })
 
   async function handleMessage(userId: string) {
     const supabase = createClient()
@@ -79,6 +83,8 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
   }, [groupId])
 
   function handleRoleChange(member: MemberWithProfile, newRole: Role) {
+    const memberName = (member.profiles as any)?.display_name ?? member.profiles?.username ?? member.user_id
+    if (!confirm(`Change ${memberName}'s role from ${member.role} to ${newRole}?`)) return
     setError('')
     startTransition(async () => {
       const result = await assignRole(groupId, member.user_id, newRole)
@@ -120,6 +126,16 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
 
       {expanded && (
         <>
+        <div className="px-3 pb-2">
+          <div className="grid grid-cols-2 gap-1 text-[10px] text-[var(--text-faint)]">
+            {(['admin', 'moderator', 'user', 'noob'] as Role[]).map(role => (
+              <span key={role} data-testid={`member-count-${role}`} className="rounded bg-black/10 px-2 py-1">
+                {role}: {roleCounts[role]}
+              </span>
+            ))}
+          </div>
+        </div>
+
         {members.length > 0 && (
           <div className="px-3 pb-2">
             <div className="relative">
@@ -206,7 +222,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                     onClick={() => handleMessage(member.user_id)}
                     title="Send message"
                     aria-label={`Send message to ${memberName}`}
-                    className="hidden group-hover/member:flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors flex-shrink-0"
+                    className="flex md:hidden md:group-hover/member:flex items-center justify-center w-7 h-7 md:w-5 md:h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors flex-shrink-0"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -221,7 +237,7 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
                     disabled={isPending}
                     title="Kick member"
                     aria-label={`Kick ${memberName} from group`}
-                    className="hidden group-hover/member:flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors flex-shrink-0"
+                    className="flex md:hidden md:group-hover/member:flex items-center justify-center w-7 h-7 md:w-5 md:h-5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors flex-shrink-0"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

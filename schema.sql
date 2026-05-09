@@ -49,6 +49,26 @@ create table if not exists public.group_members (
   unique(group_id, user_id)
 );
 
+create table if not exists public.group_invites (
+  id         uuid primary key default gen_random_uuid(),
+  group_id   uuid references public.groups(id) on delete cascade not null,
+  code       text unique not null,
+  created_by uuid references public.profiles(id) on delete set null,
+  max_uses   int check (max_uses is null or max_uses > 0),
+  uses_count int not null default 0 check (uses_count >= 0),
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz default now() not null
+);
+
+create table if not exists public.group_invite_uses (
+  id         uuid primary key default gen_random_uuid(),
+  invite_id  uuid references public.group_invites(id) on delete cascade not null,
+  group_id   uuid references public.groups(id) on delete cascade not null,
+  user_id    uuid references public.profiles(id) on delete cascade not null,
+  used_at    timestamptz default now() not null
+);
+
 create table if not exists public.channels (
   id          uuid primary key default gen_random_uuid(),
   group_id    uuid references public.groups(id) on delete cascade not null,
@@ -155,6 +175,8 @@ create table if not exists public.notification_events (
 alter table public.profiles            enable row level security;
 alter table public.groups              enable row level security;
 alter table public.group_members       enable row level security;
+alter table public.group_invites       enable row level security;
+alter table public.group_invite_uses   enable row level security;
 alter table public.channels            enable row level security;
 alter table public.messages            enable row level security;
 alter table public.message_reactions   enable row level security;
@@ -253,6 +275,44 @@ create policy "Members can view membership of their groups"
 
 create policy "Authenticated users can join groups"
   on public.group_members for insert to authenticated
+  with check (user_id = auth.uid());
+
+-- ────────────────────────────────────────────────────────────
+-- 6A. POLICIES — group_invites
+-- ────────────────────────────────────────────────────────────
+
+create policy "Authenticated users can read group invites"
+  on public.group_invites for select to authenticated
+  using (
+    revoked_at is null
+    or public.is_group_admin(group_id)
+  );
+
+create policy "Admins can create group invites"
+  on public.group_invites for insert to authenticated
+  with check (
+    public.is_group_admin(group_id)
+    and created_by = auth.uid()
+  );
+
+create policy "Admins can update group invites"
+  on public.group_invites for update to authenticated
+  using (public.is_group_admin(group_id))
+  with check (public.is_group_admin(group_id));
+
+-- ────────────────────────────────────────────────────────────
+-- 6B. POLICIES — group_invite_uses
+-- ────────────────────────────────────────────────────────────
+
+create policy "Members can read invite usage for their groups"
+  on public.group_invite_uses for select to authenticated
+  using (
+    group_id = any(select public.get_user_group_ids())
+    or public.is_group_admin(group_id)
+  );
+
+create policy "Authenticated users can record their invite usage"
+  on public.group_invite_uses for insert to authenticated
   with check (user_id = auth.uid());
 
 -- Admins can update roles; cannot change their own role or another admin's role
@@ -419,6 +479,9 @@ create index if not exists idx_messages_reply_to     on public.messages(reply_to
 create index if not exists idx_dm_sender             on public.direct_messages(sender_id, created_at desc);
 create index if not exists idx_dm_recipient          on public.direct_messages(recipient_id, created_at desc);
 create index if not exists idx_groups_invite_code    on public.groups(invite_code);
+create index if not exists idx_group_invites_group_created on public.group_invites(group_id, created_at desc);
+create index if not exists idx_group_invites_active_code   on public.group_invites(code) where revoked_at is null;
+create index if not exists idx_group_invite_uses_invite    on public.group_invite_uses(invite_id, used_at desc);
 create index if not exists idx_reactions_message         on public.message_reactions(message_id);
 create index if not exists idx_read_state_user_channel   on public.channel_read_state(user_id, channel_id);
 create index if not exists idx_notification_subscriptions_user on public.notification_subscriptions(user_id);
