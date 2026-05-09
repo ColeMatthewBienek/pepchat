@@ -22,7 +22,7 @@ export default function DMHeader({ otherUser, onBack, isOnline = false }: DMHead
         data-testid="dm-back-btn"
         onClick={onBack}
         className="md:hidden flex-shrink-0"
-        aria-label="Back"
+        aria-label="Back to direct messages"
         style={{
           background: 'transparent',
           border: 'none',

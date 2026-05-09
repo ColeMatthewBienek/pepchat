@@ -12,6 +12,7 @@ describe('DMHeader', () => {
   it('renders back button', () => {
     render(<DMHeader otherUser={PROFILE_B} onBack={vi.fn()} />)
     expect(screen.getByTestId('dm-back-btn')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to direct messages' })).toBeInTheDocument()
   })
 
   it('calls onBack when back button is clicked', () => {
