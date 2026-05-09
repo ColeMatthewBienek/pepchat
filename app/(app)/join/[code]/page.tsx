@@ -15,7 +15,7 @@ export default async function JoinPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect(`/login?next=/join/${params.code}`)
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/join/${params.code}`)}`)
 
   const { data: group } = await supabase
     .from('groups')

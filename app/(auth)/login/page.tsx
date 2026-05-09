@@ -1,12 +1,21 @@
 'use client'
 
-import { useTransition, useState } from 'react'
+import { useEffect, useTransition, useState } from 'react'
 import Link from 'next/link'
 import { login } from '../actions'
 
 export default function LoginPage() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [nextPath, setNextPath] = useState('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const value = new URLSearchParams(window.location.search).get('next')
+    if (value?.startsWith('/') && !value.startsWith('//')) {
+      setNextPath(value)
+    }
+  }, [])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -26,6 +35,7 @@ export default function LoginPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {nextPath && <input type="hidden" name="next" value={nextPath} />}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="email"
@@ -79,7 +89,10 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-[var(--text-muted)] mt-6">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-[var(--accent)] hover:underline">
+        <Link
+          href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : '/signup'}
+          className="text-[var(--accent)] hover:underline"
+        >
           Sign up
         </Link>
       </p>
