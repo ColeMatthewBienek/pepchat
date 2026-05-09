@@ -201,6 +201,26 @@ export interface NotificationSubscriptionInput {
   user_agent?: string | null
 }
 
+export type NotificationEventType = 'dm_message' | 'mention' | 'group_message'
+
+export interface NotificationEvent {
+  id: string
+  user_id: string
+  actor_id: string | null
+  type: NotificationEventType
+  source_table: string
+  source_id: string
+  conversation_id: string | null
+  channel_id: string | null
+  title: string
+  body: string | null
+  url: string | null
+  read_at: string | null
+  pushed_at: string | null
+  push_error: string | null
+  created_at: string
+}
+
 /** Admin dashboard types */
 
 export interface AdminUser {
