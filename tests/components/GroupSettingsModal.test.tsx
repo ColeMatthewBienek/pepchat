@@ -8,14 +8,18 @@ vi.mock('@/app/(app)/groups/actions', () => ({
   deleteGroup: vi.fn(),
   updateGroupDetails: vi.fn(),
   regenerateGroupInvite: vi.fn(),
+  listGroupInvites: vi.fn(),
+  revokeGroupInvite: vi.fn(),
 }))
 
-import { leaveGroup, deleteGroup, updateGroupDetails, regenerateGroupInvite } from '@/app/(app)/groups/actions'
+import { leaveGroup, deleteGroup, updateGroupDetails, regenerateGroupInvite, listGroupInvites, revokeGroupInvite } from '@/app/(app)/groups/actions'
 
 const mockLeave = leaveGroup as ReturnType<typeof vi.fn>
 const mockDelete = deleteGroup as ReturnType<typeof vi.fn>
 const mockUpdateDetails = updateGroupDetails as ReturnType<typeof vi.fn>
 const mockRegenerateInvite = regenerateGroupInvite as ReturnType<typeof vi.fn>
+const mockListInvites = listGroupInvites as ReturnType<typeof vi.fn>
+const mockRevokeInvite = revokeGroupInvite as ReturnType<typeof vi.fn>
 
 describe('GroupSettingsModal', () => {
   beforeEach(() => {
@@ -23,7 +27,31 @@ describe('GroupSettingsModal', () => {
     mockLeave.mockResolvedValue({ ok: true })
     mockDelete.mockResolvedValue({ ok: true })
     mockUpdateDetails.mockResolvedValue({ ok: true })
-    mockRegenerateInvite.mockResolvedValue({ ok: true, invite_code: 'NEWCODE12345' })
+    mockRegenerateInvite.mockResolvedValue({ ok: true, invite_code: 'NEWCODE12345', invite: {} })
+    mockListInvites.mockResolvedValue({
+      ok: true,
+      invites: [
+        {
+          id: 'invite-1',
+          code: 'NEWCODE12345',
+          created_at: '2026-05-09T12:00:00.000Z',
+          expires_at: null,
+          max_uses: 2,
+          uses_count: 1,
+          revoked_at: null,
+          profiles: { username: 'admin' },
+        },
+      ],
+      uses: [
+        {
+          id: 'use-1',
+          used_at: '2026-05-09T12:05:00.000Z',
+          group_invites: { code: 'NEWCODE12345' },
+          profiles: { username: 'newbie' },
+        },
+      ],
+    })
+    mockRevokeInvite.mockResolvedValue({ ok: true })
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
   })
 
@@ -73,17 +101,37 @@ describe('GroupSettingsModal', () => {
   it('regenerates invite links for owners', async () => {
     render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={true} />)
     fireEvent.click(screen.getByTestId('nav-invite'))
-    fireEvent.click(screen.getByRole('button', { name: /regenerate invite link/i }))
+    fireEvent.change(screen.getByLabelText(/max uses/i), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: /create new invite link/i }))
 
-    await waitFor(() => expect(mockRegenerateInvite).toHaveBeenCalledWith(GROUP.id))
+    await waitFor(() => expect(mockRegenerateInvite).toHaveBeenCalledWith(GROUP.id, expect.any(FormData)))
+    expect((mockRegenerateInvite.mock.calls[0][1] as FormData).get('max_uses')).toBe('2')
     expect(screen.getByDisplayValue(/NEWCODE12345/)).toBeInTheDocument()
     expect(screen.getByText(/invite link regenerated/i)).toBeInTheDocument()
+  })
+
+  it('shows invite metadata and recent usage for owners', async () => {
+    render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={true} />)
+    fireEvent.click(screen.getByTestId('nav-invite'))
+
+    expect(await screen.findByText(/created by @admin/i)).toBeInTheDocument()
+    expect(screen.getByText(/1\/2 uses/i)).toBeInTheDocument()
+    expect(screen.getByText(/@newbie used NEWCODE12345/i)).toBeInTheDocument()
+  })
+
+  it('revokes managed invites', async () => {
+    render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={true} />)
+    fireEvent.click(screen.getByTestId('nav-invite'))
+    fireEvent.click(await screen.findByRole('button', { name: /revoke/i }))
+
+    await waitFor(() => expect(mockRevokeInvite).toHaveBeenCalledWith('invite-1', GROUP.id))
+    expect(screen.getByText(/invite revoked/i)).toBeInTheDocument()
   })
 
   it('hides invite regeneration for non-owners', () => {
     render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={false} />)
     fireEvent.click(screen.getByTestId('nav-invite'))
-    expect(screen.queryByRole('button', { name: /regenerate invite link/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /create new invite link/i })).not.toBeInTheDocument()
   })
 
   it('shows Leave Group option for non-owners', () => {

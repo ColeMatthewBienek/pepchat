@@ -7,6 +7,8 @@ vi.mock('@/app/(app)/groups/actions', () => ({
   deleteGroup: vi.fn(),
   updateGroupDetails: vi.fn(),
   regenerateGroupInvite: vi.fn(),
+  listGroupInvites: vi.fn().mockResolvedValue({ ok: true, invites: [], uses: [] }),
+  revokeGroupInvite: vi.fn(),
   uploadGroupIcon: vi.fn(),
   removeGroupIcon: vi.fn(),
 }))

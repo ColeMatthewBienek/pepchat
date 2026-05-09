@@ -4,12 +4,30 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import ModalShell from '@/components/ui/ModalShell'
 import GroupIcon from '@/components/ui/GroupIcon'
-import { leaveGroup, deleteGroup, uploadGroupIcon, removeGroupIcon, updateGroupDetails, regenerateGroupInvite } from '@/app/(app)/groups/actions'
+import { leaveGroup, deleteGroup, uploadGroupIcon, removeGroupIcon, updateGroupDetails, regenerateGroupInvite, listGroupInvites, revokeGroupInvite } from '@/app/(app)/groups/actions'
 import type { Group } from '@/lib/types'
 
 const AvatarCropModal = dynamic(() => import('@/components/profile/AvatarCropModal'), { ssr: false })
 
 type NavItem = 'overview' | 'invite' | 'danger'
+
+type ManagedInvite = {
+  id: string
+  code: string
+  created_at: string
+  expires_at: string | null
+  max_uses: number | null
+  uses_count: number
+  revoked_at: string | null
+  profiles?: { username: string | null } | null
+}
+
+type InviteUse = {
+  id: string
+  used_at: string
+  group_invites?: { code: string } | null
+  profiles?: { username: string | null } | null
+}
 
 interface GroupSettingsModalProps {
   open: boolean
@@ -24,6 +42,10 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
   const [error, setError] = useState('')
   const [detailsNotice, setDetailsNotice] = useState('')
   const [inviteNotice, setInviteNotice] = useState('')
+  const [managedInvites, setManagedInvites] = useState<ManagedInvite[]>([])
+  const [inviteUses, setInviteUses] = useState<InviteUse[]>([])
+  const [inviteMaxUses, setInviteMaxUses] = useState('')
+  const [inviteExpiresAt, setInviteExpiresAt] = useState('')
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -48,6 +70,11 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
   useEffect(() => {
     setInviteCode(group.invite_code)
   }, [group.invite_code])
+
+  useEffect(() => {
+    if (!open || nav !== 'invite' || !isOwner) return
+    refreshInvites()
+  }, [open, nav, isOwner, group.id])
 
   useEffect(() => {
     setName(group.name)
@@ -136,14 +163,44 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
     setError('')
     setInviteNotice('')
     setCopied(false)
+    const formData = new FormData()
+    if (inviteMaxUses) formData.set('max_uses', inviteMaxUses)
+    if (inviteExpiresAt) formData.set('expires_at', inviteExpiresAt)
     startTransition(async () => {
-      const result = await regenerateGroupInvite(group.id)
+      const result = await regenerateGroupInvite(group.id, formData)
       if ('error' in result) {
         setError(result.error)
       } else {
         setInviteCode(result.invite_code)
         setInviteNotice('Invite link regenerated.')
+        setInviteMaxUses('')
+        setInviteExpiresAt('')
+        await refreshInvites()
         onIconChange?.()
+      }
+    })
+  }
+
+  async function refreshInvites() {
+    const result = await listGroupInvites(group.id)
+    if ('error' in result) {
+      setError(result.error)
+      return
+    }
+    setManagedInvites(result.invites)
+    setInviteUses(result.uses)
+  }
+
+  function handleRevokeInvite(inviteId: string) {
+    setError('')
+    setInviteNotice('')
+    startTransition(async () => {
+      const result = await revokeGroupInvite(inviteId, group.id)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setInviteNotice('Invite revoked.')
+        await refreshInvites()
       }
     })
   }
@@ -330,17 +387,92 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
                     <code className="font-mono bg-black/20 px-1 rounded">{inviteCode}</code>
                   </p>
                   {isOwner && (
-                    <button
-                      type="button"
-                      onClick={handleRegenerateInvite}
-                      disabled={isPending}
-                      className="mt-3 px-3 py-2 text-xs font-semibold rounded-lg text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-60"
-                    >
-                      {isPending ? 'Regenerating...' : 'Regenerate invite link'}
-                    </button>
+                    <div className="mt-3 flex flex-col gap-2 rounded-lg border border-white/10 bg-[var(--bg-primary)] p-3">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-xs text-[var(--text-muted)]">
+                          Max uses
+                          <input
+                            type="number"
+                            min={1}
+                            max={1000}
+                            value={inviteMaxUses}
+                            onChange={e => setInviteMaxUses(e.target.value)}
+                            placeholder="Unlimited"
+                            className="mt-1 w-full rounded border border-white/10 bg-[var(--bg-secondary)] px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none"
+                          />
+                        </label>
+                        <label className="text-xs text-[var(--text-muted)]">
+                          Expires
+                          <input
+                            type="datetime-local"
+                            value={inviteExpiresAt}
+                            onChange={e => setInviteExpiresAt(e.target.value)}
+                            className="mt-1 w-full rounded border border-white/10 bg-[var(--bg-secondary)] px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRegenerateInvite}
+                        disabled={isPending}
+                        className="self-start px-3 py-2 text-xs font-semibold rounded-lg text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-60"
+                      >
+                        {isPending ? 'Creating...' : 'Create new invite link'}
+                      </button>
+                    </div>
                   )}
                   {inviteNotice && <p className="text-xs text-[var(--success)] mt-2">{inviteNotice}</p>}
                 </div>
+
+                {isOwner && managedInvites.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                      Invite History
+                    </p>
+                    {managedInvites.map(invite => (
+                      <div key={invite.id} className="rounded-lg border border-white/10 bg-[var(--bg-primary)] p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-mono text-xs text-[var(--text-primary)]">{invite.code}</p>
+                            <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                              Created by @{invite.profiles?.username ?? 'unknown'} on {formatDate(invite.created_at)}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[var(--text-faint)]">
+                              {invite.uses_count}{invite.max_uses ? `/${invite.max_uses}` : ''} uses
+                              {invite.expires_at ? ` · expires ${formatDate(invite.expires_at)}` : ' · no expiration'}
+                              {invite.revoked_at ? ' · revoked' : ''}
+                            </p>
+                          </div>
+                          {!invite.revoked_at && (
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeInvite(invite.id)}
+                              disabled={isPending}
+                              className="flex-shrink-0 rounded border border-[var(--danger)]/20 px-2 py-1 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-60"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {isOwner && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                      Recent Uses
+                    </p>
+                    {inviteUses.length === 0 ? (
+                      <p className="text-xs text-[var(--text-faint)]">No invite usage yet.</p>
+                    ) : inviteUses.map(use => (
+                      <p key={use.id} className="text-xs text-[var(--text-muted)]">
+                        @{use.profiles?.username ?? 'unknown'} used {use.group_invites?.code ?? 'an invite'} on {formatDate(use.used_at)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -408,4 +540,8 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
       )}
     </>
   )
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }

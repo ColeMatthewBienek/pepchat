@@ -55,6 +55,9 @@ const BASE_PROPS = {
 
 describe('MembersPanel — role change regression', () => {
   beforeEach(() => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    assignRoleMock.mockClear()
+    kickMemberMock.mockClear()
     realtimeCb = null
     assignRoleMock.mockResolvedValue({ ok: true })
     kickMemberMock.mockResolvedValue({ ok: true })
@@ -111,6 +114,17 @@ describe('MembersPanel — role change regression', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Members — 2' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('shows member counts by role', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    expect(screen.getByTestId('member-count-admin')).toHaveTextContent('admin: 0')
+    expect(screen.getByTestId('member-count-moderator')).toHaveTextContent('moderator: 1')
+    expect(screen.getByTestId('member-count-user')).toHaveTextContent('user: 1')
+    expect(screen.getByTestId('member-count-noob')).toHaveTextContent('noob: 0')
   })
 
   it('filters members by username', async () => {
@@ -195,6 +209,34 @@ describe('MembersPanel — role change regression', () => {
 
     // No crash — component stays in DOM
     expect(screen.getByText('alice')).toBeInTheDocument()
+  })
+
+  it('confirms sensitive role changes before assigning roles', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    await act(async () => {
+      fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'user' } })
+    })
+
+    expect(confirm).toHaveBeenCalledWith("Change alice's role from moderator to user?")
+    expect(assignRoleMock).toHaveBeenCalled()
+  })
+
+  it('does not assign roles when confirmation is cancelled', async () => {
+    ;(confirm as ReturnType<typeof vi.fn>).mockReturnValueOnce(false)
+    assignRoleMock.mockClear()
+
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    await act(async () => {
+      fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'user' } })
+    })
+
+    expect(assignRoleMock).not.toHaveBeenCalled()
   })
 
   it('handles assignRole returning { error } without crashing', async () => {

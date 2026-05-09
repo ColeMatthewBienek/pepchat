@@ -17,13 +17,31 @@ export default async function JoinPage({
   } = await supabase.auth.getUser()
   if (!user) redirect(`/login?next=${encodeURIComponent(`/join/${params.code}`)}`)
 
-  const { data: group } = await supabase
+  const { data: invite } = await supabase
+    .from('group_invites')
+    .select('id, group_id, max_uses, uses_count, expires_at, revoked_at')
+    .eq('code', params.code)
+    .single()
+
+  const { data: legacyGroup } = invite ? { data: null } : await supabase
     .from('groups')
     .select('id')
     .eq('invite_code', params.code)
     .single()
 
+  const group = invite ? { id: invite.group_id } : legacyGroup
   if (!group) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-[var(--danger)]">Invalid or expired invite link.</p>
+      </div>
+    )
+  }
+  if (
+    invite?.revoked_at ||
+    (invite?.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) ||
+    (invite && invite.max_uses !== null && invite.uses_count >= invite.max_uses)
+  ) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-[var(--danger)]">Invalid or expired invite link.</p>
@@ -45,6 +63,18 @@ export default async function JoinPage({
       user_id: user.id,
       role: 'noob',
     })
+
+    if (invite) {
+      await supabase.from('group_invite_uses').insert({
+        invite_id: invite.id,
+        group_id: invite.group_id,
+        user_id: user.id,
+      })
+      await supabase
+        .from('group_invites')
+        .update({ uses_count: invite.uses_count + 1 })
+        .eq('id', invite.id)
+    }
   }
 
   redirect(`/groups/${group.id}`)

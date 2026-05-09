@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGroup, leaveGroup, regenerateGroupInvite, removeGroupIcon, updateGroupDetails } from '@/app/(app)/groups/actions'
+import { createGroup, leaveGroup, listGroupInvites, regenerateGroupInvite, removeGroupIcon, revokeGroupInvite, updateGroupDetails } from '@/app/(app)/groups/actions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -63,6 +63,20 @@ function makeUpdateBuilder(result: QueryResult = {}) {
   })
   builder.update = vi.fn(() => builder)
   builder.eq = vi.fn(() => builder)
+  builder.then = resolved.then.bind(resolved)
+  return builder
+}
+
+function makeOrderedSelectBuilder(result: QueryResult) {
+  const builder: Record<string, unknown> = {}
+  const resolved = Promise.resolve({
+    data: result.data ?? null,
+    error: result.error ?? null,
+  })
+  builder.select = vi.fn(() => builder)
+  builder.eq = vi.fn(() => builder)
+  builder.order = vi.fn(() => builder)
+  builder.limit = vi.fn().mockResolvedValue({ data: result.data ?? null, error: result.error ?? null })
   builder.then = resolved.then.bind(resolved)
   return builder
 }
@@ -223,15 +237,83 @@ describe('group actions — regenerateGroupInvite', () => {
 
   it('updates the group invite code for admins', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const inviteInsert = makeInsertSelectBuilder({
+      data: {
+        id: 'invite-1',
+        code: 'abc123abc123',
+        group_id: 'group-1',
+        created_by: 'user-1',
+        max_uses: null,
+        uses_count: 0,
+        expires_at: null,
+        revoked_at: null,
+        created_at: '2026-05-09T00:00:00.000Z',
+      },
+    })
     const update = makeUpdateBuilder()
-    setupClient([membership, update])
+    setupClient([membership, inviteInsert, update])
 
     const result = await regenerateGroupInvite('group-1')
 
     expect(result).toMatchObject({ ok: true })
     if ('invite_code' in result) expect(result.invite_code).toHaveLength(12)
+    expect(inviteInsert.insert).toHaveBeenCalledWith(expect.objectContaining({
+      group_id: 'group-1',
+      created_by: 'user-1',
+      code: expect.stringMatching(/^[a-f0-9]{12}$/),
+      max_uses: null,
+      expires_at: null,
+    }))
     expect(update.update).toHaveBeenCalledWith({
       invite_code: expect.stringMatching(/^[a-f0-9]{12}$/),
+    })
+  })
+
+  it('creates limited expiring invites for admins', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const inviteInsert = makeInsertSelectBuilder({ data: { id: 'invite-1', code: 'abc123abc123' } })
+    const update = makeUpdateBuilder()
+    const formData = new FormData()
+    formData.set('max_uses', '3')
+    formData.set('expires_at', '2099-01-01T00:00')
+    setupClient([membership, inviteInsert, update])
+
+    await expect(regenerateGroupInvite('group-1', formData)).resolves.toMatchObject({ ok: true })
+
+    expect(inviteInsert.insert).toHaveBeenCalledWith(expect.objectContaining({
+      max_uses: 3,
+      expires_at: expect.any(String),
+    }))
+  })
+})
+
+describe('group actions — invite management', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('lists invites and usage for admins', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const invites = makeOrderedSelectBuilder({ data: [{ id: 'invite-1', code: 'abc' }] })
+    const uses = makeOrderedSelectBuilder({ data: [{ id: 'use-1' }] })
+    setupClient([membership, invites, uses])
+
+    await expect(listGroupInvites('group-1')).resolves.toEqual({
+      ok: true,
+      invites: [{ id: 'invite-1', code: 'abc' }],
+      uses: [{ id: 'use-1' }],
+    })
+  })
+
+  it('revokes invites for admins', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const update = makeUpdateBuilder()
+    setupClient([membership, update])
+
+    await expect(revokeGroupInvite('invite-1', 'group-1')).resolves.toEqual({ ok: true })
+
+    expect(update.update).toHaveBeenCalledWith({
+      revoked_at: expect.any(String),
     })
   })
 })
