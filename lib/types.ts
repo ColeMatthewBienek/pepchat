@@ -168,6 +168,19 @@ export interface ChannelReadState {
   last_read_at: string
 }
 
+export interface NotificationPreferences {
+  user_id: string
+  dm_messages: boolean
+  mentions: boolean
+  group_messages: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type NotificationPreferenceUpdate = Partial<
+  Pick<NotificationPreferences, 'dm_messages' | 'mentions' | 'group_messages'>
+>
+
 /** Admin dashboard types */
 
 export interface AdminUser {
