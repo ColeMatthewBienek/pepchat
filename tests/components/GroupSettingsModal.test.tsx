@@ -6,18 +6,21 @@ import { GROUP } from '@/tests/fixtures'
 vi.mock('@/app/(app)/groups/actions', () => ({
   leaveGroup: vi.fn(),
   deleteGroup: vi.fn(),
+  updateGroupDetails: vi.fn(),
 }))
 
-import { leaveGroup, deleteGroup } from '@/app/(app)/groups/actions'
+import { leaveGroup, deleteGroup, updateGroupDetails } from '@/app/(app)/groups/actions'
 
 const mockLeave = leaveGroup as ReturnType<typeof vi.fn>
 const mockDelete = deleteGroup as ReturnType<typeof vi.fn>
+const mockUpdateDetails = updateGroupDetails as ReturnType<typeof vi.fn>
 
 describe('GroupSettingsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLeave.mockResolvedValue({ ok: true })
     mockDelete.mockResolvedValue({ ok: true })
+    mockUpdateDetails.mockResolvedValue({ ok: true })
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
   })
 
@@ -29,6 +32,25 @@ describe('GroupSettingsModal', () => {
   it('renders group name as modal title', () => {
     render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={false} />)
     expect(screen.getByText(GROUP.name)).toBeInTheDocument()
+  })
+
+  it('shows editable group details for owners', () => {
+    render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={true} />)
+    expect(screen.getByLabelText(/group name/i)).toHaveValue(GROUP.name)
+    expect(screen.getByLabelText(/description/i)).toHaveValue(GROUP.description)
+    expect(screen.getByRole('button', { name: /save details/i })).toBeInTheDocument()
+  })
+
+  it('submits updated group details', async () => {
+    render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={true} />)
+    fireEvent.change(screen.getByLabelText(/group name/i), { target: { value: 'New Crew' } })
+    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'A sharper description' } })
+    fireEvent.click(screen.getByRole('button', { name: /save details/i }))
+
+    await waitFor(() => expect(mockUpdateDetails).toHaveBeenCalledWith(GROUP.id, expect.any(FormData)))
+    const formData = mockUpdateDetails.mock.calls[0][1] as FormData
+    expect(formData.get('name')).toBe('New Crew')
+    expect(formData.get('description')).toBe('A sharper description')
   })
 
   it('shows invite code after navigating to Invite Link tab', () => {

@@ -5,6 +5,7 @@ import { GROUP } from '@/tests/fixtures'
 vi.mock('@/app/(app)/groups/actions', () => ({
   leaveGroup: vi.fn(),
   deleteGroup: vi.fn(),
+  updateGroupDetails: vi.fn(),
   uploadGroupIcon: vi.fn(),
   removeGroupIcon: vi.fn(),
 }))

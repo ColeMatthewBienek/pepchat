@@ -93,6 +93,45 @@ export async function joinGroup(
 }
 
 /**
+ * Updates basic group details. Group admins only.
+ */
+export async function updateGroupDetails(
+  groupId: string,
+  formData: FormData,
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const name = (formData.get('name') as string | null)?.trim() ?? ''
+  const description = (formData.get('description') as string | null)?.trim() ?? ''
+
+  if (!name) return { error: 'Group name is required.' }
+  if (name.length > 100) return { error: 'Name must be 100 characters or fewer.' }
+  if (description.length > 180) return { error: 'Description must be 180 characters or fewer.' }
+
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') {
+    return { error: 'Only group admins can update group details.' }
+  }
+
+  const { error } = await supabase
+    .from('groups')
+    .update({ name, description: description || null })
+    .eq('id', groupId)
+    .eq('owner_id', user.id)
+
+  if (error) return { error: error.message }
+  return { ok: true }
+}
+
+/**
  * Leaves a group. Admins must delete the group instead.
  */
 export async function leaveGroup(
