@@ -3,6 +3,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
+function generateInviteCode(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+}
+
 /**
  * Creates a new group. Creator gets the 'admin' role.
  * Seeds both a #general and a #welcome channel.
@@ -129,6 +133,38 @@ export async function updateGroupDetails(
 
   if (error) return { error: error.message }
   return { ok: true }
+}
+
+/**
+ * Rotates a group's invite code. Group admins only.
+ */
+export async function regenerateGroupInvite(
+  groupId: string,
+): Promise<{ error: string } | { ok: true; invite_code: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') {
+    return { error: 'Only group admins can regenerate invite links.' }
+  }
+
+  const invite_code = generateInviteCode()
+  const { error } = await supabase
+    .from('groups')
+    .update({ invite_code })
+    .eq('id', groupId)
+    .eq('owner_id', user.id)
+
+  if (error) return { error: error.message }
+  return { ok: true, invite_code }
 }
 
 /**
