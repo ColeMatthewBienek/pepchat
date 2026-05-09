@@ -73,6 +73,14 @@ describe('middleware invite return paths', () => {
     expect(response.headers.get('location')).toBe('https://pepchat.test/join/invite-123')
   })
 
+  it('preserves query strings on safe next paths', async () => {
+    setupSupabase('user-1')
+
+    const response = await middleware(makeRequest('/login?next=/channels?dm=conversation-1'))
+
+    expect(response.headers.get('location')).toBe('https://pepchat.test/channels?dm=conversation-1')
+  })
+
   it('ignores unsafe next paths for authenticated login visitors', async () => {
     setupSupabase('user-1')
 
