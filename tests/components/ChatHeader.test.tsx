@@ -37,6 +37,7 @@ describe('ChatHeader', () => {
   it('renders mobile menu button', () => {
     render(<ChatHeader channelName="general" />)
     expect(screen.getByTestId('mobile-menu-btn')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open channel navigation' })).toBeInTheDocument()
   })
 
   it('labels pinned messages toggle when closed', async () => {
