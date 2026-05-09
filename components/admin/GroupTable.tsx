@@ -125,12 +125,14 @@ export default function GroupTable({ groups, onDelete }: GroupTableProps) {
                 <div style={{ display: 'flex', gap: 6 }}>
                   <a
                     href={`/groups/${group.id}`}
+                    aria-label={`View ${group.name}`}
                     style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}
                   >
                     View
                   </a>
                   <button
                     title="delete group"
+                    aria-label={`Delete ${group.name}`}
                     onClick={() => setConfirmDelete(group.id)}
                     style={{ fontSize: 12, color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
                   >

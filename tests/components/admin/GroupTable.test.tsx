@@ -83,6 +83,15 @@ describe('GroupTable — rendering', () => {
     render(<GroupTable {...defaultProps} groups={[]} />)
     expect(screen.getByText(/no groups/i)).toBeTruthy()
   })
+
+  it('labels row actions with the group name', () => {
+    render(<GroupTable {...defaultProps} />)
+
+    expect(screen.getByRole('link', { name: 'View PepChat HQ' })).toHaveAttribute('href', '/groups/g1')
+    expect(screen.getByRole('button', { name: 'Delete PepChat HQ' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View Dev Corner' })).toHaveAttribute('href', '/groups/g2')
+    expect(screen.getByRole('button', { name: 'Delete Dev Corner' })).toBeInTheDocument()
+  })
 })
 
 describe('GroupTable — search', () => {
