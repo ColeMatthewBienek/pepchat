@@ -39,3 +39,6 @@ test-results/
 
 # Fallow analysis cache
 .fallow/
+
+# Local project status notes
+PROJECT_STATE_LOCAL.md
