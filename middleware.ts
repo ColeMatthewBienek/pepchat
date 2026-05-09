@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const currentPath = `${request.nextUrl.pathname}${request.nextUrl.search}`
   const isAuthRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
@@ -41,19 +42,53 @@ export async function middleware(request: NextRequest) {
 
   // Unauthenticated user trying to access protected route
   if (!user && !isAuthRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return redirectWithNext(request, '/login', currentPath)
   }
 
   // Authenticated user hitting auth pages — send them into the app
   if (user && (pathname === '/login' || pathname === '/signup')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/channels'
-    return NextResponse.redirect(url)
+    const nextPath = safeRedirectPath(request.nextUrl.searchParams.get('next')) ?? '/channels'
+    const hasProfile = await userHasProfile(supabase, user.id)
+    if (!hasProfile) return redirectWithNext(request, '/setup-profile', nextPath)
+    return redirectToPath(request, nextPath)
+  }
+
+  if (user && !isAuthRoute) {
+    const hasProfile = await userHasProfile(supabase, user.id)
+    if (!hasProfile) return redirectWithNext(request, '/setup-profile', currentPath)
   }
 
   return supabaseResponse
+}
+
+function safeRedirectPath(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  return value
+}
+
+function redirectToPath(request: NextRequest, path: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = path
+  url.search = ''
+  return NextResponse.redirect(url)
+}
+
+function redirectWithNext(request: NextRequest, targetPath: string, nextPath: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = targetPath
+  url.search = ''
+  url.searchParams.set('next', nextPath)
+  return NextResponse.redirect(url)
+}
+
+async function userHasProfile(supabase: ReturnType<typeof createServerClient>, userId: string) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .single()
+
+  return Boolean(profile)
 }
 
 export const config = {
