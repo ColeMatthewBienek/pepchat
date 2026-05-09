@@ -107,6 +107,21 @@ describe('UserTable — rendering', () => {
     render(<UserTable {...defaultProps} />)
     expect(screen.getByText('Unban User')).toBeTruthy()
   })
+
+  it('labels row action controls with the username', () => {
+    render(<UserTable {...defaultProps} />)
+
+    expect(screen.getByRole('button', { name: 'Open actions for @cool42' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open actions for @newbie' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unban @banned_user' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions for @cool42' }))
+
+    expect(screen.getByRole('button', { name: 'Change @cool42 role to moderator' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Change @cool42 role to user' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Ban @cool42' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reset @cool42 password' })).toBeInTheDocument()
+  })
 })
 
 describe('UserTable — search', () => {
@@ -219,9 +234,9 @@ describe('UserTable — access control', () => {
 
     const menu = screen.getByText('Change Role').parentElement as HTMLElement
     expect(within(menu).queryByRole('button', { name: 'admin' })).not.toBeInTheDocument()
-    expect(within(menu).getByRole('button', { name: 'moderator' })).toBeInTheDocument()
-    expect(within(menu).getByRole('button', { name: 'user' })).toBeInTheDocument()
-    expect(within(menu).getByRole('button', { name: 'noob' })).toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'Change @cool42 role to moderator' })).toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'Change @cool42 role to user' })).toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'Change @cool42 role to noob' })).toBeInTheDocument()
   })
 
   it('disables the user current role in the role menu', () => {
@@ -230,9 +245,9 @@ describe('UserTable — access control', () => {
     fireEvent.click(within(document.querySelectorAll('.user-row')[1] as HTMLElement).getByTitle(/actions/i))
 
     const menu = screen.getByText('Change Role').parentElement as HTMLElement
-    expect(within(menu).getByRole('button', { name: 'moderator' })).toBeDisabled()
-    expect(within(menu).getByRole('button', { name: 'user' })).toBeEnabled()
-    expect(within(menu).getByRole('button', { name: 'noob' })).toBeEnabled()
+    expect(within(menu).getByRole('button', { name: 'Change @cool42 role to moderator' })).toBeDisabled()
+    expect(within(menu).getByRole('button', { name: 'Change @cool42 role to user' })).toBeEnabled()
+    expect(within(menu).getByRole('button', { name: 'Change @cool42 role to noob' })).toBeEnabled()
   })
 })
 

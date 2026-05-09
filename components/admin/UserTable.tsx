@@ -193,13 +193,18 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                     {!isSelf && !targetIsAdmin && (
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         {user.is_banned ? (
-                          <button onClick={() => doUnban(user.id)} style={actionStyle(false)}>
+                          <button
+                            aria-label={`Unban @${user.username}`}
+                            onClick={() => doUnban(user.id)}
+                            style={actionStyle(false)}
+                          >
                             Unban User
                           </button>
                         ) : (
                           <div style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               title="actions"
+                              aria-label={`Open actions for @${user.username}`}
                               onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
                               style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, padding: '2px 6px' }}
                             >
@@ -224,6 +229,7 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                                 {ASSIGNABLE_ROLES.map(r => (
                                   <button
                                     key={r}
+                                    aria-label={`Change @${user.username} role to ${r}`}
                                     disabled={user.role === r || pending !== null}
                                     onClick={() => doRoleChange(user, r)}
                                     style={{
@@ -244,10 +250,18 @@ export default function UserTable({ users, currentUserId }: UserTableProps) {
                                   </button>
                                 ))}
                                 <div style={{ height: 1, background: 'var(--border-soft)', margin: '4px 0' }} />
-                                <button onClick={() => { setBanTarget(user.id); setOpenMenuId(null) }} style={actionStyle(true)}>
+                                <button
+                                  aria-label={`Ban @${user.username}`}
+                                  onClick={() => { setBanTarget(user.id); setOpenMenuId(null) }}
+                                  style={actionStyle(true)}
+                                >
                                   Ban User
                                 </button>
-                                <button onClick={() => doResetPassword(user)} style={actionStyle(false)}>
+                                <button
+                                  aria-label={`Reset @${user.username} password`}
+                                  onClick={() => doResetPassword(user)}
+                                  style={actionStyle(false)}
+                                >
                                   Reset Password
                                 </button>
                               </div>
