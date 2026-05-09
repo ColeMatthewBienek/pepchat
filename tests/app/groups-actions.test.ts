@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGroup, leaveGroup, removeGroupIcon } from '@/app/(app)/groups/actions'
+import { createGroup, leaveGroup, removeGroupIcon, updateGroupDetails } from '@/app/(app)/groups/actions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -57,11 +57,13 @@ function makeDeleteBuilder(result: QueryResult = {}) {
 
 function makeUpdateBuilder(result: QueryResult = {}) {
   const builder: Record<string, unknown> = {}
-  builder.update = vi.fn(() => builder)
-  builder.eq = vi.fn(() => Promise.resolve({
+  const resolved = Promise.resolve({
     data: result.data ?? null,
     error: result.error ?? null,
-  }))
+  })
+  builder.update = vi.fn(() => builder)
+  builder.eq = vi.fn(() => builder)
+  builder.then = resolved.then.bind(resolved)
   return builder
 }
 
@@ -93,6 +95,13 @@ function setupClient(builders: Record<string, unknown>[], options: {
 function groupForm(name = 'Test Group') {
   const formData = new FormData()
   formData.set('name', name)
+  return formData
+}
+
+function groupDetailsForm(name = 'Updated Group', description = 'Updated description') {
+  const formData = new FormData()
+  formData.set('name', name)
+  formData.set('description', description)
   return formData
 }
 
@@ -138,6 +147,54 @@ describe('group actions — leaveGroup', () => {
 
     await expect(leaveGroup('group-1')).resolves.toEqual({
       error: 'Leave failed',
+    })
+  })
+})
+
+describe('group actions — updateGroupDetails', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects unauthenticated users', async () => {
+    setupClient([], { userId: null })
+
+    await expect(updateGroupDetails('group-1', groupDetailsForm())).resolves.toEqual({
+      error: 'Not authenticated.',
+    })
+  })
+
+  it('rejects empty group names', async () => {
+    setupClient([])
+
+    await expect(updateGroupDetails('group-1', groupDetailsForm('   '))).resolves.toEqual({
+      error: 'Group name is required.',
+    })
+  })
+
+  it('updates group name and description for admins', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const update = makeUpdateBuilder()
+    setupClient([membership, update])
+
+    await expect(updateGroupDetails('group-1', groupDetailsForm())).resolves.toEqual({ ok: true })
+
+    expect(update.update).toHaveBeenCalledWith({
+      name: 'Updated Group',
+      description: 'Updated description',
+    })
+  })
+
+  it('clears blank descriptions', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const update = makeUpdateBuilder()
+    setupClient([membership, update])
+
+    await expect(updateGroupDetails('group-1', groupDetailsForm('Updated Group', '   '))).resolves.toEqual({ ok: true })
+
+    expect(update.update).toHaveBeenCalledWith({
+      name: 'Updated Group',
+      description: null,
     })
   })
 })
