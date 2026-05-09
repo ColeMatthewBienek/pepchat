@@ -130,6 +130,18 @@ describe('ReportsTable — filtering', () => {
     expect(screen.queryByText('another bad message')).toBeNull()
   })
 
+  it('marks the active status filter as pressed', () => {
+    render(<ReportsTable {...defaultProps} />)
+
+    expect(screen.getByTestId('report-filter-all')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('report-filter-pending')).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByTestId('report-filter-pending'))
+
+    expect(screen.getByTestId('report-filter-all')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('report-filter-pending')).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('searches by message content', () => {
     render(<ReportsTable {...defaultProps} />)
     const search = document.querySelector('.report-search') as HTMLInputElement

@@ -169,6 +169,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
             key={status}
             type="button"
             data-testid={`report-filter-${status}`}
+            aria-pressed={statusFilter === status}
             onClick={() => setStatusFilter(status)}
             style={{
               padding: '5px 10px',
