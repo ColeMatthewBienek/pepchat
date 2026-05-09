@@ -160,6 +160,7 @@ export default function ProfileCard({ userId, currentUserId, anchorEl, onClose }
               <button
                 className="px-3 py-1.5 rounded-lg text-sm text-[var(--text-muted)] border border-white/10 hover:bg-white/5 transition-colors"
                 onClick={onClose}
+                aria-label="Close profile card"
                 title="Close"
               >
                 ✕
