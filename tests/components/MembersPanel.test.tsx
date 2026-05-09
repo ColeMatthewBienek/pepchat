@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { fireEvent, render, screen, act } from '@testing-library/react'
 import MembersPanel from '@/components/sidebar/MembersPanel'
 
 vi.mock('next/dynamic', () => ({ default: () => () => null }))
@@ -111,6 +111,43 @@ describe('MembersPanel — role change regression', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Members — 2' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('filters members by username', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    fireEvent.change(screen.getByTestId('member-search-input'), { target: { value: 'bob' } })
+
+    expect(screen.queryByText('alice')).not.toBeInTheDocument()
+    expect(screen.getByText('bob')).toBeInTheDocument()
+  })
+
+  it('filters members by role and can clear the search', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    fireEvent.change(screen.getByTestId('member-search-input'), { target: { value: 'moderator' } })
+
+    expect(screen.getByText('alice')).toBeInTheDocument()
+    expect(screen.queryByText('bob')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('member-search-clear'))
+
+    expect(screen.getByText('alice')).toBeInTheDocument()
+    expect(screen.getByText('bob')).toBeInTheDocument()
+  })
+
+  it('shows an empty search state when no members match', async () => {
+    await act(async () => {
+      render(<MembersPanel {...BASE_PROPS} />)
+    })
+
+    fireEvent.change(screen.getByTestId('member-search-input'), { target: { value: 'nobody' } })
+
+    expect(screen.getByText(/no members match/i)).toBeInTheDocument()
   })
 
   it('labels member row profile and action buttons', async () => {

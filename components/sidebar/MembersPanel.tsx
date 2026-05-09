@@ -29,6 +29,7 @@ interface MembersPanelProps {
 export default function MembersPanel({ groupId, currentUserId, currentUserRole }: MembersPanelProps) {
   const [members, setMembers] = useState<MemberWithProfile[]>([])
   const [expanded, setExpanded] = useState(true)
+  const [memberSearch, setMemberSearch] = useState('')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [profileCard, setProfileCard] = useState<{ userId: string; anchor: HTMLElement } | null>(null)
@@ -36,6 +37,15 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
   const canManage = PERMISSIONS.canAssignRoles(currentUserRole)
   const canKick   = PERMISSIONS.canKickMembers(currentUserRole)
   const router = useRouter()
+  const normalizedMemberSearch = memberSearch.trim().toLowerCase()
+  const filteredMembers = normalizedMemberSearch
+    ? members.filter((member) => {
+        const displayName = (member.profiles as any)?.display_name ?? ''
+        const username = member.profiles?.username ?? ''
+        return [displayName, username, member.role]
+          .some(value => value.toLowerCase().includes(normalizedMemberSearch))
+      })
+    : members
 
   async function handleMessage(userId: string) {
     const supabase = createClient()
@@ -109,8 +119,40 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
       )}
 
       {expanded && (
+        <>
+        {members.length > 0 && (
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <input
+                data-testid="member-search-input"
+                type="search"
+                placeholder="Search members..."
+                value={memberSearch}
+                onChange={e => setMemberSearch(e.target.value)}
+                className="w-full rounded border border-[var(--border-soft)] bg-[var(--bg-tertiary)] px-2 py-1.5 pr-7 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
+              />
+              {normalizedMemberSearch && (
+                <button
+                  type="button"
+                  data-testid="member-search-clear"
+                  aria-label="Clear member search"
+                  className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-sm leading-none text-[var(--text-muted)] hover:bg-white/10 hover:text-[var(--text-primary)]"
+                  onClick={() => setMemberSearch('')}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {filteredMembers.length === 0 && normalizedMemberSearch ? (
+          <p className="px-4 pb-3 text-xs leading-relaxed text-[var(--text-muted)]">
+            No members match your search.
+          </p>
+        ) : (
         <ul className="pb-2 space-y-0.5">
-          {members.map((member) => {
+          {filteredMembers.map((member) => {
             const isSelf = member.user_id === currentUserId
             const isTargetAdmin = member.role === 'admin'
             const canKickTarget = canKick && !isSelf && (
@@ -190,6 +232,8 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
             )
           })}
         </ul>
+        )}
+        </>
       )}
 
       {profileCard && (
