@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   deleteNotificationSubscription,
+  getNotificationEvents,
   getNotificationPreferences,
+  markAllNotificationEventsRead,
+  markNotificationEventRead,
   saveNotificationSubscription,
   updateNotificationPreferences,
 } from '@/app/(app)/notifications/actions'
@@ -12,10 +15,29 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: mockCreateClient,
 }))
 
-type QueryResult = { data?: unknown; error?: { message: string; code?: string } | null }
+type QueryResult = { data?: unknown; error?: { message: string; code?: string } | null; count?: number | null }
 
 function setupClient(builder: unknown, userId: string | null = 'user-1') {
   const from = vi.fn(() => builder)
+  mockCreateClient.mockResolvedValue({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: userId ? { id: userId } : null },
+        error: null,
+      }),
+    },
+    from,
+  })
+  return { from }
+}
+
+function setupClientSequence(builders: unknown[], userId: string | null = 'user-1') {
+  let index = 0
+  const from = vi.fn(() => {
+    const builder = builders[index]
+    index += 1
+    return builder
+  })
   mockCreateClient.mockResolvedValue({
     auth: {
       getUser: vi.fn().mockResolvedValue({
@@ -32,6 +54,17 @@ function makeSelectBuilder(result: QueryResult) {
   const builder: Record<string, unknown> = {}
   builder.select = vi.fn(() => builder)
   builder.eq = vi.fn(() => builder)
+  builder.is = vi.fn().mockResolvedValue({
+    data: result.data ?? null,
+    error: result.error ?? null,
+    count: result.count ?? null,
+  })
+  builder.order = vi.fn(() => builder)
+  builder.limit = vi.fn().mockResolvedValue({
+    data: result.data ?? null,
+    error: result.error ?? null,
+    count: result.count ?? null,
+  })
   builder.single = vi.fn().mockResolvedValue({
     data: result.data ?? null,
     error: result.error ?? null,
@@ -66,6 +99,19 @@ function makeDeleteBuilder(result: QueryResult) {
   return builder
 }
 
+function makeUpdateBuilder(result: QueryResult) {
+  const builder: Record<string, unknown> = {}
+  const resolved = Promise.resolve({
+    data: result.data ?? null,
+    error: result.error ?? null,
+  })
+  builder.update = vi.fn(() => builder)
+  builder.eq = vi.fn(() => builder)
+  builder.is = vi.fn(() => builder)
+  builder.then = resolved.then.bind(resolved)
+  return builder
+}
+
 const PREFERENCES = {
   user_id: 'user-1',
   dm_messages: true,
@@ -83,6 +129,43 @@ const SUBSCRIPTION = {
   },
   user_agent: 'Vitest Browser',
 }
+
+const EVENTS = [
+  {
+    id: 'event-1',
+    user_id: 'user-1',
+    actor_id: 'user-2',
+    type: 'dm_message',
+    source_table: 'direct_messages',
+    source_id: 'dm-1',
+    conversation_id: 'conv-1',
+    channel_id: null,
+    title: 'Alice',
+    body: 'Hello',
+    url: '/channels?dm=conv-1',
+    read_at: null,
+    pushed_at: null,
+    push_error: null,
+    created_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'event-2',
+    user_id: 'user-1',
+    actor_id: 'user-3',
+    type: 'dm_message',
+    source_table: 'direct_messages',
+    source_id: 'dm-2',
+    conversation_id: 'conv-2',
+    channel_id: null,
+    title: 'Bob',
+    body: 'Read already',
+    url: '/channels?dm=conv-2',
+    read_at: '2026-01-01T00:01:00.000Z',
+    pushed_at: null,
+    push_error: null,
+    created_at: '2026-01-01T00:00:30.000Z',
+  },
+]
 
 describe('notification actions — getNotificationPreferences', () => {
   beforeEach(() => {
@@ -265,5 +348,86 @@ describe('notification actions — deleteNotificationSubscription', () => {
     await expect(deleteNotificationSubscription(SUBSCRIPTION.endpoint)).resolves.toEqual({
       error: 'Delete failed',
     })
+  })
+})
+
+describe('notification actions — getNotificationEvents', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects unauthenticated users', async () => {
+    setupClient(makeSelectBuilder({}), null)
+
+    await expect(getNotificationEvents()).resolves.toEqual({ error: 'Not authenticated.' })
+  })
+
+  it('returns recent events and unread count for the current user', async () => {
+    const eventsBuilder = makeSelectBuilder({ data: EVENTS })
+    const countBuilder = makeSelectBuilder({ count: 8 })
+    const { from } = setupClientSequence([eventsBuilder, countBuilder])
+
+    await expect(getNotificationEvents(200)).resolves.toEqual({
+      ok: true,
+      events: EVENTS,
+      unreadCount: 8,
+    })
+
+    expect(from).toHaveBeenCalledWith('notification_events')
+    expect(eventsBuilder.eq).toHaveBeenCalledWith('user_id', 'user-1')
+    expect(eventsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(eventsBuilder.limit).toHaveBeenCalledWith(50)
+    expect(countBuilder.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
+    expect(countBuilder.eq).toHaveBeenCalledWith('user_id', 'user-1')
+    expect(countBuilder.is).toHaveBeenCalledWith('read_at', null)
+  })
+
+  it('surfaces event load errors', async () => {
+    setupClient(makeSelectBuilder({ error: { message: 'Load failed' } }))
+
+    await expect(getNotificationEvents()).resolves.toEqual({ error: 'Load failed' })
+  })
+})
+
+describe('notification actions — markNotificationEventRead', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects invalid event ids', async () => {
+    setupClient(makeUpdateBuilder({}))
+
+    await expect(markNotificationEventRead('   ')).resolves.toEqual({
+      error: 'Invalid notification event.',
+    })
+  })
+
+  it('marks one event read for the current user', async () => {
+    const builder = makeUpdateBuilder({})
+    const { from } = setupClient(builder)
+
+    await expect(markNotificationEventRead('event-1')).resolves.toEqual({ ok: true })
+
+    expect(from).toHaveBeenCalledWith('notification_events')
+    expect(builder.update).toHaveBeenCalledWith({ read_at: expect.any(String) })
+    expect(builder.eq).toHaveBeenNthCalledWith(1, 'id', 'event-1')
+    expect(builder.eq).toHaveBeenNthCalledWith(2, 'user_id', 'user-1')
+  })
+})
+
+describe('notification actions — markAllNotificationEventsRead', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('marks unread events read for the current user', async () => {
+    const builder = makeUpdateBuilder({})
+    setupClientSequence([builder])
+
+    await expect(markAllNotificationEventsRead()).resolves.toEqual({ ok: true })
+
+    expect(builder.update).toHaveBeenCalledWith({ read_at: expect.any(String) })
+    expect(builder.eq).toHaveBeenCalledWith('user_id', 'user-1')
+    expect(builder.is).toHaveBeenCalledWith('read_at', null)
   })
 })

@@ -8,6 +8,7 @@ import CreateGroupModal from '@/components/modals/CreateGroupModal'
 import JoinGroupModal from '@/components/modals/JoinGroupModal'
 import GroupSettingsModal from '@/components/modals/GroupSettingsModal'
 import CreateChannelModal from '@/components/modals/CreateChannelModal'
+import NotificationTray from '@/components/notifications/NotificationTray'
 import { MobileSidebarContext } from '@/lib/context/MobileSidebarContext'
 import InstallBanner from '@/components/ui/InstallBanner'
 import { useGroups } from '@/lib/hooks/useGroups'
@@ -171,6 +172,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
           className="flex flex-col flex-1 min-w-0 overflow-hidden"
         >
           <InstallBanner />
+          <NotificationTray />
           {children}
         </main>
       </div>
