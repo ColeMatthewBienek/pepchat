@@ -118,6 +118,17 @@ create table if not exists public.notification_preferences (
   updated_at     timestamptz default now() not null
 );
 
+create table if not exists public.notification_subscriptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid references public.profiles(id) on delete cascade not null,
+  endpoint   text not null unique,
+  p256dh     text not null,
+  auth       text not null,
+  user_agent text,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
 -- ────────────────────────────────────────────────────────────
 -- 2. ENABLE RLS
 -- ────────────────────────────────────────────────────────────
@@ -131,6 +142,7 @@ alter table public.message_reactions   enable row level security;
 alter table public.direct_messages     enable row level security;
 alter table public.channel_read_state  enable row level security;
 alter table public.notification_preferences enable row level security;
+alter table public.notification_subscriptions enable row level security;
 
 -- ────────────────────────────────────────────────────────────
 -- 3. SECURITY DEFINER HELPERS
@@ -389,6 +401,7 @@ create index if not exists idx_dm_recipient          on public.direct_messages(r
 create index if not exists idx_groups_invite_code    on public.groups(invite_code);
 create index if not exists idx_reactions_message         on public.message_reactions(message_id);
 create index if not exists idx_read_state_user_channel   on public.channel_read_state(user_id, channel_id);
+create index if not exists idx_notification_subscriptions_user on public.notification_subscriptions(user_id);
 
 -- ────────────────────────────────────────────────────────────
 -- 11. POLICIES — channel_read_state
@@ -424,7 +437,28 @@ create policy "Users can update their own notification preferences"
   with check (user_id = auth.uid());
 
 -- ────────────────────────────────────────────────────────────
--- 13. REALTIME
+-- 13. POLICIES — notification_subscriptions
+-- ────────────────────────────────────────────────────────────
+
+create policy "Users can view their own notification subscriptions"
+  on public.notification_subscriptions for select to authenticated
+  using (user_id = auth.uid());
+
+create policy "Users can insert their own notification subscriptions"
+  on public.notification_subscriptions for insert to authenticated
+  with check (user_id = auth.uid());
+
+create policy "Users can update their own notification subscriptions"
+  on public.notification_subscriptions for update to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "Users can delete their own notification subscriptions"
+  on public.notification_subscriptions for delete to authenticated
+  using (user_id = auth.uid());
+
+-- ────────────────────────────────────────────────────────────
+-- 14. REALTIME
 -- ────────────────────────────────────────────────────────────
 
 alter publication supabase_realtime add table public.messages;

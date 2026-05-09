@@ -181,6 +181,26 @@ export type NotificationPreferenceUpdate = Partial<
   Pick<NotificationPreferences, 'dm_messages' | 'mentions' | 'group_messages'>
 >
 
+export interface NotificationSubscription {
+  id: string
+  user_id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_agent: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NotificationSubscriptionInput {
+  endpoint: string
+  keys: {
+    p256dh: string
+    auth: string
+  }
+  user_agent?: string | null
+}
+
 /** Admin dashboard types */
 
 export interface AdminUser {

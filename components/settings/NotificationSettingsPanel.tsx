@@ -2,15 +2,20 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import {
+  ensurePushSubscription,
   getNotificationStatus,
+  isPushConfigured,
   requestNotificationPermission,
   type NotificationStatus,
 } from '@/lib/notifications'
 import {
   getNotificationPreferences,
+  saveNotificationSubscription,
   updateNotificationPreferences,
 } from '@/app/(app)/notifications/actions'
 import type { NotificationPreferences, NotificationPreferenceUpdate } from '@/lib/types'
+
+type DeviceStatus = 'idle' | 'saving' | 'saved' | 'unconfigured' | 'error'
 
 function statusCopy(status: NotificationStatus | null) {
   if (!status) return 'Checking this device...'
@@ -26,6 +31,7 @@ export default function NotificationSettingsPanel() {
   const [status, setStatus] = useState<NotificationStatus | null>(null)
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
   const [error, setError] = useState('')
+  const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>('idle')
   const [isPending, startTransition] = useTransition()
   const [savingKey, setSavingKey] = useState<keyof NotificationPreferenceUpdate | null>(null)
 
@@ -54,11 +60,41 @@ export default function NotificationSettingsPanel() {
     startTransition(async () => {
       try {
         await requestNotificationPermission()
-        setStatus(getNotificationStatus())
+        const nextStatus = getNotificationStatus()
+        setStatus(nextStatus)
+        if (nextStatus.permission === 'granted') {
+          await syncPushSubscription()
+        }
       } catch {
         setError('Could not update notification permission.')
       }
     })
+  }
+
+  async function syncPushSubscription() {
+    setError('')
+
+    if (!isPushConfigured()) {
+      setDeviceStatus('unconfigured')
+      return
+    }
+
+    setDeviceStatus('saving')
+    const subscriptionResult = await ensurePushSubscription()
+    if ('error' in subscriptionResult) {
+      setDeviceStatus('error')
+      setError(subscriptionResult.error)
+      return
+    }
+
+    const saveResult = await saveNotificationSubscription(subscriptionResult.subscription)
+    if ('error' in saveResult) {
+      setDeviceStatus('error')
+      setError(saveResult.error)
+      return
+    }
+
+    setDeviceStatus('saved')
   }
 
   async function handlePreferenceChange(key: keyof NotificationPreferenceUpdate, value: boolean) {
@@ -118,6 +154,27 @@ export default function NotificationSettingsPanel() {
         <p className="text-xs text-[var(--text-muted)]" data-testid="notification-preferences-loading">
           Loading notification delivery settings...
         </p>
+      )}
+
+      {status?.permission === 'granted' && status.pushSupported && (
+        <div className="rounded-lg border border-white/10 p-3 space-y-2">
+          <p className="text-xs text-[var(--text-muted)]" data-testid="notification-subscription-status">
+            {deviceStatus === 'saved' && 'This device is registered for push notifications.'}
+            {deviceStatus === 'saving' && 'Registering this device...'}
+            {deviceStatus === 'unconfigured' && 'Push subscription is not configured for this deployment.'}
+            {(deviceStatus === 'idle' || deviceStatus === 'error') && 'Register this device to receive browser push notifications when delivery is available.'}
+          </p>
+          {isPushConfigured() && (
+            <button
+              type="button"
+              onClick={syncPushSubscription}
+              disabled={deviceStatus === 'saving'}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 text-[var(--text-primary)] hover:bg-white/5 disabled:opacity-40 disabled:cursor-default transition-colors"
+            >
+              {deviceStatus === 'saving' ? 'Registering...' : 'Register this device'}
+            </button>
+          )}
+        </div>
       )}
 
       {error && (

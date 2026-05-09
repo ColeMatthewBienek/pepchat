@@ -50,9 +50,22 @@ function setPushSupport(supported: boolean) {
   }
 }
 
+function makePushSubscription(endpoint = 'https://push.example/subscription-1') {
+  return {
+    toJSON: vi.fn(() => ({
+      endpoint,
+      keys: {
+        p256dh: 'p256dh-key',
+        auth: 'auth-secret',
+      },
+    })),
+  } as unknown as PushSubscription
+}
+
 describe('notifications helpers', () => {
   beforeEach(() => {
     vi.resetModules()
+    vi.unstubAllEnvs()
     Reflect.deleteProperty(window, 'Notification')
     Reflect.deleteProperty(window, 'PushManager')
     Reflect.deleteProperty(navigator, 'serviceWorker')
@@ -115,5 +128,77 @@ describe('notifications helpers', () => {
 
     await expect(requestNotificationPermission()).resolves.toBe('granted')
     expect(window.Notification.requestPermission).toHaveBeenCalled()
+  })
+
+  it('reports whether push subscription is configured', async () => {
+    const { isPushConfigured } = await import('@/lib/notifications')
+
+    expect(isPushConfigured()).toBe(false)
+
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'public-key')
+    expect(isPushConfigured()).toBe(true)
+  })
+
+  it('serializes browser push subscriptions for storage', async () => {
+    const { subscriptionToInput } = await import('@/lib/notifications')
+
+    expect(subscriptionToInput(makePushSubscription())).toEqual({
+      endpoint: 'https://push.example/subscription-1',
+      keys: {
+        p256dh: 'p256dh-key',
+        auth: 'auth-secret',
+      },
+      user_agent: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/120',
+    })
+  })
+
+  it('registers the service worker and creates a push subscription', async () => {
+    const subscription = makePushSubscription()
+    const subscribe = vi.fn().mockResolvedValue(subscription)
+    const register = vi.fn().mockResolvedValue({
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue(null),
+        subscribe,
+      },
+    })
+
+    setNotification('granted')
+    setPushSupport(true)
+    Object.defineProperty(navigator, 'serviceWorker', {
+      writable: true,
+      configurable: true,
+      value: { register },
+    })
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'AQID')
+
+    const { ensurePushSubscription } = await import('@/lib/notifications')
+
+    await expect(ensurePushSubscription()).resolves.toEqual({
+      ok: true,
+      subscription: {
+        endpoint: 'https://push.example/subscription-1',
+        keys: {
+          p256dh: 'p256dh-key',
+          auth: 'auth-secret',
+        },
+        user_agent: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/120',
+      },
+    })
+    expect(register).toHaveBeenCalledWith('/sw.js')
+    expect(subscribe).toHaveBeenCalledWith(expect.objectContaining({
+      userVisibleOnly: true,
+    }))
+    const subscribeOptions = subscribe.mock.calls[0][0]
+    expect(new Uint8Array(subscribeOptions.applicationServerKey)).toEqual(new Uint8Array([1, 2, 3]))
+  })
+
+  it('does not create push subscriptions when deployment config is missing', async () => {
+    setNotification('granted')
+    setPushSupport(true)
+    const { ensurePushSubscription } = await import('@/lib/notifications')
+
+    await expect(ensurePushSubscription()).resolves.toEqual({
+      error: 'Push notifications are not configured for this deployment.',
+    })
   })
 })
