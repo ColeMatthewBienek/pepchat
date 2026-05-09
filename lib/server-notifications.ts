@@ -64,7 +64,7 @@ export async function enqueueDirectMessageNotification(
         channel_id: null,
         title: input.senderName,
         body: notificationBody(input.content, input.attachments),
-        url: `/channels?dm=${input.conversationId}`,
+        url: `/dm/${input.conversationId}#${input.messageId}`,
       }
     )
 }
