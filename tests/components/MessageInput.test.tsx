@@ -53,6 +53,14 @@ describe('MessageInput draft persistence', () => {
     expect(screen.getByTestId('message-input-textarea')).toHaveValue('Saved channel draft')
   })
 
+  it('pads the composer above mobile safe areas', () => {
+    const { container } = render(<MessageInput {...BASE_PROPS} />)
+
+    expect(container.firstElementChild).toHaveStyle({
+      padding: '0 16px calc(14px + env(safe-area-inset-bottom, 0px))',
+    })
+  })
+
   it('saves typed drafts per channel', () => {
     render(<MessageInput {...BASE_PROPS} />)
 

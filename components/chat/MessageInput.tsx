@@ -231,7 +231,7 @@ export default function MessageInput({
   return (
     <div
       className="flex-shrink-0"
-      style={{ padding: '0 16px 14px' }}
+      style={{ padding: '0 16px calc(14px + env(safe-area-inset-bottom, 0px))' }}
     >
       {/* Full-viewport drag-and-drop overlay */}
       {isDragging && (

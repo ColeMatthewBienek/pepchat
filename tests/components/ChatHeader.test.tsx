@@ -19,6 +19,17 @@ describe('ChatHeader', () => {
     expect(screen.getByTestId('chat-header-name')).toHaveTextContent('general')
   })
 
+  it('truncates long channel names instead of widening the mobile header', () => {
+    render(<ChatHeader channelName="very-long-channel-name-that-keeps-going" />)
+
+    const style = getComputedStyle(screen.getByTestId('chat-header-name'))
+    expect(style.minWidth).toBe('0')
+    expect(style.overflow).toBe('hidden')
+    expect(style.textOverflow).toBe('ellipsis')
+    expect(style.whiteSpace).toBe('nowrap')
+    expect(style.flexShrink).toBe('1')
+  })
+
   it('renders topic when provided', () => {
     render(<ChatHeader channelName="general" channelTopic="All things general" />)
     expect(screen.getByTestId('chat-header-topic')).toHaveTextContent('All things general')
