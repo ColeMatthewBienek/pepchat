@@ -14,7 +14,7 @@ export default function ChannelsIndexPage() {
       <button
         className="md:hidden"
         onClick={open}
-        aria-label="Open menu"
+        aria-label="Open channel navigation"
         style={{
           position: 'absolute',
           top: 12,
@@ -72,7 +72,7 @@ export default function ChannelsIndexPage() {
           cursor: 'pointer',
         }}
       >
-        Open menu
+        Open channel navigation
       </button>
     </div>
   )
