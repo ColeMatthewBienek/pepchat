@@ -68,8 +68,9 @@ function safeRedirectPath(value: string | null): string | null {
 
 function redirectToPath(request: NextRequest, path: string) {
   const url = request.nextUrl.clone()
-  url.pathname = path
-  url.search = ''
+  const destination = new URL(path, request.nextUrl.origin)
+  url.pathname = destination.pathname
+  url.search = destination.search
   return NextResponse.redirect(url)
 }
 
