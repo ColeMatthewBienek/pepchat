@@ -46,6 +46,7 @@ export default function Lightbox({ images, initialIndex, onClose }: LightboxProp
         {/* Close */}
         <button
           onClick={onClose}
+          aria-label="Close image preview"
           className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-black/70 border border-white/20 text-white flex items-center justify-center hover:bg-black/90 text-sm"
         >
           ✕
@@ -57,6 +58,7 @@ export default function Lightbox({ images, initialIndex, onClose }: LightboxProp
             <button
               onClick={() => setIndex(i => Math.max(0, i - 1))}
               disabled={index === 0}
+              aria-label="Previous image"
               className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-white/20 text-white text-lg flex items-center justify-center hover:bg-black/80 disabled:opacity-25 disabled:cursor-default"
             >
               ‹
@@ -64,6 +66,7 @@ export default function Lightbox({ images, initialIndex, onClose }: LightboxProp
             <button
               onClick={() => setIndex(i => Math.min(images.length - 1, i + 1))}
               disabled={index === images.length - 1}
+              aria-label="Next image"
               className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 border border-white/20 text-white text-lg flex items-center justify-center hover:bg-black/80 disabled:opacity-25 disabled:cursor-default"
             >
               ›
