@@ -509,3 +509,4 @@ alter publication supabase_realtime add table public.direct_messages;
 alter publication supabase_realtime add table public.group_members;
 alter publication supabase_realtime add table public.message_reactions;
 alter publication supabase_realtime add table public.channel_read_state;
+alter publication supabase_realtime add table public.notification_events;

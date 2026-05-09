@@ -82,7 +82,7 @@ describe('server notification helpers', () => {
         channel_id: null,
         title: 'Alice',
         body: 'Hello there',
-        url: '/channels?dm=conv-1',
+        url: '/dm/conv-1#dm-1',
       }
     )
   })

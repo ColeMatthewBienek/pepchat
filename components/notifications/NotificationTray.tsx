@@ -7,6 +7,7 @@ import {
   markAllNotificationEventsRead,
   markNotificationEventRead,
 } from '@/app/(app)/notifications/actions'
+import { createClient } from '@/lib/supabase/client'
 import type { NotificationEvent } from '@/lib/types'
 
 function formatEventTime(value: string): string {
@@ -30,6 +31,11 @@ export default function NotificationTray() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  function applyEvents(nextEvents: NotificationEvent[], nextUnreadCount: number) {
+    setEvents(nextEvents)
+    setUnreadCount(nextUnreadCount)
+  }
+
   useEffect(() => {
     let ignore = false
 
@@ -38,12 +44,53 @@ export default function NotificationTray() {
       if ('error' in result) {
         setError(result.error)
       } else {
-        setEvents(result.events)
-        setUnreadCount(result.unreadCount)
+        applyEvents(result.events, result.unreadCount)
       }
     })
 
     return () => { ignore = true }
+  }, [])
+
+  useEffect(() => {
+    const supabase = createClient()
+    let ignore = false
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    async function subscribe() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || ignore) return
+
+      channel = supabase
+        .channel(`notification-events-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notification_events',
+            filter: `user_id=eq.${user.id}`,
+          },
+          async () => {
+            const result = await getNotificationEvents()
+            if (ignore) return
+            if ('error' in result) {
+              setError(result.error)
+            } else {
+              applyEvents(result.events, result.unreadCount)
+            }
+          }
+        )
+        .subscribe()
+    }
+
+    subscribe()
+
+    return () => {
+      ignore = true
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
+    }
   }, [])
 
   const visibleUnreadCount = useMemo(() => Math.min(unreadCount, 99), [unreadCount])

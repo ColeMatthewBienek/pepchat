@@ -1,16 +1,29 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NotificationTray from '@/components/notifications/NotificationTray'
 
 const mockGetNotificationEvents = vi.fn()
 const mockMarkNotificationEventRead = vi.fn()
 const mockMarkAllNotificationEventsRead = vi.fn()
+const mockGetUser = vi.fn()
+const mockOn = vi.fn()
+const mockSubscribe = vi.fn()
+const mockRemoveChannel = vi.fn()
+const mockChannel = vi.fn()
 
 vi.mock('@/app/(app)/notifications/actions', () => ({
   getNotificationEvents: () => mockGetNotificationEvents(),
   markNotificationEventRead: (eventId: string) => mockMarkNotificationEventRead(eventId),
   markAllNotificationEventsRead: () => mockMarkAllNotificationEventsRead(),
+}))
+
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: { getUser: mockGetUser },
+    channel: mockChannel,
+    removeChannel: mockRemoveChannel,
+  }),
 }))
 
 vi.mock('next/link', () => ({
@@ -40,7 +53,7 @@ const EVENTS = [
     channel_id: null,
     title: 'Alice',
     body: 'Hello from DM',
-    url: '/channels?dm=conv-1',
+    url: '/dm/conv-1#dm-1',
     read_at: null,
     pushed_at: null,
     push_error: null,
@@ -58,6 +71,11 @@ describe('NotificationTray', () => {
     })
     mockMarkNotificationEventRead.mockResolvedValue({ ok: true })
     mockMarkAllNotificationEventsRead.mockResolvedValue({ ok: true })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+    mockOn.mockReturnThis()
+    mockSubscribe.mockReturnValue('channel-1')
+    mockChannel.mockReturnValue({ on: mockOn, subscribe: mockSubscribe })
+    mockRemoveChannel.mockResolvedValue({ error: null })
   })
 
   it('shows unread count and event details when opened', async () => {
@@ -101,5 +119,40 @@ describe('NotificationTray', () => {
     await userEvent.click(await screen.findByTestId('notification-tray-toggle'))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Load failed')
+  })
+
+  it('subscribes to realtime notification changes for the current user', async () => {
+    render(<NotificationTray />)
+
+    await waitFor(() => expect(mockChannel).toHaveBeenCalledWith('notification-events-user-1'))
+    expect(mockOn).toHaveBeenCalledWith(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notification_events',
+        filter: 'user_id=eq.user-1',
+      },
+      expect.any(Function)
+    )
+    expect(mockSubscribe).toHaveBeenCalled()
+  })
+
+  it('refreshes events when realtime changes arrive', async () => {
+    render(<NotificationTray />)
+
+    await waitFor(() => expect(mockOn).toHaveBeenCalled())
+    const handler = mockOn.mock.calls[0][2]
+    mockGetNotificationEvents.mockResolvedValueOnce({
+      ok: true,
+      events: [{ ...EVENTS[0], id: 'event-2', title: 'Bob', body: 'New DM' }],
+      unreadCount: 2,
+    })
+
+    await act(async () => {
+      await handler()
+    })
+
+    expect(await screen.findByTestId('notification-tray-count')).toHaveTextContent('2')
   })
 })
