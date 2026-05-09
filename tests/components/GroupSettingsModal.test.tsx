@@ -7,13 +7,15 @@ vi.mock('@/app/(app)/groups/actions', () => ({
   leaveGroup: vi.fn(),
   deleteGroup: vi.fn(),
   updateGroupDetails: vi.fn(),
+  regenerateGroupInvite: vi.fn(),
 }))
 
-import { leaveGroup, deleteGroup, updateGroupDetails } from '@/app/(app)/groups/actions'
+import { leaveGroup, deleteGroup, updateGroupDetails, regenerateGroupInvite } from '@/app/(app)/groups/actions'
 
 const mockLeave = leaveGroup as ReturnType<typeof vi.fn>
 const mockDelete = deleteGroup as ReturnType<typeof vi.fn>
 const mockUpdateDetails = updateGroupDetails as ReturnType<typeof vi.fn>
+const mockRegenerateInvite = regenerateGroupInvite as ReturnType<typeof vi.fn>
 
 describe('GroupSettingsModal', () => {
   beforeEach(() => {
@@ -21,6 +23,7 @@ describe('GroupSettingsModal', () => {
     mockLeave.mockResolvedValue({ ok: true })
     mockDelete.mockResolvedValue({ ok: true })
     mockUpdateDetails.mockResolvedValue({ ok: true })
+    mockRegenerateInvite.mockResolvedValue({ ok: true, invite_code: 'NEWCODE12345' })
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
   })
 
@@ -65,6 +68,22 @@ describe('GroupSettingsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /copy/i }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     expect(await screen.findByText(/copied/i)).toBeInTheDocument()
+  })
+
+  it('regenerates invite links for owners', async () => {
+    render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={true} />)
+    fireEvent.click(screen.getByTestId('nav-invite'))
+    fireEvent.click(screen.getByRole('button', { name: /regenerate invite link/i }))
+
+    await waitFor(() => expect(mockRegenerateInvite).toHaveBeenCalledWith(GROUP.id))
+    expect(screen.getByDisplayValue(/NEWCODE12345/)).toBeInTheDocument()
+    expect(screen.getByText(/invite link regenerated/i)).toBeInTheDocument()
+  })
+
+  it('hides invite regeneration for non-owners', () => {
+    render(<GroupSettingsModal open={true} onClose={vi.fn()} group={GROUP} isOwner={false} />)
+    fireEvent.click(screen.getByTestId('nav-invite'))
+    expect(screen.queryByRole('button', { name: /regenerate invite link/i })).not.toBeInTheDocument()
   })
 
   it('shows Leave Group option for non-owners', () => {

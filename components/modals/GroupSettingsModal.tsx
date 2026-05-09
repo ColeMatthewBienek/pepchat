@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import ModalShell from '@/components/ui/ModalShell'
 import GroupIcon from '@/components/ui/GroupIcon'
-import { leaveGroup, deleteGroup, uploadGroupIcon, removeGroupIcon, updateGroupDetails } from '@/app/(app)/groups/actions'
+import { leaveGroup, deleteGroup, uploadGroupIcon, removeGroupIcon, updateGroupDetails, regenerateGroupInvite } from '@/app/(app)/groups/actions'
 import type { Group } from '@/lib/types'
 
 const AvatarCropModal = dynamic(() => import('@/components/profile/AvatarCropModal'), { ssr: false })
@@ -23,6 +23,7 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
   const [nav, setNav] = useState<NavItem>('overview')
   const [error, setError] = useState('')
   const [detailsNotice, setDetailsNotice] = useState('')
+  const [inviteNotice, setInviteNotice] = useState('')
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -37,9 +38,15 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
   const [iconSaving, setIconSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [inviteLink, setInviteLink] = useState(group.invite_code)
+  const [inviteCode, setInviteCode] = useState(group.invite_code)
+  const [inviteOrigin, setInviteOrigin] = useState('')
+  const inviteLink = `${inviteOrigin}/join/${inviteCode}`
   useEffect(() => {
-    setInviteLink(`${window.location.origin}/join/${group.invite_code}`)
+    setInviteOrigin(window.location.origin)
+  }, [])
+
+  useEffect(() => {
+    setInviteCode(group.invite_code)
   }, [group.invite_code])
 
   useEffect(() => {
@@ -123,6 +130,22 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
     await navigator.clipboard.writeText(inviteLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleRegenerateInvite() {
+    setError('')
+    setInviteNotice('')
+    setCopied(false)
+    startTransition(async () => {
+      const result = await regenerateGroupInvite(group.id)
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setInviteCode(result.invite_code)
+        setInviteNotice('Invite link regenerated.')
+        onIconChange?.()
+      }
+    })
   }
 
   function handleLeave() {
@@ -304,8 +327,19 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
                   </div>
                   <p className="text-xs text-[var(--text-muted)] mt-2">
                     Share this link so others can join with the code{' '}
-                    <code className="font-mono bg-black/20 px-1 rounded">{group.invite_code}</code>
+                    <code className="font-mono bg-black/20 px-1 rounded">{inviteCode}</code>
                   </p>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={handleRegenerateInvite}
+                      disabled={isPending}
+                      className="mt-3 px-3 py-2 text-xs font-semibold rounded-lg text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-60"
+                    >
+                      {isPending ? 'Regenerating...' : 'Regenerate invite link'}
+                    </button>
+                  )}
+                  {inviteNotice && <p className="text-xs text-[var(--success)] mt-2">{inviteNotice}</p>}
                 </div>
               </div>
             )}

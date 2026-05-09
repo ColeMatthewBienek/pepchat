@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGroup, leaveGroup, removeGroupIcon, updateGroupDetails } from '@/app/(app)/groups/actions'
+import { createGroup, leaveGroup, regenerateGroupInvite, removeGroupIcon, updateGroupDetails } from '@/app/(app)/groups/actions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -195,6 +195,43 @@ describe('group actions — updateGroupDetails', () => {
     expect(update.update).toHaveBeenCalledWith({
       name: 'Updated Group',
       description: null,
+    })
+  })
+})
+
+describe('group actions — regenerateGroupInvite', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects unauthenticated users', async () => {
+    setupClient([], { userId: null })
+
+    await expect(regenerateGroupInvite('group-1')).resolves.toEqual({
+      error: 'Not authenticated.',
+    })
+  })
+
+  it('rejects non-admin users', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'user' } })
+    setupClient([membership])
+
+    await expect(regenerateGroupInvite('group-1')).resolves.toEqual({
+      error: 'Only group admins can regenerate invite links.',
+    })
+  })
+
+  it('updates the group invite code for admins', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const update = makeUpdateBuilder()
+    setupClient([membership, update])
+
+    const result = await regenerateGroupInvite('group-1')
+
+    expect(result).toMatchObject({ ok: true })
+    if ('invite_code' in result) expect(result.invite_code).toHaveLength(12)
+    expect(update.update).toHaveBeenCalledWith({
+      invite_code: expect.stringMatching(/^[a-f0-9]{12}$/),
     })
   })
 })
