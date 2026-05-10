@@ -10,6 +10,15 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import type { NotificationEvent } from '@/lib/types'
 
+type NotificationFilter = 'all' | NotificationEvent['type']
+
+const FILTER_LABELS: Record<NotificationFilter, string> = {
+  all: 'All',
+  dm_message: 'DMs',
+  mention: 'Mentions',
+  group_message: 'Groups',
+}
+
 function formatEventTime(value: string): string {
   const timestamp = new Date(value).getTime()
   if (Number.isNaN(timestamp)) return ''
@@ -29,6 +38,7 @@ export default function NotificationTray() {
   const [events, setEvents] = useState<NotificationEvent[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState<NotificationFilter>('all')
   const [isPending, startTransition] = useTransition()
 
   function applyEvents(nextEvents: NotificationEvent[], nextUnreadCount: number) {
@@ -94,6 +104,15 @@ export default function NotificationTray() {
   }, [])
 
   const visibleUnreadCount = useMemo(() => Math.min(unreadCount, 99), [unreadCount])
+  const filteredEvents = useMemo(() => (
+    filter === 'all' ? events : events.filter(event => event.type === filter)
+  ), [events, filter])
+  const unreadByType = useMemo(() => (
+    events.reduce<Record<NotificationEvent['type'], number>>((counts, event) => {
+      if (!event.read_at) counts[event.type] += 1
+      return counts
+    }, { dm_message: 0, mention: 0, group_message: 0 })
+  ), [events])
 
   function markEventRead(event: NotificationEvent) {
     if (event.read_at) return
@@ -177,12 +196,41 @@ export default function NotificationTray() {
               No notifications yet.
             </p>
           ) : (
+            <>
+            <div className="flex gap-1 overflow-x-auto border-b border-white/10 px-3 py-2">
+              {(['all', 'dm_message', 'mention', 'group_message'] as NotificationFilter[]).map(item => {
+                const count = item === 'all' ? unreadCount : unreadByType[item]
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={filter === item}
+                    onClick={() => setFilter(item)}
+                    className={`shrink-0 rounded px-2.5 py-1 text-xs font-semibold ${
+                      filter === item
+                        ? 'bg-[var(--accent-soft)] text-[var(--text-primary)]'
+                        : 'bg-white/5 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {FILTER_LABELS[item]}{count > 0 ? ` ${count}` : ''}
+                  </button>
+                )
+              })}
+            </div>
+            {filteredEvents.length === 0 ? (
+              <p className="px-3 py-6 text-center text-xs text-[var(--text-muted)]">
+                No {FILTER_LABELS[filter].toLowerCase()} notifications.
+              </p>
+            ) : (
             <ul className="max-h-96 overflow-y-auto py-1">
-              {events.map(event => (
+              {filteredEvents.map(event => (
                 <li key={event.id}>
                   <Link
                     href={event.url ?? '/channels'}
-                    onClick={() => markEventRead(event)}
+                    onClick={() => {
+                      markEventRead(event)
+                      setOpen(false)
+                    }}
                     className="flex gap-3 px-3 py-2 text-left hover:bg-white/5"
                     data-testid={`notification-event-${event.id}`}
                   >
@@ -192,7 +240,12 @@ export default function NotificationTray() {
                     />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-3">
-                        <span className="truncate text-sm font-medium text-[var(--text-primary)]">{event.title}</span>
+                        <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
+                          <span className="mr-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[var(--text-muted)]">
+                            {FILTER_LABELS[event.type]}
+                          </span>
+                          {event.title}
+                        </span>
                         <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{formatEventTime(event.created_at)}</span>
                       </span>
                       {event.body && (
@@ -203,6 +256,8 @@ export default function NotificationTray() {
                 </li>
               ))}
             </ul>
+            )}
+            </>
           )}
         </div>
       )}

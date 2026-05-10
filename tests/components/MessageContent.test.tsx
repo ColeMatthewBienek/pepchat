@@ -33,6 +33,12 @@ describe('MessageContent', () => {
     expect(link?.getAttribute('target')).toBe('_blank')
   })
 
+  it('highlights username mentions', () => {
+    const { container } = render(<MessageContent content="hello @bob" />)
+    const mention = container.querySelector('.mention-token')
+    expect(mention).toHaveTextContent('@bob')
+  })
+
   it('returns null when isEditing is true', () => {
     const { container } = render(<MessageContent content="hello" isEditing />)
     expect(container.firstChild).toBeNull()

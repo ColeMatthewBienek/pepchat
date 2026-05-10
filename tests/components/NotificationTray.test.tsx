@@ -155,4 +155,30 @@ describe('NotificationTray', () => {
 
     expect(await screen.findByTestId('notification-tray-count')).toHaveTextContent('2')
   })
+
+  it('filters notifications by type', async () => {
+    const user = userEvent.setup()
+    mockGetNotificationEvents.mockResolvedValue({
+      ok: true,
+      events: [
+        EVENTS[0],
+        {
+          ...EVENTS[0],
+          id: 'event-mention',
+          type: 'mention',
+          title: 'Bob mentioned you',
+          body: 'hey @alice',
+          url: '/channels/ch-1#msg-1',
+        },
+      ],
+      unreadCount: 2,
+    })
+
+    render(<NotificationTray />)
+    await user.click(await screen.findByTestId('notification-tray-toggle'))
+    await user.click(screen.getByRole('button', { name: /mentions/i }))
+
+    expect(screen.getByText('Bob mentioned you')).toBeInTheDocument()
+    expect(screen.queryByText('Hello from DM')).not.toBeInTheDocument()
+  })
 })
