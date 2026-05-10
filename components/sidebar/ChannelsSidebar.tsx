@@ -619,6 +619,17 @@ export default function ChannelsSidebar({
               Admin
             </a>
           )}
+          <Link
+            href="/help"
+            style={{
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              textDecoration: 'none',
+              fontWeight: 600,
+            }}
+          >
+            Help
+          </Link>
           <form action={logout}>
             <button
               type="submit"

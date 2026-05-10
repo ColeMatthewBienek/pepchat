@@ -30,6 +30,12 @@ function makeMutationBuilder(result: QueryResult = {}) {
   return builder
 }
 
+function makeAuditBuilder() {
+  const builder: Record<string, unknown> = {}
+  builder.insert = vi.fn().mockResolvedValue({ error: null })
+  return builder
+}
+
 function setupClient(builders: Record<string, unknown>[], userId = 'admin-1') {
   let index = 0
   const from = vi.fn(() => {
@@ -103,5 +109,49 @@ describe('member actions — membership guards', () => {
     })
 
     expect(mutation.delete).not.toHaveBeenCalled()
+  })
+
+  it('audits successful role assignments', async () => {
+    const caller = makeSingleBuilder({ data: { role: 'admin' } })
+    const target = makeSingleBuilder({ data: { role: 'user' } })
+    const mutation = makeMutationBuilder()
+    const audit = makeAuditBuilder()
+    setupClient([caller, target, mutation, audit])
+
+    await expect(assignRole('group-1', 'user-1', 'moderator')).resolves.toEqual({ ok: true })
+
+    expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({
+      admin_id: 'admin-1',
+      action: 'member_role_changed',
+      target_type: 'user',
+      target_id: 'user-1',
+      metadata: {
+        group_id: 'group-1',
+        from_role: 'user',
+        to_role: 'moderator',
+      },
+    }))
+  })
+
+  it('audits successful member kicks', async () => {
+    const caller = makeSingleBuilder({ data: { role: 'moderator' } })
+    const target = makeSingleBuilder({ data: { role: 'noob' } })
+    const mutation = makeMutationBuilder()
+    const audit = makeAuditBuilder()
+    setupClient([caller, target, mutation, audit], 'mod-1')
+
+    await expect(kickMember('group-1', 'user-1')).resolves.toEqual({ ok: true })
+
+    expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({
+      admin_id: 'mod-1',
+      action: 'member_kicked',
+      target_type: 'user',
+      target_id: 'user-1',
+      metadata: {
+        group_id: 'group-1',
+        actor_role: 'moderator',
+        target_role: 'noob',
+      },
+    }))
   })
 })
