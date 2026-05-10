@@ -123,6 +123,14 @@ export type MessageWithProfile = Message & {
   reactions?: Reaction[]
 }
 
+export type MessageSearchResult = MessageWithProfile & {
+  channels?: {
+    id: string
+    name: string
+    group_id?: string
+  } | null
+}
+
 export interface PinnedMessage {
   id: string
   channel_id: string

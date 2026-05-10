@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
-import { editMessage, deleteMessage } from '@/app/(app)/messages/actions'
+import { editMessage, deleteMessage, searchMessages } from '@/app/(app)/messages/actions'
 import { reportMessage } from '@/app/admin/actions'
 import Message from '@/components/chat/Message'
 import MessageModal from '@/components/chat/MessageModal'
@@ -11,10 +11,12 @@ import ReportMessageDialog from '@/components/chat/ReportMessageDialog'
 import SystemMessage from '@/components/chat/SystemMessage'
 import { PERMISSIONS } from '@/lib/permissions'
 import { getUnreadFromMessageLastReadAt, markChannelUnreadFromMessage } from '@/lib/channelReadState'
-import type { MessageWithProfile } from '@/lib/types'
+import type { MessageSearchResult, MessageWithProfile } from '@/lib/types'
 import type { Role } from '@/lib/permissions'
 
 const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
+
+type SearchScope = 'channel' | 'group'
 
 interface MessageListProps {
   messages: MessageWithProfile[]
@@ -22,6 +24,8 @@ interface MessageListProps {
   loadingMore: boolean
   currentUserId: string
   currentUsername: string
+  groupId?: string
+  channelId?: string
   channelName?: string
   userRole?: Role | null
   onLoadMore: () => void
@@ -33,6 +37,13 @@ interface MessageListProps {
   deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   reportAction?: (messageId: string, reason: string, category?: string) => Promise<{ error: string } | { ok: true }>
+  searchAction?: (input: {
+    groupId: string
+    query?: string
+    author?: string
+    channel?: string
+    date?: string
+  }) => Promise<{ error: string } | { ok: true; messages: MessageSearchResult[] }>
   onEditSuccess?: (messageId: string, content: string) => void
   onDeleteSuccess?: (messageId: string) => void
   onOpenPinnedPanel?: () => void
@@ -75,6 +86,9 @@ export default function MessageList({
   hasMore,
   loadingMore,
   currentUserId,
+  groupId,
+  channelId,
+  channelName,
   onLoadMore,
   onReact,
   onReply,
@@ -85,6 +99,7 @@ export default function MessageList({
   deleteAction,
   pinAction,
   reportAction,
+  searchAction,
   onEditSuccess,
   onDeleteSuccess,
   onOpenPinnedPanel,
@@ -109,7 +124,11 @@ export default function MessageList({
   const [notice, setNotice] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchAuthor, setSearchAuthor] = useState('')
+  const [searchChannel, setSearchChannel] = useState('')
   const [searchDate, setSearchDate] = useState('')
+  const [searchScope, setSearchScope] = useState<SearchScope>('channel')
+  const [groupSearchResults, setGroupSearchResults] = useState<MessageSearchResult[]>([])
+  const [groupSearchPending, setGroupSearchPending] = useState(false)
   const [showSavedOnly, setShowSavedOnly] = useState(false)
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
   const [savedMessageIds, setSavedMessageIds] = useState<Set<string>>(() => readSavedMessages(currentUserId))
@@ -147,11 +166,13 @@ export default function MessageList({
   const unreadDividerLabel = `${unreadMessages.length} new ${unreadMessages.length === 1 ? 'message' : 'messages'}`
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const normalizedAuthor = searchAuthor.trim().toLowerCase()
+  const normalizedChannel = searchChannel.trim().toLowerCase().replace(/^#/, '')
   const searchMatches = useMemo(() => {
-    if (!normalizedSearch && !normalizedAuthor && !searchDate && !showSavedOnly) return []
+    if (!normalizedSearch && !normalizedAuthor && !normalizedChannel && !searchDate && !showSavedOnly) return []
     return visibleMessages.filter(msg => {
       if (msg.is_system) return false
       const author = `${msg.profiles?.display_name ?? ''} ${msg.profiles?.username ?? ''}`.toLowerCase()
+      const currentChannelName = channelName?.toLowerCase() ?? ''
       const messageDate = new Date(msg.created_at).toISOString().slice(0, 10)
       const attachmentText = (msg.attachments ?? [])
         .map(attachment => `${attachment.type} ${attachment.name}`)
@@ -167,11 +188,12 @@ export default function MessageList({
         replyText.includes(normalizedSearch)
       )
       const authorMatch = !normalizedAuthor || author.includes(normalizedAuthor)
+      const channelMatch = !normalizedChannel || currentChannelName.includes(normalizedChannel)
       const dateMatch = !searchDate || messageDate === searchDate
       const savedMatch = !showSavedOnly || savedMessageIds.has(msg.id)
-      return textMatch && authorMatch && dateMatch && savedMatch
+      return textMatch && authorMatch && channelMatch && dateMatch && savedMatch
     })
-  }, [visibleMessages, normalizedAuthor, normalizedSearch, savedMessageIds, searchDate, showSavedOnly])
+  }, [channelName, visibleMessages, normalizedAuthor, normalizedChannel, normalizedSearch, savedMessageIds, searchDate, showSavedOnly])
 
   useEffect(() => {
     const currentFirstId = messages[0]?.id
@@ -225,11 +247,52 @@ export default function MessageList({
     jumpToMessage(highlightedMessageId)
   }, [highlightedMessageId])
 
-  const hasSearchFilters = Boolean(normalizedSearch || normalizedAuthor || searchDate || showSavedOnly)
+  const hasSearchFilters = Boolean(normalizedSearch || normalizedAuthor || normalizedChannel || searchDate || showSavedOnly)
+  const activeSearchResults = searchScope === 'group' ? groupSearchResults : searchMatches
 
   useEffect(() => {
     setActiveSearchIndex(-1)
-  }, [normalizedAuthor, normalizedSearch, searchDate, showSavedOnly])
+  }, [normalizedAuthor, normalizedChannel, normalizedSearch, searchDate, searchScope, showSavedOnly])
+
+  useEffect(() => {
+    if (searchScope !== 'group' || !groupId || !hasSearchFilters) {
+      setGroupSearchResults([])
+      setGroupSearchPending(false)
+      return
+    }
+
+    let ignore = false
+    const timer = window.setTimeout(() => {
+      setGroupSearchPending(true)
+      const action = searchAction ?? searchMessages
+      action({
+        groupId,
+        query: searchQuery,
+        author: searchAuthor,
+        channel: searchChannel,
+        date: searchDate,
+      }).then(result => {
+        if (ignore) return
+        if ('error' in result) {
+          setError(result.error)
+          setGroupSearchResults([])
+        } else {
+          setError('')
+          setGroupSearchResults(result.messages.filter(msg => (
+            !mutedUserIds.has(msg.user_id) &&
+            (!showSavedOnly || savedMessageIds.has(msg.id))
+          )))
+        }
+      }).finally(() => {
+        if (!ignore) setGroupSearchPending(false)
+      })
+    }, 250)
+
+    return () => {
+      ignore = true
+      window.clearTimeout(timer)
+    }
+  }, [groupId, hasSearchFilters, mutedUserIds, savedMessageIds, searchAction, searchAuthor, searchChannel, searchDate, searchQuery, searchScope, showSavedOnly])
 
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null) {
@@ -259,27 +322,33 @@ export default function MessageList({
   }
 
   function jumpToSearchResult(index: number) {
-    const match = searchMatches[index]
+    const match = activeSearchResults[index]
     if (!match) return
     setActiveSearchIndex(index)
+    if (searchScope === 'group' && match.channel_id !== (channelId ?? match.channel_id)) {
+      window.location.href = `${messageLinkBasePath}/${match.channel_id}#${match.id}`
+      return
+    }
     jumpToMessage(match.id)
   }
 
   function goToNextSearchResult() {
-    if (searchMatches.length === 0) return
-    jumpToSearchResult((activeSearchIndex + 1) % searchMatches.length)
+    if (activeSearchResults.length === 0) return
+    jumpToSearchResult((activeSearchIndex + 1) % activeSearchResults.length)
   }
 
   function goToPrevSearchResult() {
-    if (searchMatches.length === 0) return
-    jumpToSearchResult((activeSearchIndex - 1 + searchMatches.length) % searchMatches.length)
+    if (activeSearchResults.length === 0) return
+    jumpToSearchResult((activeSearchIndex - 1 + activeSearchResults.length) % activeSearchResults.length)
   }
 
   function clearSearch() {
     setSearchQuery('')
     setSearchAuthor('')
+    setSearchChannel('')
     setSearchDate('')
     setShowSavedOnly(false)
+    setGroupSearchResults([])
     setActiveSearchIndex(-1)
   }
 
@@ -449,9 +518,11 @@ export default function MessageList({
   const canPin = userRole ? PERMISSIONS.canPinMessages(userRole) : false
   const searchCountLabel = hasSearchFilters
     ? (
-        searchMatches.length > 0 && activeSearchIndex >= 0
-          ? `${activeSearchIndex + 1}/${searchMatches.length}`
-          : `${searchMatches.length} ${searchMatches.length === 1 ? 'result' : 'results'}`
+        groupSearchPending
+          ? 'Searching'
+          : activeSearchResults.length > 0 && activeSearchIndex >= 0
+            ? `${activeSearchIndex + 1}/${activeSearchResults.length}`
+            : `${activeSearchResults.length} ${activeSearchResults.length === 1 ? 'result' : 'results'}`
       )
     : ''
 
@@ -482,11 +553,31 @@ export default function MessageList({
             background: 'var(--bg-chat)',
           }}
         >
+          {groupId && (
+            <select
+              data-testid="message-search-scope"
+              value={searchScope}
+              onChange={e => setSearchScope(e.target.value as SearchScope)}
+              style={{
+                height: 32,
+                padding: '0 8px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontSize: 12,
+                outline: 'none',
+              }}
+            >
+              <option value="channel">Channel</option>
+              <option value="group">Group</option>
+            </select>
+          )}
           <input
             ref={searchInputRef}
             data-testid="message-search-input"
             type="search"
-            placeholder="Search loaded messages..."
+            placeholder={searchScope === 'group' ? 'Search group messages...' : 'Search loaded messages...'}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
@@ -508,6 +599,23 @@ export default function MessageList({
             placeholder="Author"
             value={searchAuthor}
             onChange={e => setSearchAuthor(e.target.value)}
+            style={{
+              width: 120,
+              padding: '7px 10px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+          <input
+            data-testid="message-search-channel"
+            type="search"
+            placeholder="Channel"
+            value={searchChannel}
+            onChange={e => setSearchChannel(e.target.value)}
             style={{
               width: 120,
               padding: '7px 10px',
@@ -575,9 +683,9 @@ export default function MessageList({
             type="button"
             data-testid="message-search-prev"
             aria-label="Previous search result"
-            disabled={searchMatches.length === 0}
+            disabled={activeSearchResults.length === 0}
             onClick={goToPrevSearchResult}
-            style={searchNavBtn(searchMatches.length === 0)}
+            style={searchNavBtn(activeSearchResults.length === 0)}
           >
             ↑
           </button>
@@ -585,9 +693,9 @@ export default function MessageList({
             type="button"
             data-testid="message-search-next"
             aria-label="Next search result"
-            disabled={searchMatches.length === 0}
+            disabled={activeSearchResults.length === 0}
             onClick={goToNextSearchResult}
-            style={searchNavBtn(searchMatches.length === 0)}
+            style={searchNavBtn(activeSearchResults.length === 0)}
           >
             ↓
           </button>
@@ -613,6 +721,45 @@ export default function MessageList({
             </button>
           )}
         </div>
+
+        {searchScope === 'group' && hasSearchFilters && (
+          <div
+            data-testid="group-search-results"
+            className="mx-4 mb-2 rounded border border-[var(--border-soft)] bg-[var(--bg-secondary)]"
+            style={{ overflow: 'hidden' }}
+          >
+            {groupSearchPending ? (
+              <p className="px-3 py-2 text-xs text-[var(--text-faint)]">Searching group messages...</p>
+            ) : groupSearchResults.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-[var(--text-faint)]">No group messages match these filters.</p>
+            ) : (
+              groupSearchResults.slice(0, 8).map((result, index) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  data-testid={`group-search-result-${result.id}`}
+                  onClick={() => jumpToSearchResult(index)}
+                  className="block w-full border-b border-[var(--border-soft)] px-3 py-2 text-left last:border-b-0 hover:bg-white/5"
+                >
+                  <span className="flex items-center justify-between gap-3 text-xs">
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      #{result.channels?.name ?? 'channel'} · @{result.profiles?.username ?? 'unknown'}
+                    </span>
+                    <span className="text-[var(--text-faint)]">{formatShortDate(result.created_at)}</span>
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-[var(--text-muted)]">
+                    {result.content || attachmentResultLabel(result)}
+                  </span>
+                </button>
+              ))
+            )}
+            {groupSearchResults.length > 8 && (
+              <p className="border-t border-[var(--border-soft)] px-3 py-1.5 text-[10px] text-[var(--text-faint)]">
+                Showing first 8 of {groupSearchResults.length} results. Use filters to narrow.
+              </p>
+            )}
+          </div>
+        )}
 
         {hasMore && (
           <div className="flex justify-center py-2">
@@ -854,6 +1001,18 @@ function searchNavBtn(disabled: boolean): React.CSSProperties {
     opacity: disabled ? 0.45 : 1,
     fontSize: 13,
   }
+}
+
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function attachmentResultLabel(message: MessageSearchResult) {
+  const first = message.attachments?.[0]
+  if (!first) return 'Attachment'
+  if (first.type === 'gif') return 'GIF'
+  if (first.type === 'video') return 'Video'
+  return 'Image'
 }
 
 function savedMessagesKey(userId: string) {

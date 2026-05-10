@@ -52,6 +52,7 @@ vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/app/(app)/messages/actions', () => ({
   editMessage: vi.fn(),
   deleteMessage: vi.fn(),
+  searchMessages: vi.fn(),
 }))
 vi.mock('@/app/admin/actions', () => ({
   reportMessage: vi.fn(),
@@ -796,5 +797,53 @@ describe('MessageList — report message', () => {
 
     fireEvent.click(screen.getByTestId('context-btn-msg-2'))
     expect(screen.queryByText('Report Message')).not.toBeInTheDocument()
+  })
+})
+
+describe('MessageList — group search', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('searches the current group and renders cross-channel results', async () => {
+    const searchAction = vi.fn().mockResolvedValue({
+      ok: true,
+      messages: [
+        {
+          ...SEARCH_MSG,
+          id: 'msg-group-1',
+          channel_id: 'ch-2',
+          content: 'Group-wide launch note',
+          channels: { id: 'ch-2', name: 'announcements', group_id: 'group-1' },
+        },
+      ],
+    })
+
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        groupId="group-1"
+        channelId="ch-1"
+        channelName="general"
+        messages={[MSG]}
+        searchAction={searchAction}
+      />
+    )
+
+    fireEvent.change(screen.getByTestId('message-search-scope'), { target: { value: 'group' } })
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'launch' } })
+
+    await waitFor(() => {
+      expect(searchAction).toHaveBeenCalledWith({
+        groupId: 'group-1',
+        query: 'launch',
+        author: '',
+        channel: '',
+        date: '',
+      })
+    })
+
+    expect(await screen.findByTestId('group-search-result-msg-group-1')).toHaveTextContent('#announcements')
+    expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
   })
 })

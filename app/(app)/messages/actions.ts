@@ -2,9 +2,18 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { MessageWithProfile, Attachment } from '@/lib/types'
+import type { MessageSearchResult, MessageWithProfile, Attachment } from '@/lib/types'
 import { MESSAGE_SELECT } from '@/lib/queries'
 import { enqueueMentionNotifications } from '@/lib/server-notifications'
+
+type SearchMessagesInput = {
+  groupId: string
+  query?: string
+  author?: string
+  channel?: string
+  date?: string
+  limit?: number
+}
 
 export async function sendMessage(
   channelId: string,
@@ -48,6 +57,76 @@ export async function sendMessage(
   }
 
   return { ok: true, message: sentMessage }
+}
+
+export async function searchMessages(
+  input: SearchMessagesInput
+): Promise<{ error: string } | { ok: true; messages: MessageSearchResult[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const groupId = input.groupId?.trim()
+  if (!groupId) return { error: 'Missing group.' }
+
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!membership) return { error: 'You are not a member of this group.' }
+
+  const normalizedQuery = input.query?.trim().toLowerCase() ?? ''
+  const normalizedAuthor = input.author?.trim().toLowerCase() ?? ''
+  const normalizedChannel = input.channel?.trim().toLowerCase().replace(/^#/, '') ?? ''
+  const date = input.date?.trim() ?? ''
+  const limit = Math.max(10, Math.min(input.limit ?? 80, 100))
+
+  if (!normalizedQuery && !normalizedAuthor && !normalizedChannel && !date) {
+    return { ok: true, messages: [] }
+  }
+
+  let query = supabase
+    .from('messages')
+    .select(`${MESSAGE_SELECT}, channels!inner(id, name, group_id)`)
+    .eq('channels.group_id', groupId)
+    .eq('is_system', false)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (date) {
+    const start = new Date(`${date}T00:00:00.000Z`)
+    const end = new Date(`${date}T23:59:59.999Z`)
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      query = query.gte('created_at', start.toISOString()).lte('created_at', end.toISOString())
+    }
+  }
+
+  const { data, error } = await query
+  if (error) return { error: error.message }
+
+  const messages = ((data ?? []) as MessageSearchResult[]).filter(message => {
+    const author = `${message.profiles?.display_name ?? ''} ${message.profiles?.username ?? ''}`.toLowerCase()
+    const channel = message.channels?.name?.toLowerCase() ?? ''
+    const attachments = (message.attachments ?? [])
+      .map(attachment => `${attachment.type} ${attachment.name}`)
+      .join(' ')
+      .toLowerCase()
+    const replyText = message.replied_to
+      ? `${message.replied_to.content} ${message.replied_to.profiles?.username ?? ''}`.toLowerCase()
+      : ''
+    const haystack = `${message.content} ${author} ${channel} ${attachments} ${replyText}`.toLowerCase()
+
+    return (
+      (!normalizedQuery || haystack.includes(normalizedQuery)) &&
+      (!normalizedAuthor || author.includes(normalizedAuthor)) &&
+      (!normalizedChannel || channel.includes(normalizedChannel))
+    )
+  })
+
+  return { ok: true, messages }
 }
 
 export async function editMessage(

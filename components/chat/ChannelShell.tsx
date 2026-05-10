@@ -169,6 +169,9 @@ export default function ChannelShell({
           loadingMore={loadingMore}
           currentUserId={userId ?? profile.id}
           currentUsername={profile.username}
+          groupId={groupId}
+          channelId={channelId}
+          channelName={channelName}
           onLoadMore={loadMore}
           editAction={handleEdit}
           pinAction={handlePin}
