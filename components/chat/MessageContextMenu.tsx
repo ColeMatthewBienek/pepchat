@@ -29,6 +29,7 @@ export interface MessageContextMenuProps {
   onEmojiSelect: (msgId: string, emoji: string) => void
   onMarkUnread?: (msg: MessageWithProfile) => void
   onReport?: (msgId: string) => void
+  onMuteUser?: (msg: MessageWithProfile) => void
   messageLinkBasePath?: string
 }
 
@@ -48,6 +49,7 @@ export default function MessageContextMenu({
   onEmojiSelect,
   onMarkUnread,
   onReport,
+  onMuteUser,
   messageLinkBasePath = '/channels',
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
@@ -206,6 +208,12 @@ export default function MessageContextMenu({
             </MenuItem>
           )}
 
+          {onMuteUser && !isOwn && (
+            <MenuItem label={`Mute @${message.profiles?.username ?? 'user'}`} onClick={() => { onMuteUser(message); onClose() }}>
+              <MuteIcon />
+            </MenuItem>
+          )}
+
           {canDelete && (
             <>
               <div style={{ height: 1, background: 'var(--border-soft)', margin: '4px 0' }} />
@@ -355,4 +363,7 @@ function TrashIcon() {
 }
 function FlagIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>
+}
+function MuteIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M23 9l-6 6M17 9l6 6" /></svg>
 }

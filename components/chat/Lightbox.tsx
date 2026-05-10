@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import type { Attachment } from '@/lib/types'
+import type { GifAttachment, ImageAttachment } from '@/lib/types'
 
 interface LightboxProps {
-  images: Attachment[]
+  images: Array<ImageAttachment | GifAttachment>
   initialIndex: number
   onClose: () => void
 }

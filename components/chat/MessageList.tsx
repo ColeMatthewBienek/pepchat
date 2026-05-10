@@ -32,7 +32,7 @@ interface MessageListProps {
   editAction?: (messageId: string, content: string) => Promise<{ error: string } | { ok: true }>
   deleteAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
   pinAction?: (messageId: string) => Promise<{ error: string } | { ok: true }>
-  reportAction?: (messageId: string, reason: string) => Promise<{ error: string } | { ok: true }>
+  reportAction?: (messageId: string, reason: string, category?: string) => Promise<{ error: string } | { ok: true }>
   onEditSuccess?: (messageId: string, content: string) => void
   onDeleteSuccess?: (messageId: string) => void
   onOpenPinnedPanel?: () => void
@@ -108,7 +108,12 @@ export default function MessageList({
   const [reportTarget, setReportTarget] = useState<MessageWithProfile | null>(null)
   const [notice, setNotice] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchAuthor, setSearchAuthor] = useState('')
+  const [searchDate, setSearchDate] = useState('')
+  const [showSavedOnly, setShowSavedOnly] = useState(false)
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
+  const [savedMessageIds, setSavedMessageIds] = useState<Set<string>>(() => readSavedMessages(currentUserId))
+  const [mutedUserIds, setMutedUserIds] = useState<Set<string>>(() => readMutedUsers(currentUserId))
   const [localLastReadAt, setLocalLastReadAt] = useState(initialLastReadAt)
   const [reportedMessageIds, setReportedMessageIds] = useState(() => new Set<string>())
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -125,24 +130,29 @@ export default function MessageList({
     setLocalLastReadAt(initialLastReadAt)
   }, [initialLastReadAt])
 
+  const visibleMessages = useMemo(() => messages.filter(msg => !mutedUserIds.has(msg.user_id)), [messages, mutedUserIds])
+  const mutedCount = messages.length - visibleMessages.length
+
   const unreadMessages = useMemo(() => {
     if (!localLastReadAt) return []
     const lastReadMs = new Date(localLastReadAt).getTime()
     if (!Number.isFinite(lastReadMs)) return []
-    return messages.filter(msg => (
+    return visibleMessages.filter(msg => (
       !msg.is_system &&
       msg.user_id !== currentUserId &&
       new Date(msg.created_at).getTime() > lastReadMs
     ))
-  }, [currentUserId, localLastReadAt, messages])
+  }, [currentUserId, localLastReadAt, visibleMessages])
   const unreadMessageId = unreadMessages[0]?.id ?? null
   const unreadDividerLabel = `${unreadMessages.length} new ${unreadMessages.length === 1 ? 'message' : 'messages'}`
   const normalizedSearch = searchQuery.trim().toLowerCase()
+  const normalizedAuthor = searchAuthor.trim().toLowerCase()
   const searchMatches = useMemo(() => {
-    if (!normalizedSearch) return []
-    return messages.filter(msg => {
+    if (!normalizedSearch && !normalizedAuthor && !searchDate && !showSavedOnly) return []
+    return visibleMessages.filter(msg => {
       if (msg.is_system) return false
       const author = `${msg.profiles?.display_name ?? ''} ${msg.profiles?.username ?? ''}`.toLowerCase()
+      const messageDate = new Date(msg.created_at).toISOString().slice(0, 10)
       const attachmentText = (msg.attachments ?? [])
         .map(attachment => `${attachment.type} ${attachment.name}`)
         .join(' ')
@@ -150,14 +160,18 @@ export default function MessageList({
       const replyText = msg.replied_to
         ? `${msg.replied_to.content} ${msg.replied_to.profiles?.username ?? ''}`.toLowerCase()
         : ''
-      return (
+      const textMatch = !normalizedSearch || (
         msg.content.toLowerCase().includes(normalizedSearch) ||
         author.includes(normalizedSearch) ||
         attachmentText.includes(normalizedSearch) ||
         replyText.includes(normalizedSearch)
       )
+      const authorMatch = !normalizedAuthor || author.includes(normalizedAuthor)
+      const dateMatch = !searchDate || messageDate === searchDate
+      const savedMatch = !showSavedOnly || savedMessageIds.has(msg.id)
+      return textMatch && authorMatch && dateMatch && savedMatch
     })
-  }, [messages, normalizedSearch])
+  }, [visibleMessages, normalizedAuthor, normalizedSearch, savedMessageIds, searchDate, showSavedOnly])
 
   useEffect(() => {
     const currentFirstId = messages[0]?.id
@@ -211,9 +225,11 @@ export default function MessageList({
     jumpToMessage(highlightedMessageId)
   }, [highlightedMessageId])
 
+  const hasSearchFilters = Boolean(normalizedSearch || normalizedAuthor || searchDate || showSavedOnly)
+
   useEffect(() => {
     setActiveSearchIndex(-1)
-  }, [normalizedSearch])
+  }, [normalizedAuthor, normalizedSearch, searchDate, showSavedOnly])
 
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null) {
@@ -261,7 +277,35 @@ export default function MessageList({
 
   function clearSearch() {
     setSearchQuery('')
+    setSearchAuthor('')
+    setSearchDate('')
+    setShowSavedOnly(false)
     setActiveSearchIndex(-1)
+  }
+
+  function toggleSaved(msg: MessageWithProfile) {
+    setSavedMessageIds(prev => {
+      const next = new Set(prev)
+      if (next.has(msg.id)) next.delete(msg.id)
+      else next.add(msg.id)
+      writeSavedMessages(currentUserId, next)
+      return next
+    })
+  }
+
+  function muteUser(msg: MessageWithProfile) {
+    setMutedUserIds(prev => {
+      const next = new Set(prev).add(msg.user_id)
+      writeMutedUsers(currentUserId, next)
+      return next
+    })
+    setNotice(`Muted @${msg.profiles?.username ?? 'user'} on this device.`)
+  }
+
+  function clearMutedUsers() {
+    setMutedUserIds(new Set())
+    writeMutedUsers(currentUserId, new Set())
+    setNotice('Muted users cleared on this device.')
   }
 
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -273,7 +317,7 @@ export default function MessageList({
         goToNextSearchResult()
       }
     }
-    if (e.key === 'Escape' && normalizedSearch) {
+    if (e.key === 'Escape' && hasSearchFilters) {
       e.preventDefault()
       clearSearch()
     }
@@ -383,13 +427,14 @@ export default function MessageList({
     })
   }
 
-  function submitReport(reason: string) {
+  function submitReport(category: string, reason: string) {
     if (!reportTarget) return
     setError('')
     setNotice('')
     startTransition(async () => {
-      const action = reportAction ?? reportMessage
-      const result = await action(reportTarget.id, reason)
+      const result = reportAction
+        ? await reportAction(reportTarget.id, reason)
+        : await reportMessage(reportTarget.id, reason, category)
       if ('error' in result) {
         setError(result.error)
       } else {
@@ -402,7 +447,7 @@ export default function MessageList({
 
   const canDeleteAny = userRole ? PERMISSIONS.canDeleteAnyMessage(userRole) : false
   const canPin = userRole ? PERMISSIONS.canPinMessages(userRole) : false
-  const searchCountLabel = normalizedSearch
+  const searchCountLabel = hasSearchFilters
     ? (
         searchMatches.length > 0 && activeSearchIndex >= 0
           ? `${activeSearchIndex + 1}/${searchMatches.length}`
@@ -432,6 +477,7 @@ export default function MessageList({
             display: 'flex',
             alignItems: 'center',
             gap: 8,
+            flexWrap: 'wrap',
             padding: '0 16px 10px',
             background: 'var(--bg-chat)',
           }}
@@ -456,13 +502,65 @@ export default function MessageList({
               outline: 'none',
             }}
           />
+          <input
+            data-testid="message-search-author"
+            type="search"
+            placeholder="Author"
+            value={searchAuthor}
+            onChange={e => setSearchAuthor(e.target.value)}
+            style={{
+              width: 120,
+              padding: '7px 10px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+          <input
+            data-testid="message-search-date"
+            type="date"
+            value={searchDate}
+            onChange={e => setSearchDate(e.target.value)}
+            style={{
+              width: 136,
+              padding: '6px 8px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              outline: 'none',
+            }}
+          />
+          <button
+            type="button"
+            data-testid="message-search-saved"
+            aria-pressed={showSavedOnly}
+            onClick={() => setShowSavedOnly(value => !value)}
+            style={{
+              height: 30,
+              borderRadius: 'var(--radius-sm)',
+              border: showSavedOnly ? '1px solid var(--accent)' : '1px solid var(--border-soft)',
+              background: showSavedOnly ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
+              color: showSavedOnly ? 'var(--text-primary)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '0 9px',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Saved
+          </button>
           <span
             data-testid="message-search-count"
             style={{ width: 72, textAlign: 'right', fontSize: 12, color: 'var(--text-faint)' }}
           >
             {searchCountLabel}
           </span>
-          {normalizedSearch && (
+          {hasSearchFilters && (
             <button
               type="button"
               data-testid="message-search-clear"
@@ -539,8 +637,15 @@ export default function MessageList({
           </p>
         )}
 
-        {messages.map((msg, idx) => {
-          const prev = idx > 0 ? messages[idx - 1] : null
+        {mutedCount > 0 && (
+          <div className="mx-4 mb-2 flex items-center justify-between rounded border border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2 text-xs text-[var(--text-muted)]">
+            <span>{mutedCount} muted {mutedCount === 1 ? 'message is' : 'messages are'} hidden on this device.</span>
+            <button type="button" onClick={clearMutedUsers} className="font-semibold text-[var(--accent)]">Show all</button>
+          </div>
+        )}
+
+        {visibleMessages.map((msg, idx) => {
+          const prev = idx > 0 ? visibleMessages[idx - 1] : null
           const compact = isCompact(msg, prev)
           const showDateSep = !prev || !isSameDay(msg.created_at, prev.created_at)
           const isOwn = msg.user_id === currentUserId
@@ -613,6 +718,8 @@ export default function MessageList({
                   onOpenActions={setModalMsg}
                   onOpenContextMenu={(msg, x, y) => setContextMenu({ msg, x, y })}
                   onPin={handlePin}
+                  isSaved={savedMessageIds.has(msg.id)}
+                  onToggleSaved={toggleSaved}
                   allowReactions={allowReactions}
                   allowReplies={allowReplies}
                   isPending={editPending || isPending}
@@ -719,6 +826,7 @@ export default function MessageList({
               ? handleReport
               : undefined
           }
+          onMuteUser={muteUser}
           messageLinkBasePath={messageLinkBasePath}
         />
       )}
@@ -745,5 +853,53 @@ function searchNavBtn(disabled: boolean): React.CSSProperties {
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.45 : 1,
     fontSize: 13,
+  }
+}
+
+function savedMessagesKey(userId: string) {
+  return `pepchat:saved-messages:${userId}`
+}
+
+function readSavedMessages(userId: string): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = window.localStorage.getItem(savedMessagesKey(userId))
+    const ids = raw ? JSON.parse(raw) : []
+    return new Set(Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function writeSavedMessages(userId: string, ids: Set<string>) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(savedMessagesKey(userId), JSON.stringify(Array.from(ids)))
+  } catch {
+    // Ignore unavailable storage; saving is a convenience feature.
+  }
+}
+
+function mutedUsersKey(userId: string) {
+  return `pepchat:muted-users:${userId}`
+}
+
+function readMutedUsers(userId: string): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = window.localStorage.getItem(mutedUsersKey(userId))
+    const ids = raw ? JSON.parse(raw) : []
+    return new Set(Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function writeMutedUsers(userId: string, ids: Set<string>) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(mutedUsersKey(userId), JSON.stringify(Array.from(ids)))
+  } catch {
+    // Ignore unavailable storage; muting is a local convenience feature.
   }
 }

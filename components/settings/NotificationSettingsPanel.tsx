@@ -16,6 +16,7 @@ import {
 import type { NotificationPreferences, NotificationPreferenceUpdate } from '@/lib/types'
 
 type DeviceStatus = 'idle' | 'saving' | 'saved' | 'unconfigured' | 'error'
+type DeliveryCheckStatus = 'idle' | 'checking' | 'ok' | 'missing' | 'error'
 
 function statusCopy(status: NotificationStatus | null) {
   if (!status) return 'Checking this device...'
@@ -32,6 +33,7 @@ export default function NotificationSettingsPanel() {
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
   const [error, setError] = useState('')
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>('idle')
+  const [deliveryCheck, setDeliveryCheck] = useState<DeliveryCheckStatus>('idle')
   const [isPending, startTransition] = useTransition()
   const [savingKey, setSavingKey] = useState<keyof NotificationPreferenceUpdate | null>(null)
 
@@ -95,6 +97,25 @@ export default function NotificationSettingsPanel() {
     }
 
     setDeviceStatus('saved')
+    setDeliveryCheck('ok')
+  }
+
+  async function checkPushReliability() {
+    setError('')
+    setDeliveryCheck('checking')
+    try {
+      if (!status?.pushSupported || !isPushConfigured()) {
+        setDeliveryCheck('missing')
+        return
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration('/sw.js')
+      const subscription = await registration?.pushManager.getSubscription()
+      setDeliveryCheck(subscription ? 'ok' : 'missing')
+    } catch {
+      setDeliveryCheck('error')
+      setError('Could not check push registration on this device.')
+    }
   }
 
   async function handlePreferenceChange(key: keyof NotificationPreferenceUpdate, value: boolean) {
@@ -165,14 +186,32 @@ export default function NotificationSettingsPanel() {
             {(deviceStatus === 'idle' || deviceStatus === 'error') && 'Register this device to receive browser push notifications when delivery is available.'}
           </p>
           {isPushConfigured() && (
-            <button
-              type="button"
-              onClick={syncPushSubscription}
-              disabled={deviceStatus === 'saving'}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 text-[var(--text-primary)] hover:bg-white/5 disabled:opacity-40 disabled:cursor-default transition-colors"
-            >
-              {deviceStatus === 'saving' ? 'Registering...' : 'Register this device'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={syncPushSubscription}
+                disabled={deviceStatus === 'saving'}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 text-[var(--text-primary)] hover:bg-white/5 disabled:opacity-40 disabled:cursor-default transition-colors"
+              >
+                {deviceStatus === 'saving' ? 'Registering...' : 'Register this device'}
+              </button>
+              <button
+                type="button"
+                onClick={checkPushReliability}
+                disabled={deliveryCheck === 'checking'}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 text-[var(--text-primary)] hover:bg-white/5 disabled:opacity-40 disabled:cursor-default transition-colors"
+              >
+                {deliveryCheck === 'checking' ? 'Checking...' : 'Check delivery setup'}
+              </button>
+            </div>
+          )}
+          {deliveryCheck !== 'idle' && (
+            <p className="text-xs text-[var(--text-faint)]" data-testid="notification-delivery-check">
+              {deliveryCheck === 'ok' && 'Push registration is present on this device.'}
+              {deliveryCheck === 'missing' && 'No active push registration was found for this device.'}
+              {deliveryCheck === 'error' && 'Delivery setup check failed.'}
+              {deliveryCheck === 'checking' && 'Checking browser push registration...'}
+            </p>
           )}
         </div>
       )}

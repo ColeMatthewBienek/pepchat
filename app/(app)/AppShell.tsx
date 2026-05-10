@@ -11,6 +11,7 @@ import CreateChannelModal from '@/components/modals/CreateChannelModal'
 import NotificationTray from '@/components/notifications/NotificationTray'
 import { MobileSidebarContext } from '@/lib/context/MobileSidebarContext'
 import InstallBanner from '@/components/ui/InstallBanner'
+import NetworkStatusBanner from '@/components/ui/NetworkStatusBanner'
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
 import { useUnreadChannels } from '@/lib/hooks/useUnreadChannels'
@@ -180,13 +181,14 @@ export default function AppShell({ profile, children }: AppShellProps) {
           className="flex flex-col flex-1 min-w-0 overflow-hidden"
         >
           <InstallBanner />
+          <NetworkStatusBanner />
           <NotificationTray />
           {children}
           <nav className="mobile-bottom-nav" aria-label="Mobile app navigation">
-            <button type="button" onClick={() => setMobileSidebarOpen(true)}>
+            <button type="button" onClick={() => setMobileSidebarOpen(true)} aria-current={!pathname.startsWith('/dm') ? 'page' : undefined}>
               Channels
             </button>
-            <button type="button" onClick={() => setMobileSidebarOpen(true)}>
+            <button type="button" onClick={() => setMobileSidebarOpen(true)} aria-current={pathname.startsWith('/dm') ? 'page' : undefined}>
               DMs
             </button>
             {userRole === 'admin' ? <a href="/admin/reports">Reports</a> : <a href="/settings/profile">Profile</a>}

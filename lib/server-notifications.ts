@@ -28,6 +28,7 @@ function attachmentFallback(attachments?: Attachment[] | null): string {
   const [attachment] = attachments
   if (attachment.type === 'gif') return 'GIF'
   if (attachment.type === 'image') return 'Image'
+  if (attachment.type === 'video') return 'Video'
   return 'Attachment'
 }
 

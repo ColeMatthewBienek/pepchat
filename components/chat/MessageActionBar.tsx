@@ -20,6 +20,8 @@ export interface MessageActionBarProps {
   onStartEdit: (msg: MessageWithProfile) => void
   onDelete: (msgId: string) => void
   onPin?: (msgId: string) => void
+  isSaved?: boolean
+  onToggleSaved?: (msg: MessageWithProfile) => void
 }
 
 export default function MessageActionBar({
@@ -39,6 +41,8 @@ export default function MessageActionBar({
   onStartEdit,
   onDelete,
   onPin,
+  isSaved = false,
+  onToggleSaved,
 }: MessageActionBarProps) {
   const canDelete = isOwn || canDeleteAny
 
@@ -119,6 +123,20 @@ export default function MessageActionBar({
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="17" x2="12" y2="22" />
             <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+          </svg>
+        </button>
+      )}
+
+      {onToggleSaved && (
+        <button
+          data-testid="action-save"
+          onClick={() => onToggleSaved(msg)}
+          title={isSaved ? 'Remove saved message' : 'Save message'}
+          className="icon-btn"
+          style={{ padding: 6, color: isSaved ? 'var(--accent)' : undefined }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
           </svg>
         </button>
       )}

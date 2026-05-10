@@ -10,7 +10,7 @@ export default async function ReportsPage() {
   const { data: rawReports } = await supabase
     .from('reports')
     .select(`
-      id, message_id, reason, status, created_at,
+      id, message_id, category, reason, moderation_note, status, created_at,
       reported_by,
       messages(
         content,
@@ -33,7 +33,9 @@ export default async function ReportsPage() {
     channel_name: r.messages?.channels?.name ?? null,
     reported_by: r.reported_by,
     reporter_username: r.profiles?.username ?? 'unknown',
+    category: r.category ?? null,
     reason: r.reason,
+    moderation_note: r.moderation_note ?? null,
     status: r.status as AdminReport['status'],
     created_at: r.created_at,
   }))

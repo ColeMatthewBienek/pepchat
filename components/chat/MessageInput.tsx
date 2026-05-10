@@ -25,6 +25,7 @@ interface MessageInputProps {
   onSent?: (message: MessageWithProfile) => void
   placeholder?: string
   draftStorageKey?: string
+  allowVideoUpload?: boolean
   /** When provided, called instead of the default sendMessage server action. */
   sendAction?: (content: string, replyToId: string | null, attachments: Attachment[]) => Promise<{ error: string } | { ok: true; message: MessageWithProfile }>
 }
@@ -40,6 +41,7 @@ export default function MessageInput({
   onSent,
   placeholder,
   draftStorageKey: providedDraftStorageKey,
+  allowVideoUpload = true,
   sendAction,
 }: MessageInputProps) {
   const draftStorageKey = providedDraftStorageKey ?? `pepchat:draft:${channelId}`
@@ -58,7 +60,7 @@ export default function MessageInput({
   const lastTypingBroadcastAtRef = useRef(0)
 
   const { pendingImages, inputError, addFiles, removeImage, retryUpload, clearAll, hasUploading, attachments } =
-    useImageUpload()
+    useImageUpload({ allowVideo: allowVideoUpload })
 
   useEffect(() => {
     skipNextDraftWriteRef.current = true
@@ -164,7 +166,7 @@ export default function MessageInput({
     e.preventDefault()
     setIsDragging(false)
     dragCounterRef.current = 0
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
     if (files.length > 0) addFiles(files, profile.id)
   }
 
@@ -383,7 +385,7 @@ export default function MessageInput({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            title="Attach image"
+            title="Attach image or video"
             className="flex-shrink-0 p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -393,7 +395,7 @@ export default function MessageInput({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp"
+            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm"
             multiple
             className="hidden"
             onChange={handleFileInput}
@@ -472,13 +474,25 @@ export default function MessageInput({
         {/* Image preview strip */}
         {pendingImages.length > 0 && (
           <div className="flex gap-2 px-3 pb-3 flex-wrap">
-            {pendingImages.map(img => (
+            {pendingImages.map(img => {
+              const isVideo = img.file.type.startsWith('video/')
+              return (
               <div key={img.id} className="relative flex-shrink-0" style={{ width: 72, height: 72 }}>
-                <img
-                  src={img.localUrl}
-                  alt={img.file.name}
-                  className="w-full h-full object-cover rounded-lg border border-white/20"
-                />
+                {isVideo ? (
+                  <video
+                    src={img.localUrl}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-full object-cover rounded-lg border border-white/20 bg-black"
+                  />
+                ) : (
+                  <img
+                    src={img.localUrl}
+                    alt={img.file.name}
+                    className="w-full h-full object-cover rounded-lg border border-white/20"
+                  />
+                )}
 
                 {img.state === 'uploading' && (
                   <div className="absolute inset-0 rounded-lg bg-black/55 flex items-center justify-center">
@@ -519,14 +533,15 @@ export default function MessageInput({
                   </svg>
                 </button>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
 
       <div className="flex items-center justify-between mt-1 px-1">
         <p className="text-[10px] text-[var(--text-muted)]">
-          Enter to send · Shift+Enter for new line{replyingTo ? ' · Esc to cancel reply' : ''}
+          Enter to send · Shift+Enter for new line{replyingTo ? ' · Esc to cancel reply' : ''}{allowVideoUpload ? ' · video: 50MB/60s' : ''}
         </p>
         <p className="hidden md:flex text-[10px] text-[var(--text-muted)] gap-2 font-mono">
           <span>**bold**</span>

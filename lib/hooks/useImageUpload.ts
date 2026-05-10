@@ -4,8 +4,11 @@ import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Attachment } from '@/lib/types'
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-const MAX_SIZE = 8 * 1024 * 1024
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm']
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024
+const MAX_VIDEO_DURATION_SECONDS = 60
 const MAX_COUNT = 4
 
 type UploadState = 'uploading' | 'done' | 'error'
@@ -19,7 +22,7 @@ export interface PendingImage {
   error?: string
 }
 
-export function useImageUpload() {
+export function useImageUpload(options: { allowVideo?: boolean } = {}) {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
   const [inputError, setInputError] = useState('')
   const pendingRef = useRef<PendingImage[]>([])
@@ -42,9 +45,34 @@ export function useImageUpload() {
     })
   }
 
+  function getVideoDuration(file: File): Promise<number> {
+    return new Promise(resolve => {
+      const url = URL.createObjectURL(file)
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(url)
+        resolve(video.duration)
+      }
+      video.onerror = () => {
+        URL.revokeObjectURL(url)
+        resolve(Number.POSITIVE_INFINITY)
+      }
+      video.src = url
+    })
+  }
+
   const startUpload = useCallback(async (id: string, file: File, userId: string) => {
     const supabase = createClient()
     try {
+      const isVideo = ACCEPTED_VIDEO_TYPES.includes(file.type)
+      if (isVideo) {
+        const duration = await getVideoDuration(file)
+        if (!Number.isFinite(duration) || duration > MAX_VIDEO_DURATION_SECONDS) {
+          throw new Error('Video must be 60 seconds or shorter')
+        }
+      }
+
       const path = `${userId}/${crypto.randomUUID()}-${file.name}`
       const { data, error } = await supabase.storage
         .from('chat-images')
@@ -52,15 +80,22 @@ export function useImageUpload() {
       if (error) throw new Error(error.message)
 
       const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path)
-      const dims = await getImageDimensions(file)
-
-      const attachment: Attachment = {
-        url: urlData.publicUrl,
-        type: 'image',
-        name: file.name,
-        size: file.size,
-        ...dims,
-      }
+      const attachment: Attachment = isVideo
+        ? {
+            url: urlData.publicUrl,
+            type: 'video',
+            name: file.name,
+            size: file.size,
+            duration: await getVideoDuration(file),
+            mime_type: file.type,
+          }
+        : {
+            url: urlData.publicUrl,
+            type: 'image',
+            name: file.name,
+            size: file.size,
+            ...(await getImageDimensions(file)),
+          }
       updatePending(prev => prev.map(p => p.id === id ? { ...p, state: 'done', attachment } : p))
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Upload failed'
@@ -72,12 +107,27 @@ export function useImageUpload() {
     setInputError('')
     const fileArr = Array.from(files)
 
-    if (fileArr.some(f => !ACCEPTED_TYPES.includes(f.type))) {
-      setInputError('Only JPEG, PNG, GIF, and WebP are supported')
+    const hasVideo = fileArr.some(f => ACCEPTED_VIDEO_TYPES.includes(f.type))
+    const hasImage = fileArr.some(f => ACCEPTED_IMAGE_TYPES.includes(f.type))
+
+    if (fileArr.some(f => !ACCEPTED_IMAGE_TYPES.includes(f.type) && !ACCEPTED_VIDEO_TYPES.includes(f.type))) {
+      setInputError('Only JPEG, PNG, GIF, WebP, MP4, MOV, and WebM are supported')
       return
     }
-    if (fileArr.some(f => f.size > MAX_SIZE)) {
+    if (hasVideo && !options.allowVideo) {
+      setInputError('Video uploads are available after promotion from noob.')
+      return
+    }
+    if (hasVideo && (fileArr.length > 1 || pendingRef.current.length > 0 || hasImage)) {
+      setInputError('Send one video per message')
+      return
+    }
+    if (fileArr.some(f => ACCEPTED_IMAGE_TYPES.includes(f.type) && f.size > MAX_IMAGE_SIZE)) {
       setInputError('Image must be under 8MB')
+      return
+    }
+    if (fileArr.some(f => ACCEPTED_VIDEO_TYPES.includes(f.type) && f.size > MAX_VIDEO_SIZE)) {
+      setInputError('Video must be under 50MB')
       return
     }
     if (pendingRef.current.length + fileArr.length > MAX_COUNT) {

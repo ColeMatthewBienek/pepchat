@@ -54,7 +54,9 @@ async function getReportAuditMetadata(reportId: string): Promise<ReportAuditMeta
     .select(`
       id,
       message_id,
+      category,
       reason,
+      moderation_note,
       status,
       reported_by,
       messages(content, channel_id, user_id),
@@ -67,7 +69,9 @@ async function getReportAuditMetadata(reportId: string): Promise<ReportAuditMeta
   return {
     report_id: reportId,
     message_id: report?.message_id ?? null,
+    category: report?.category ?? null,
     reason: report?.reason ?? null,
+    moderation_note: report?.moderation_note ?? null,
     previous_status: report?.status ?? null,
     reported_by: report?.reported_by ?? null,
     reporter_username: report?.profiles?.username ?? null,
@@ -217,6 +221,7 @@ export async function deleteGroup(
 export async function reportMessage(
   messageId: string,
   reason: string,
+  category?: string,
 ): Promise<ActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -224,14 +229,19 @@ export async function reportMessage(
 
   const { error } = await supabase
     .from('reports')
-    .insert({ message_id: messageId, reported_by: user.id, reason })
+    .insert({
+      message_id: messageId,
+      reported_by: user.id,
+      reason,
+      ...(category ? { category } : {}),
+    })
 
   if (isUniqueViolation(error)) return { ok: true }
   if (error) return { error: error.message }
   return { ok: true }
 }
 
-export async function markReportReviewed(reportId: string): Promise<ActionResult> {
+export async function markReportReviewed(reportId: string, moderationNote?: string): Promise<ActionResult> {
   const adminId = await getAdminUserId()
   if (!adminId) return { error: 'Unauthorized' }
 
@@ -242,20 +252,24 @@ export async function markReportReviewed(reportId: string): Promise<ActionResult
 
   const { error } = await supabase
     .from('reports')
-    .update({ status: 'reviewed' })
+    .update({
+      status: 'reviewed',
+      ...(moderationNote?.trim() ? { moderation_note: moderationNote.trim() } : {}),
+    })
     .eq('id', reportId)
 
   if (error) return { error: error.message }
 
   await logAudit(adminId, 'report_reviewed', 'report', reportId, {
     ...auditMetadata,
+    moderation_note: moderationNote?.trim() || null,
     status: 'reviewed',
   })
 
   return { ok: true }
 }
 
-export async function dismissReport(reportId: string): Promise<ActionResult> {
+export async function dismissReport(reportId: string, moderationNote?: string): Promise<ActionResult> {
   const adminId = await getAdminUserId()
   if (!adminId) return { error: 'Unauthorized' }
 
@@ -266,13 +280,17 @@ export async function dismissReport(reportId: string): Promise<ActionResult> {
 
   const { error } = await supabase
     .from('reports')
-    .update({ status: 'dismissed' })
+    .update({
+      status: 'dismissed',
+      ...(moderationNote?.trim() ? { moderation_note: moderationNote.trim() } : {}),
+    })
     .eq('id', reportId)
 
   if (error) return { error: error.message }
 
   await logAudit(adminId, 'report_dismissed', 'report', reportId, {
     ...auditMetadata,
+    moderation_note: moderationNote?.trim() || null,
     status: 'dismissed',
   })
 

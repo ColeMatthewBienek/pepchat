@@ -17,7 +17,7 @@ interface ReportMessageDialogProps {
   message: MessageWithProfile | null
   pending?: boolean
   onClose: () => void
-  onSubmit: (reason: string) => void
+  onSubmit: (category: string, details: string) => void
 }
 
 export default function ReportMessageDialog({
@@ -27,17 +27,22 @@ export default function ReportMessageDialog({
   onClose,
   onSubmit,
 }: ReportMessageDialogProps) {
-  const [reason, setReason] = useState('')
+  const [category, setCategory] = useState('')
+  const [details, setDetails] = useState('')
 
   useEffect(() => {
-    if (open) setReason('')
+    if (open) {
+      setCategory('')
+      setDetails('')
+    }
   }, [open, message?.id])
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const trimmed = reason.trim()
-    if (!trimmed || pending) return
-    onSubmit(trimmed)
+    const trimmedCategory = category.trim()
+    const trimmedDetails = details.trim()
+    if ((!trimmedCategory && !trimmedDetails) || pending) return
+    onSubmit(trimmedCategory || 'Other', trimmedDetails || trimmedCategory)
   }
 
   const author = message?.profiles?.display_name ?? message?.profiles?.username ?? 'Unknown'
@@ -69,13 +74,13 @@ export default function ReportMessageDialog({
                 key={option}
                 type="button"
                 data-testid={`report-reason-${option.toLowerCase().replaceAll(' ', '-')}`}
-                aria-pressed={reason === option}
-                onClick={() => setReason(option)}
+                aria-pressed={category === option}
+                onClick={() => setCategory(option)}
                 className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
                 style={{
-                  borderColor: reason === option ? 'var(--accent)' : 'var(--border-soft)',
-                  background: reason === option ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
-                  color: reason === option ? 'var(--text-primary)' : 'var(--text-muted)',
+                  borderColor: category === option ? 'var(--accent)' : 'var(--border-soft)',
+                  background: category === option ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
+                  color: category === option ? 'var(--text-primary)' : 'var(--text-muted)',
                 }}
               >
                 {option}
@@ -91,8 +96,8 @@ export default function ReportMessageDialog({
           <textarea
             id="report-details"
             data-testid="report-reason-input"
-            value={reason}
-            onChange={e => setReason(e.target.value)}
+            value={details}
+            onChange={e => setDetails(e.target.value)}
             rows={4}
             placeholder="Describe what is wrong with this message."
             className="w-full resize-none rounded-md border border-[var(--border-soft)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
@@ -111,7 +116,7 @@ export default function ReportMessageDialog({
           <button
             type="submit"
             data-testid="report-submit"
-            disabled={!reason.trim() || pending}
+            disabled={(!category.trim() && !details.trim()) || pending}
             className="rounded-md bg-[var(--danger)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {pending ? 'Submitting...' : 'Submit Report'}
