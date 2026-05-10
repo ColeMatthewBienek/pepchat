@@ -538,274 +538,274 @@ export default function MessageList({
     : ''
 
   return (
-    <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+    <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--bg-chat)' }}>
       <div
-        data-testid="message-scroll-container"
-        ref={listRef}
-        onScroll={handleScroll}
         style={{
-          height: '100%',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch' as any,
-          overscrollBehavior: 'contain',
-          padding: '12px 0',
+          flexShrink: 0,
+          zIndex: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
+          padding: isSearchExpanded ? '8px 16px 10px' : '8px 16px',
+          background: 'var(--bg-chat)',
+          borderBottom: isSearchExpanded ? '1px solid var(--border-soft)' : 'none',
+          boxShadow: isSearchExpanded ? '0 8px 18px rgba(0, 0, 0, 0.24)' : 'none',
         }}
       >
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 12,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-            padding: isSearchExpanded ? '8px 16px 10px' : '8px 16px',
-            background: 'var(--bg-chat)',
-            borderBottom: isSearchExpanded ? '1px solid var(--border-soft)' : 'none',
-            boxShadow: isSearchExpanded ? '0 8px 18px rgba(0, 0, 0, 0.24)' : 'none',
-          }}
-        >
-          {!isSearchExpanded ? (
+        {!isSearchExpanded ? (
+          <button
+            type="button"
+            data-testid="message-search-expand"
+            onClick={() => setIsSearchExpanded(true)}
+            style={{
+              height: 30,
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-soft)',
+              background: 'var(--bg-tertiary)',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '0 10px',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Search
+          </button>
+        ) : (
+          <>
+            {groupId && (
+              <select
+                data-testid="message-search-scope"
+                value={searchScope}
+                onChange={e => setSearchScope(e.target.value as SearchScope)}
+                style={{
+                  height: 32,
+                  padding: '0 8px',
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-soft)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                  fontSize: 12,
+                  outline: 'none',
+                }}
+              >
+                <option value="channel">Channel</option>
+                <option value="group">Group</option>
+              </select>
+            )}
+            <input
+              ref={searchInputRef}
+              data-testid="message-search-input"
+              type="search"
+              placeholder={searchScope === 'group' ? 'Search group messages...' : 'Search loaded messages...'}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '7px 10px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            <input
+              data-testid="message-search-author"
+              type="search"
+              placeholder="Author"
+              value={searchAuthor}
+              onChange={e => setSearchAuthor(e.target.value)}
+              style={{
+                width: 120,
+                padding: '7px 10px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            <input
+              data-testid="message-search-channel"
+              type="search"
+              placeholder="Channel"
+              value={searchChannel}
+              onChange={e => setSearchChannel(e.target.value)}
+              style={{
+                width: 120,
+                padding: '7px 10px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            <input
+              data-testid="message-search-date"
+              type="date"
+              value={searchDate}
+              onChange={e => setSearchDate(e.target.value)}
+              style={{
+                width: 136,
+                padding: '6px 8px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontSize: 12,
+                outline: 'none',
+              }}
+            />
             <button
               type="button"
-              data-testid="message-search-expand"
-              onClick={() => setIsSearchExpanded(true)}
+              data-testid="message-search-saved"
+              aria-pressed={showSavedOnly}
+              onClick={() => setShowSavedOnly(value => !value)}
               style={{
                 height: 30,
                 borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-soft)',
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                padding: '0 10px',
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              Search
-            </button>
-          ) : (
-            <>
-              {groupId && (
-                <select
-                  data-testid="message-search-scope"
-                  value={searchScope}
-                  onChange={e => setSearchScope(e.target.value as SearchScope)}
-                  style={{
-                    height: 32,
-                    padding: '0 8px',
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--text-primary)',
-                    fontSize: 12,
-                    outline: 'none',
-                  }}
-                >
-                  <option value="channel">Channel</option>
-                  <option value="group">Group</option>
-                </select>
-              )}
-              <input
-                ref={searchInputRef}
-                data-testid="message-search-input"
-                type="search"
-                placeholder={searchScope === 'group' ? 'Search group messages...' : 'Search loaded messages...'}
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: '7px 10px',
-                  background: 'var(--bg-tertiary)',
-                  border: '1px solid var(--border-soft)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                  fontSize: 13,
-                  outline: 'none',
-                }}
-              />
-              <input
-                data-testid="message-search-author"
-                type="search"
-                placeholder="Author"
-                value={searchAuthor}
-                onChange={e => setSearchAuthor(e.target.value)}
-                style={{
-                  width: 120,
-                  padding: '7px 10px',
-                  background: 'var(--bg-tertiary)',
-                  border: '1px solid var(--border-soft)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                  fontSize: 13,
-                  outline: 'none',
-                }}
-              />
-              <input
-                data-testid="message-search-channel"
-                type="search"
-                placeholder="Channel"
-                value={searchChannel}
-                onChange={e => setSearchChannel(e.target.value)}
-                style={{
-                  width: 120,
-                  padding: '7px 10px',
-                  background: 'var(--bg-tertiary)',
-                  border: '1px solid var(--border-soft)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                  fontSize: 13,
-                  outline: 'none',
-                }}
-              />
-              <input
-                data-testid="message-search-date"
-                type="date"
-                value={searchDate}
-                onChange={e => setSearchDate(e.target.value)}
-                style={{
-                  width: 136,
-                  padding: '6px 8px',
-                  background: 'var(--bg-tertiary)',
-                  border: '1px solid var(--border-soft)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                  fontSize: 12,
-                  outline: 'none',
-                }}
-              />
-              <button
-                type="button"
-                data-testid="message-search-saved"
-                aria-pressed={showSavedOnly}
-                onClick={() => setShowSavedOnly(value => !value)}
-                style={{
-                  height: 30,
-                  borderRadius: 'var(--radius-sm)',
-                  border: showSavedOnly ? '1px solid var(--accent)' : '1px solid var(--border-soft)',
-                  background: showSavedOnly ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
-                  color: showSavedOnly ? 'var(--text-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '0 9px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
-                Saved
-              </button>
-              <span
-                data-testid="message-search-count"
-                style={{ width: 72, textAlign: 'right', fontSize: 12, color: 'var(--text-faint)' }}
-              >
-                {searchCountLabel}
-              </span>
-              {hasSearchFilters && (
-                <button
-                  type="button"
-                  data-testid="message-search-clear"
-                  aria-label="Clear message search"
-                  onClick={clearSearch}
-                  style={searchNavBtn(false)}
-                >
-                  ×
-                </button>
-              )}
-              <button
-                type="button"
-                data-testid="message-search-prev"
-                aria-label="Previous search result"
-                disabled={activeSearchResults.length === 0}
-                onClick={goToPrevSearchResult}
-                style={searchNavBtn(activeSearchResults.length === 0)}
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                data-testid="message-search-next"
-                aria-label="Next search result"
-                disabled={activeSearchResults.length === 0}
-                onClick={goToNextSearchResult}
-                style={searchNavBtn(activeSearchResults.length === 0)}
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                data-testid="message-search-collapse"
-                aria-label="Collapse message search"
-                onClick={collapseSearch}
-                style={searchNavBtn(false)}
-              >
-                ˄
-              </button>
-            </>
-          )}
-          {unreadMessageId && (
-            <button
-              type="button"
-              data-testid="jump-first-unread"
-              onClick={() => jumpToMessage(unreadMessageId)}
-              title="Jump to first unread"
-              style={{
-                height: 28,
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--accent)',
-                background: 'transparent',
-                color: 'var(--accent)',
+                border: showSavedOnly ? '1px solid var(--accent)' : '1px solid var(--border-soft)',
+                background: showSavedOnly ? 'var(--accent-soft)' : 'var(--bg-tertiary)',
+                color: showSavedOnly ? 'var(--text-primary)' : 'var(--text-muted)',
                 cursor: 'pointer',
                 padding: '0 9px',
                 fontSize: 12,
                 fontWeight: 700,
               }}
             >
-              Unread
+              Saved
             </button>
+            <span
+              data-testid="message-search-count"
+              style={{ width: 72, textAlign: 'right', fontSize: 12, color: 'var(--text-faint)' }}
+            >
+              {searchCountLabel}
+            </span>
+            {hasSearchFilters && (
+              <button
+                type="button"
+                data-testid="message-search-clear"
+                aria-label="Clear message search"
+                onClick={clearSearch}
+                style={searchNavBtn(false)}
+              >
+                ×
+              </button>
+            )}
+            <button
+              type="button"
+              data-testid="message-search-prev"
+              aria-label="Previous search result"
+              disabled={activeSearchResults.length === 0}
+              onClick={goToPrevSearchResult}
+              style={searchNavBtn(activeSearchResults.length === 0)}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              data-testid="message-search-next"
+              aria-label="Next search result"
+              disabled={activeSearchResults.length === 0}
+              onClick={goToNextSearchResult}
+              style={searchNavBtn(activeSearchResults.length === 0)}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              data-testid="message-search-collapse"
+              aria-label="Collapse message search"
+              onClick={collapseSearch}
+              style={searchNavBtn(false)}
+            >
+              ˄
+            </button>
+          </>
+        )}
+        {unreadMessageId && (
+          <button
+            type="button"
+            data-testid="jump-first-unread"
+            onClick={() => jumpToMessage(unreadMessageId)}
+            title="Jump to first unread"
+            style={{
+              height: 28,
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--accent)',
+              background: 'transparent',
+              color: 'var(--accent)',
+              cursor: 'pointer',
+              padding: '0 9px',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Unread
+          </button>
+        )}
+      </div>
+
+      {searchScope === 'group' && hasSearchFilters && (
+        <div
+          data-testid="group-search-results"
+          className="mx-4 mb-2 rounded border border-[var(--border-soft)] bg-[var(--bg-secondary)]"
+          style={{ flexShrink: 0, overflow: 'hidden' }}
+        >
+          {groupSearchPending ? (
+            <p className="px-3 py-2 text-xs text-[var(--text-faint)]">Searching group messages...</p>
+          ) : groupSearchResults.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-[var(--text-faint)]">No group messages match these filters.</p>
+          ) : (
+            groupSearchResults.slice(0, 8).map((result, index) => (
+              <button
+                key={result.id}
+                type="button"
+                data-testid={`group-search-result-${result.id}`}
+                onClick={() => jumpToSearchResult(index)}
+                className="block w-full border-b border-[var(--border-soft)] px-3 py-2 text-left last:border-b-0 hover:bg-white/5"
+              >
+                <span className="flex items-center justify-between gap-3 text-xs">
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    #{result.channels?.name ?? 'channel'} · @{result.profiles?.username ?? 'unknown'}
+                  </span>
+                  <span className="text-[var(--text-faint)]">{formatShortDate(result.created_at)}</span>
+                </span>
+                <span className="mt-1 block truncate text-xs text-[var(--text-muted)]">
+                  {result.content || attachmentResultLabel(result)}
+                </span>
+              </button>
+            ))
+          )}
+          {groupSearchResults.length > 8 && (
+            <p className="border-t border-[var(--border-soft)] px-3 py-1.5 text-[10px] text-[var(--text-faint)]">
+              Showing first 8 of {groupSearchResults.length} results. Use filters to narrow.
+            </p>
           )}
         </div>
+      )}
 
-        {searchScope === 'group' && hasSearchFilters && (
-          <div
-            data-testid="group-search-results"
-            className="mx-4 mb-2 rounded border border-[var(--border-soft)] bg-[var(--bg-secondary)]"
-            style={{ overflow: 'hidden' }}
-          >
-            {groupSearchPending ? (
-              <p className="px-3 py-2 text-xs text-[var(--text-faint)]">Searching group messages...</p>
-            ) : groupSearchResults.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-[var(--text-faint)]">No group messages match these filters.</p>
-            ) : (
-              groupSearchResults.slice(0, 8).map((result, index) => (
-                <button
-                  key={result.id}
-                  type="button"
-                  data-testid={`group-search-result-${result.id}`}
-                  onClick={() => jumpToSearchResult(index)}
-                  className="block w-full border-b border-[var(--border-soft)] px-3 py-2 text-left last:border-b-0 hover:bg-white/5"
-                >
-                  <span className="flex items-center justify-between gap-3 text-xs">
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      #{result.channels?.name ?? 'channel'} · @{result.profiles?.username ?? 'unknown'}
-                    </span>
-                    <span className="text-[var(--text-faint)]">{formatShortDate(result.created_at)}</span>
-                  </span>
-                  <span className="mt-1 block truncate text-xs text-[var(--text-muted)]">
-                    {result.content || attachmentResultLabel(result)}
-                  </span>
-                </button>
-              ))
-            )}
-            {groupSearchResults.length > 8 && (
-              <p className="border-t border-[var(--border-soft)] px-3 py-1.5 text-[10px] text-[var(--text-faint)]">
-                Showing first 8 of {groupSearchResults.length} results. Use filters to narrow.
-              </p>
-            )}
-          </div>
-        )}
-
+      <div
+        data-testid="message-scroll-container"
+        ref={listRef}
+        onScroll={handleScroll}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch' as any,
+          overscrollBehavior: 'contain',
+          padding: '12px 0',
+        }}
+      >
         {hasMore && (
           <div className="flex justify-center py-2">
             <button
