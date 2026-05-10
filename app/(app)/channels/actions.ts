@@ -12,7 +12,9 @@ export async function createChannel(
   if (!user) redirect('/login')
 
   const name = (formData.get('name') as string).trim().toLowerCase().replace(/\s+/g, '-')
+  const description = ((formData.get('description') as string | null) ?? '').trim()
   const groupId = formData.get('group_id') as string
+  const noobAccess = formData.get('noob_access') === 'on'
 
   if (!name) return { error: 'Channel name is required.' }
   if (!groupId) return { error: 'Missing group.' }
@@ -29,12 +31,49 @@ export async function createChannel(
 
   const { data: channel, error } = await supabase
     .from('channels')
-    .insert({ group_id: groupId, name, position: nextPosition })
+    .insert({
+      group_id: groupId,
+      name,
+      description: description || null,
+      noob_access: noobAccess,
+      position: nextPosition,
+    })
     .select()
     .single()
 
   if (error || !channel) return { error: error?.message ?? 'Failed to create channel.' }
   redirect(`/channels/${channel.id}`)
+}
+
+/** Updates channel name, topic, and access settings. */
+export async function updateChannelSettings(
+  channelId: string,
+  formData: FormData
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const name = (formData.get('name') as string).trim().toLowerCase().replace(/\s+/g, '-')
+  const description = ((formData.get('description') as string | null) ?? '').trim()
+  const noobAccess = formData.get('noob_access') === 'on'
+
+  if (!channelId) return { error: 'Missing channel.' }
+  if (!name) return { error: 'Channel name is required.' }
+  if (name.length > 80) return { error: 'Channel name must be 80 characters or fewer.' }
+  if (description.length > 180) return { error: 'Topic must be 180 characters or fewer.' }
+
+  const { error } = await supabase
+    .from('channels')
+    .update({
+      name,
+      description: description || null,
+      noob_access: noobAccess,
+    })
+    .eq('id', channelId)
+
+  if (error) return { error: error.message }
+  return { ok: true }
 }
 
 /** Deletes a channel. Owner/admin only (enforced by RLS). */

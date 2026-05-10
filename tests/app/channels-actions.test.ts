@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { moveChannel } from '@/app/(app)/channels/actions'
+import { moveChannel, updateChannelSettings } from '@/app/(app)/channels/actions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -117,5 +117,40 @@ describe('channel actions — moveChannel', () => {
     })
 
     expect(adjacentUpdate.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('channel actions — updateChannelSettings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('normalizes and updates channel settings', async () => {
+    const update = makeUpdateBuilder()
+    setupClient([update])
+
+    const formData = new FormData()
+    formData.set('name', ' Welcome Chat ')
+    formData.set('description', ' Start here ')
+    formData.set('noob_access', 'on')
+
+    await expect(updateChannelSettings('ch-1', formData)).resolves.toEqual({ ok: true })
+
+    expect(update.update).toHaveBeenCalledWith({
+      name: 'welcome-chat',
+      description: 'Start here',
+      noob_access: true,
+    })
+    expect(update.eq).toHaveBeenCalledWith('id', 'ch-1')
+  })
+
+  it('rejects empty channel names', async () => {
+    setupClient([])
+    const formData = new FormData()
+    formData.set('name', ' ')
+
+    await expect(updateChannelSettings('ch-1', formData)).resolves.toEqual({
+      error: 'Channel name is required.',
+    })
   })
 })

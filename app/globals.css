@@ -360,12 +360,27 @@ a, button, [role="button"], .channel-row, .dm-entry {
   .admin-shell > main {
     padding: 16px !important;
   }
-  /* Tables: allow horizontal scroll on mobile */
+  /* Tables: keep dense admin data usable on narrow screens. */
   .admin-shell table {
-    min-width: 520px;
+    min-width: 680px;
+  }
+  .admin-shell th,
+  .admin-shell td {
+    white-space: nowrap;
   }
   .admin-shell .table-scroll-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+  }
+  .admin-shell .table-scroll-wrapper th:first-child,
+  .admin-shell .table-scroll-wrapper td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg-secondary);
+    box-shadow: 1px 0 0 var(--border-soft);
   }
 }

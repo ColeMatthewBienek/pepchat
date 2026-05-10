@@ -77,6 +77,10 @@ describe('PERMISSIONS.canAccessChannel', () => {
     expect(PERMISSIONS.canAccessChannel('noob', '')).toBe(false)
   })
 
+  it('noob can access any channel explicitly opened to new members', () => {
+    expect(PERMISSIONS.canAccessChannel('noob', 'rules', true)).toBe(true)
+  })
+
   it.each(['admin', 'moderator', 'user'] as Role[])(
     '%s can access any channel',
     (role: Role) => {

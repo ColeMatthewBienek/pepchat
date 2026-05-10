@@ -1,6 +1,17 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+function InviteMessage({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex h-full items-center justify-center px-6" style={{ background: 'var(--bg-chat)' }}>
+      <div className="w-full max-w-sm rounded-lg border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-5 text-center">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{title}</h1>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">{body}</p>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Handles invite links: /join/[code]
  * Adds the user to the group and redirects to the first channel.
@@ -32,9 +43,10 @@ export default async function JoinPage({
   const group = invite ? { id: invite.group_id } : legacyGroup
   if (!group) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-[var(--danger)]">Invalid or expired invite link.</p>
-      </div>
+      <InviteMessage
+        title="Invite not found"
+        body="This invite link may have been revoked, mistyped, or replaced by a newer invite."
+      />
     )
   }
   if (
@@ -43,9 +55,10 @@ export default async function JoinPage({
     (invite && invite.max_uses !== null && invite.uses_count >= invite.max_uses)
   ) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-[var(--danger)]">Invalid or expired invite link.</p>
-      </div>
+      <InviteMessage
+        title="Invite expired"
+        body="This invite is no longer accepting new members. Ask an admin for a fresh link."
+      />
     )
   }
 

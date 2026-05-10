@@ -79,8 +79,8 @@ export default function CreateGroupModal({ open, onClose, onSuccess, initialTab 
 
       <p className="text-sm text-[var(--text-muted)] mb-4">
         {tab === 'create'
-          ? 'Give your group a name. You can always change it later.'
-          : 'Enter an invite code to join an existing group.'}
+          ? 'Create your first shared space. PepChat will add a welcome channel for new members and a general channel for regular chat.'
+          : 'Paste an invite code or invite link to join an existing group.'}
       </p>
 
       <form onSubmit={handleSubmit} aria-label="group form" className="flex flex-col gap-4">
@@ -119,7 +119,7 @@ export default function CreateGroupModal({ open, onClose, onSuccess, initialTab 
               autoComplete="off"
               spellCheck={false}
               className="bg-[var(--bg-primary)] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              placeholder="abc12345"
+              placeholder="abc12345 or /join/abc12345"
             />
           </div>
         )}

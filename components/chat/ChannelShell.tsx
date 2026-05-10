@@ -60,7 +60,7 @@ export default function ChannelShell({
 
   const { pinnedMessages, pinnedCount, refetch: refetchPins } = usePinnedMessages(channelId)
 
-  const { onlineUsers, typingUsernames, broadcastTyping } = usePresence(channelId, {
+  const { onlineUsers, typingUsernames, broadcastTyping, status, setStatus } = usePresence(channelId, {
     user_id:    profile.id,
     username:   profile.username,
     avatar_url: profile.avatar_url,
@@ -197,7 +197,7 @@ export default function ChannelShell({
       </div>
 
       {/* Right panel: online members */}
-      <PresencePanel onlineUsers={onlineUsers} />
+      <PresencePanel onlineUsers={onlineUsers} currentStatus={status} onStatusChange={setStatus} />
 
       {/* Right panel: pinned messages */}
       <PinnedMessagesPanel

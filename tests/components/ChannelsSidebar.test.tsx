@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ChannelsSidebar from '@/components/sidebar/ChannelsSidebar'
-import { deleteChannel, moveChannel } from '@/app/(app)/channels/actions'
+import { deleteChannel, moveChannel, updateChannelSettings } from '@/app/(app)/channels/actions'
 import type { Channel, Group, Profile } from '@/lib/types'
 
 vi.mock('next/link', () => ({
@@ -23,6 +23,7 @@ vi.mock('@/app/(auth)/actions', () => ({ logout: vi.fn() }))
 vi.mock('@/app/(app)/channels/actions', () => ({
   deleteChannel: vi.fn(),
   moveChannel: vi.fn(),
+  updateChannelSettings: vi.fn(),
 }))
 
 const GROUP: Group = {
@@ -113,6 +114,7 @@ describe('ChannelsSidebar channel rows', () => {
     vi.clearAllMocks()
     vi.mocked(deleteChannel).mockResolvedValue(undefined as never)
     vi.mocked(moveChannel).mockResolvedValue(undefined)
+    vi.mocked(updateChannelSettings).mockResolvedValue({ ok: true })
   })
 
   it('shows dot indicator for unread channel', () => {
@@ -281,6 +283,7 @@ describe('ChannelsSidebar channel rows', () => {
     render(<ChannelsSidebar {...BASE_PROPS} userRole="admin" />)
 
     expect(screen.getByRole('button', { name: 'Move #general up' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Edit #general settings' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Move #general down' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete #general' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Move #random up' })).toBeEnabled()
@@ -305,6 +308,22 @@ describe('ChannelsSidebar channel rows', () => {
     fireEvent.click(screen.getAllByTitle('Delete channel')[0])
 
     await waitFor(() => expect(screen.getByTestId('channel-action-error')).toHaveTextContent('Delete failed'))
+  })
+
+  it('updates channel settings from the settings modal', async () => {
+    render(<ChannelsSidebar {...BASE_PROPS} userRole="admin" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #general settings' }))
+    fireEvent.change(screen.getByLabelText(/channel name/i), { target: { value: 'welcome-chat' } })
+    fireEvent.change(screen.getByLabelText(/topic/i), { target: { value: 'Start here' } })
+    fireEvent.click(screen.getByLabelText(/visible to new members/i))
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() => expect(updateChannelSettings).toHaveBeenCalledWith('ch-active', expect.any(FormData)))
+    const formData = vi.mocked(updateChannelSettings).mock.calls[0][1] as FormData
+    expect(formData.get('name')).toBe('welcome-chat')
+    expect(formData.get('description')).toBe('Start here')
+    expect(formData.get('noob_access')).toBe('on')
   })
 })
 

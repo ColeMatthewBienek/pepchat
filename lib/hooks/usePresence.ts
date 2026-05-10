@@ -8,16 +8,22 @@ export interface OnlineUser {
   user_id: string
   username: string
   avatar_url: string | null
+  status?: PresenceStatus
 }
+
+export type PresenceStatus = 'online' | 'away' | 'dnd'
 
 interface PresencePayload extends OnlineUser {
   typing: boolean
+  status: PresenceStatus
 }
 
 interface UsePresenceReturn {
   onlineUsers: OnlineUser[]
   typingUsernames: string[]
   broadcastTyping: () => void
+  status: PresenceStatus
+  setStatus: (status: PresenceStatus) => void
 }
 
 /**
@@ -31,6 +37,7 @@ export function usePresence(
 ): UsePresenceReturn {
   const [onlineUsers, setOnlineUsers]       = useState<OnlineUser[]>([])
   const [typingUsernames, setTypingUsernames] = useState<string[]>([])
+  const [status, setStatusState] = useState<PresenceStatus>('online')
   const roomRef        = useRef<RealtimeChannel | null>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -38,11 +45,20 @@ export function usePresence(
   const userIdRef    = useRef(currentUser.user_id)
   const usernameRef  = useRef(currentUser.username)
   const avatarRef    = useRef(currentUser.avatar_url)
+  const statusRef    = useRef<PresenceStatus>('online')
   useEffect(() => {
     userIdRef.current   = currentUser.user_id
     usernameRef.current = currentUser.username
     avatarRef.current   = currentUser.avatar_url
   })
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('pepchat:presence-status')
+    if (saved === 'online' || saved === 'away' || saved === 'dnd') {
+      statusRef.current = saved
+      setStatusState(saved)
+    }
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -58,7 +74,7 @@ export function usePresence(
       for (const presences of Object.values(state)) {
         const p = presences[0] as PresencePayload | undefined
         if (!p) continue
-        users.push({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url })
+        users.push({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url, status: p.status ?? 'online' })
         if (p.typing && p.user_id !== currentUser.user_id) {
           typing.push(p.username)
         }
@@ -76,6 +92,7 @@ export function usePresence(
             user_id:    currentUser.user_id,
             username:   currentUser.username,
             avatar_url: currentUser.avatar_url,
+            status:     statusRef.current,
             typing:     false,
           } satisfies PresencePayload)
         }
@@ -98,6 +115,7 @@ export function usePresence(
       user_id:    userIdRef.current,
       username:   usernameRef.current,
       avatar_url: avatarRef.current,
+      status:     statusRef.current,
       typing:     true,
     })
 
@@ -107,10 +125,24 @@ export function usePresence(
         user_id:    userIdRef.current,
         username:   usernameRef.current,
         avatar_url: avatarRef.current,
+        status:     statusRef.current,
         typing:     false,
       })
     }, 2500)
   }, [])
 
-  return { onlineUsers, typingUsernames, broadcastTyping }
+  const setStatus = useCallback((nextStatus: PresenceStatus) => {
+    statusRef.current = nextStatus
+    setStatusState(nextStatus)
+    window.localStorage.setItem('pepchat:presence-status', nextStatus)
+    roomRef.current?.track({
+      user_id:    userIdRef.current,
+      username:   usernameRef.current,
+      avatar_url: avatarRef.current,
+      status:     nextStatus,
+      typing:     false,
+    } satisfies PresencePayload)
+  }, [])
+
+  return { onlineUsers, typingUsernames, broadcastTyping, status, setStatus }
 }

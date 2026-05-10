@@ -36,6 +36,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
   const [showSettings,   setShowSettings]   = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [promptedFirstGroup, setPromptedFirstGroup] = useState(false)
 
   // On first load, auto-open the sidebar on mobile when no channel is selected
   // so users aren't stuck on the blank empty state with no navigation.
@@ -66,6 +67,13 @@ export default function AppShell({ profile, children }: AppShellProps) {
       setActiveGroupId(groups[0].id)
     }
   }, [groupsLoading, groups, activeGroupId, pathname])
+
+  useEffect(() => {
+    if (!groupsLoading && groups.length === 0 && !promptedFirstGroup) {
+      setPromptedFirstGroup(true)
+      setShowCreate(true)
+    }
+  }, [groupsLoading, groups.length, promptedFirstGroup])
 
   // Fetch current user's role in the active group (filter by user_id to avoid multi-row error)
   useEffect(() => {
