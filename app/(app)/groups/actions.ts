@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { logAuditEvent } from '@/lib/audit'
 import { redirect } from 'next/navigation'
 
 function generateInviteCode(): string {
@@ -208,6 +209,10 @@ export async function updateGroupDetails(
     .eq('owner_id', user.id)
 
   if (error) return { error: error.message }
+  await logAuditEvent(supabase, user.id, 'group_details_updated', 'group', groupId, {
+    name,
+    description: description || null,
+  })
   return { ok: true }
 }
 
@@ -251,6 +256,11 @@ export async function regenerateGroupInvite(
     .eq('owner_id', user.id)
 
   if (error) return { error: error.message }
+  await logAuditEvent(supabase, user.id, 'invite_regenerated', 'invite', invite.id, {
+    group_id: groupId,
+    max_uses: options.max_uses,
+    expires_at: options.expires_at,
+  })
   return { ok: true, invite_code, invite: invite as InviteRecord }
 }
 
@@ -304,6 +314,9 @@ export async function revokeGroupInvite(
     .eq('group_id', groupId)
 
   if (error) return { error: error.message }
+  await logAuditEvent(supabase, user.id, 'invite_revoked', 'invite', inviteId, {
+    group_id: groupId,
+  })
   return { ok: true }
 }
 
@@ -380,6 +393,9 @@ export async function uploadGroupIcon(
     .eq('id', groupId)
 
   if (updateError) return { error: updateError.message }
+  await logAuditEvent(supabase, user.id, 'group_icon_updated', 'group', groupId, {
+    icon_ext: iconBlob.ext,
+  })
   return { ok: true, icon_url }
 }
 
@@ -420,6 +436,7 @@ export async function removeGroupIcon(
     .eq('id', groupId)
 
   if (error) return { error: error.message }
+  await logAuditEvent(supabase, user.id, 'group_icon_removed', 'group', groupId)
   return { ok: true }
 }
 

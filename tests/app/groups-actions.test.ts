@@ -35,6 +35,12 @@ function makeInsertBuilder(result: QueryResult = {}) {
   return builder
 }
 
+function makeAuditBuilder() {
+  const builder: Record<string, unknown> = {}
+  builder.insert = vi.fn().mockResolvedValue({ error: null })
+  return builder
+}
+
 function makeSelectBuilder(result: QueryResult) {
   const builder: Record<string, unknown> = {}
   builder.select = vi.fn(() => builder)
@@ -189,7 +195,8 @@ describe('group actions — updateGroupDetails', () => {
   it('updates group name and description for admins', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
     const update = makeUpdateBuilder()
-    setupClient([membership, update])
+    const audit = makeAuditBuilder()
+    setupClient([membership, update, audit])
 
     await expect(updateGroupDetails('group-1', groupDetailsForm())).resolves.toEqual({ ok: true })
 
@@ -197,12 +204,19 @@ describe('group actions — updateGroupDetails', () => {
       name: 'Updated Group',
       description: 'Updated description',
     })
+    expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({
+      admin_id: 'user-1',
+      action: 'group_details_updated',
+      target_type: 'group',
+      target_id: 'group-1',
+    }))
   })
 
   it('clears blank descriptions', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
     const update = makeUpdateBuilder()
-    setupClient([membership, update])
+    const audit = makeAuditBuilder()
+    setupClient([membership, update, audit])
 
     await expect(updateGroupDetails('group-1', groupDetailsForm('Updated Group', '   '))).resolves.toEqual({ ok: true })
 
@@ -251,7 +265,8 @@ describe('group actions — regenerateGroupInvite', () => {
       },
     })
     const update = makeUpdateBuilder()
-    setupClient([membership, inviteInsert, update])
+    const audit = makeAuditBuilder()
+    setupClient([membership, inviteInsert, update, audit])
 
     const result = await regenerateGroupInvite('group-1')
 
@@ -267,16 +282,23 @@ describe('group actions — regenerateGroupInvite', () => {
     expect(update.update).toHaveBeenCalledWith({
       invite_code: expect.stringMatching(/^[a-f0-9]{12}$/),
     })
+    expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'invite_regenerated',
+      target_type: 'invite',
+      target_id: 'invite-1',
+      metadata: expect.objectContaining({ group_id: 'group-1' }),
+    }))
   })
 
   it('creates limited expiring invites for admins', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
     const inviteInsert = makeInsertSelectBuilder({ data: { id: 'invite-1', code: 'abc123abc123' } })
     const update = makeUpdateBuilder()
+    const audit = makeAuditBuilder()
     const formData = new FormData()
     formData.set('max_uses', '3')
     formData.set('expires_at', '2099-01-01T00:00')
-    setupClient([membership, inviteInsert, update])
+    setupClient([membership, inviteInsert, update, audit])
 
     await expect(regenerateGroupInvite('group-1', formData)).resolves.toMatchObject({ ok: true })
 
@@ -308,13 +330,20 @@ describe('group actions — invite management', () => {
   it('revokes invites for admins', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
     const update = makeUpdateBuilder()
-    setupClient([membership, update])
+    const audit = makeAuditBuilder()
+    setupClient([membership, update, audit])
 
     await expect(revokeGroupInvite('invite-1', 'group-1')).resolves.toEqual({ ok: true })
 
     expect(update.update).toHaveBeenCalledWith({
       revoked_at: expect.any(String),
     })
+    expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'invite_revoked',
+      target_type: 'invite',
+      target_id: 'invite-1',
+      metadata: { group_id: 'group-1' },
+    }))
   })
 })
 

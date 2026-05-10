@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { logAuditEvent } from '@/lib/audit'
 import type { Role } from '@/lib/permissions'
 
 /**
@@ -63,6 +64,11 @@ export async function assignRole(
     .eq('user_id', targetUserId)
 
   if (error) return { error: error.message }
+  await logAuditEvent(supabase, user.id, 'member_role_changed', 'user', targetUserId, {
+    group_id: groupId,
+    from_role: targetMembership.role,
+    to_role: newRole,
+  })
 
   return { ok: true }
 }
@@ -127,6 +133,11 @@ export async function kickMember(
     .eq('user_id', targetUserId)
 
   if (error) return { error: error.message }
+  await logAuditEvent(supabase, user.id, 'member_kicked', 'user', targetUserId, {
+    group_id: groupId,
+    actor_role: callerRole,
+    target_role: targetRole,
+  })
 
   return { ok: true }
 }
