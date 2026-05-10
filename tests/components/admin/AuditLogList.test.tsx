@@ -78,6 +78,28 @@ const ENTRIES: AuditEntry[] = [
     metadata: { target_username: 'locked_user' },
     created_at: '2026-04-18T12:00:00Z',
   },
+  {
+    id: 'a7',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'invite_regenerated',
+    target_type: 'invite',
+    target_id: 'invite-1',
+    metadata: { group_id: 'group-1', max_uses: 3, expires_at: '2026-05-20T00:00:00.000Z' },
+    created_at: '2026-04-18T11:00:00Z',
+  },
+  {
+    id: 'a8',
+    admin_id: 'u1',
+    admin_username: 'panicmonkey',
+    admin_avatar_url: null,
+    action: 'member_kicked',
+    target_type: 'user',
+    target_id: 'user-7',
+    metadata: { group_id: 'group-1', actor_role: 'moderator', target_role: 'noob' },
+    created_at: '2026-04-18T10:00:00Z',
+  },
 ]
 
 const defaultProps = {
@@ -180,6 +202,12 @@ describe('AuditLogList — rendering', () => {
     expect(screen.getByText(/sent a password reset email to locked_user/i)).toBeTruthy()
   })
 
+  it('shows human-readable invite and member moderation descriptions', () => {
+    render(<AuditLogList {...defaultProps} />)
+    expect(screen.getByText(/created an invite for group group-1, limited to 3 uses/i)).toBeTruthy()
+    expect(screen.getByText(/removed member user-7 from group group-1/i)).toBeTruthy()
+  })
+
   it('renders entries in reverse chronological order', () => {
     render(<AuditLogList {...defaultProps} />)
     const entries = document.querySelectorAll('.audit-entry')
@@ -231,6 +259,19 @@ describe('AuditLogList — filtering', () => {
     fireEvent.change(filter, { target: { value: 'reset_password' } })
     expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
     expect(screen.getByText(/password reset email to locked_user/i)).toBeTruthy()
+  })
+
+  it('filters entries by invite and member moderation action types', () => {
+    render(<AuditLogList {...defaultProps} />)
+    const filter = document.querySelector('[data-testid="audit-filter-action"]') as HTMLSelectElement
+
+    fireEvent.change(filter, { target: { value: 'invite_regenerated' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/created an invite for group group-1/i)).toBeTruthy()
+
+    fireEvent.change(filter, { target: { value: 'member_kicked' } })
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(1)
+    expect(screen.getByText(/removed member user-7 from group group-1/i)).toBeTruthy()
   })
 
   it('shows all entries when filter reset to "all"', () => {
@@ -293,7 +334,7 @@ describe('AuditLogList — filtering', () => {
 
     fireEvent.change(screen.getByTestId('audit-end-date'), { target: { value: '2026-04-18' } })
 
-    expect(document.querySelectorAll('.audit-entry')).toHaveLength(4)
+    expect(document.querySelectorAll('.audit-entry')).toHaveLength(6)
     expect(screen.queryByText(/changed cool42's role/i)).toBeNull()
     expect(screen.getByText(/password reset email to locked_user/i)).toBeTruthy()
   })
