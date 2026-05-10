@@ -29,12 +29,9 @@ export const PERMISSIONS = {
   canKickMembers: (role: Role) =>
     (['admin', 'moderator'] as Role[]).includes(role),
 
-  /**
-   * Can access a given channel.
-   * Noobs are restricted to the channel named exactly 'welcome'.
-   */
-  canAccessChannel: (role: Role, channelName: string) => {
-    if (role === 'noob') return channelName === 'welcome'
+  /** Can access a given channel. Noobs are restricted to explicitly allowed channels. */
+  canAccessChannel: (role: Role, channelName: string, noobAccess = false) => {
+    if (role === 'noob') return noobAccess || channelName === 'welcome'
     return true
   },
 

@@ -6,8 +6,9 @@ import { useMemo, useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import Avatar from '@/components/ui/Avatar'
 import MembersPanel from '@/components/sidebar/MembersPanel'
+import Modal from '@/components/ui/Modal'
 import { logout } from '@/app/(auth)/actions'
-import { deleteChannel, moveChannel } from '@/app/(app)/channels/actions'
+import { deleteChannel, moveChannel, updateChannelSettings } from '@/app/(app)/channels/actions'
 import { PERMISSIONS, type Role } from '@/lib/permissions'
 import type { Channel, Group, Profile } from '@/lib/types'
 
@@ -44,13 +45,15 @@ export default function ChannelsSidebar({
   const activeChannelId = params?.channelId as string | undefined
   const [channelSearch, setChannelSearch] = useState('')
   const [channelActionError, setChannelActionError] = useState('')
+  const [settingsChannel, setSettingsChannel] = useState<Channel | null>(null)
+  const [settingsError, setSettingsError] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const canManage    = userRole ? PERMISSIONS.canManageChannels(userRole) : false
   const canManageGrp = userRole ? PERMISSIONS.canManageGroup(userRole) : false
 
   const visibleChannels = userRole === 'noob'
-    ? channels.filter((c) => c.name === 'welcome')
+    ? channels.filter((c) => c.noob_access || c.name === 'welcome')
     : channels
   const normalizedChannelSearch = channelSearch.trim().toLowerCase()
   const filteredChannels = useMemo(() => {
@@ -77,6 +80,21 @@ export default function ChannelsSidebar({
     startTransition(async () => {
       const result = await moveChannel(channelId, direction)
       if (result && 'error' in result) setChannelActionError(result.error)
+    })
+  }
+
+  function handleSettingsSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!settingsChannel) return
+    setSettingsError('')
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      const result = await updateChannelSettings(settingsChannel.id, formData)
+      if ('error' in result) {
+        setSettingsError(result.error)
+        return
+      }
+      setSettingsChannel(null)
     })
   }
 
@@ -333,7 +351,7 @@ export default function ChannelsSidebar({
                   </Link>
 
                   {(onMarkChannelRead || onMarkChannelUnread || canManage) && (
-                    <div className="hidden group-hover/ch:flex items-center gap-0.5 pr-1 flex-shrink-0">
+                    <div className="flex md:hidden group-hover/ch:flex items-center gap-0.5 pr-1 flex-shrink-0">
                       {isUnread && onMarkChannelRead && (
                         <button
                           data-testid={`mark-read-${channel.id}`}
@@ -363,13 +381,28 @@ export default function ChannelsSidebar({
                       {canManage && (
                         <>
                       <button
+                        onClick={() => {
+                          setSettingsError('')
+                          setSettingsChannel(channel)
+                        }}
+                        disabled={isPending}
+                        aria-label={`Edit #${channel.name} settings`}
+                        className="p-1 md:p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors"
+                        title="Channel settings"
+                      >
+                        <svg className="w-3.5 h-3.5 md:w-3 md:h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.757.427 1.757 2.925 0 3.352a1.724 1.724 0 00-1.066 2.572c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.757-2.924 1.757-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.757-.427-1.757-2.925 0-3.352a1.724 1.724 0 001.066-2.572c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+                      <button
                         disabled={allIdx === 0 || isPending}
                         aria-label={`Move #${channel.name} up`}
                         onClick={() => handleMove(channel.id, 'up')}
-                        className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-default transition-colors"
+                        className="p-1 md:p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-default transition-colors"
                         title="Move up"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 md:w-3 md:h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                         </svg>
                       </button>
@@ -377,10 +410,10 @@ export default function ChannelsSidebar({
                         disabled={allIdx === channels.length - 1 || isPending}
                         aria-label={`Move #${channel.name} down`}
                         onClick={() => handleMove(channel.id, 'down')}
-                        className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-default transition-colors"
+                        className="p-1 md:p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-default transition-colors"
                         title="Move down"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 md:w-3 md:h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
@@ -388,10 +421,10 @@ export default function ChannelsSidebar({
                         onClick={() => handleDelete(channel.id)}
                         disabled={isPending}
                         aria-label={`Delete #${channel.name}`}
-                        className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+                        className="p-1 md:p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
                         title="Delete channel"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 md:w-3 md:h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
@@ -421,6 +454,102 @@ export default function ChannelsSidebar({
         {/* DM section — always visible below channel list */}
         <DMSection currentUserId={profile.id} />
       </div>
+
+      <Modal
+        open={Boolean(settingsChannel)}
+        onClose={() => {
+          if (isPending) return
+          setSettingsError('')
+          setSettingsChannel(null)
+        }}
+        title={settingsChannel ? `#${settingsChannel.name} Settings` : 'Channel Settings'}
+      >
+        {settingsChannel && (
+          <form onSubmit={handleSettingsSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="channel-settings-name"
+                className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
+              >
+                Channel Name
+              </label>
+              <div className="flex items-center rounded border border-black/20 bg-[var(--bg-primary)] focus-within:ring-2 focus-within:ring-[var(--accent)]">
+                <span className="pl-3 text-base text-[var(--text-muted)] select-none">#</span>
+                <input
+                  id="channel-settings-name"
+                  name="name"
+                  type="text"
+                  required
+                  maxLength={80}
+                  defaultValue={settingsChannel.name}
+                  className="flex-1 bg-transparent px-2 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="channel-settings-topic"
+                className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
+              >
+                Topic
+              </label>
+              <textarea
+                id="channel-settings-topic"
+                name="description"
+                rows={3}
+                maxLength={180}
+                defaultValue={settingsChannel.description ?? ''}
+                className="resize-none rounded border border-black/20 bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                placeholder="What belongs in this channel?"
+              />
+            </div>
+
+            <label className="flex items-start gap-3 rounded border border-black/20 bg-[var(--bg-primary)] p-3 text-sm text-[var(--text-primary)]">
+              <input
+                type="checkbox"
+                name="noob_access"
+                defaultChecked={Boolean(settingsChannel.noob_access || settingsChannel.name === 'welcome')}
+                className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+              />
+              <span>
+                <span className="block font-semibold">Visible to new members</span>
+                <span className="block text-xs text-[var(--text-muted)]">
+                  Noob members can read and post in this channel before promotion.
+                </span>
+              </span>
+            </label>
+
+            {settingsError && (
+              <p className="rounded border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-3 py-2 text-sm text-[var(--danger)]">
+                {settingsError}
+              </p>
+            )}
+
+            <div className="mt-1 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isPending) return
+                  setSettingsError('')
+                  setSettingsChannel(null)
+                }}
+                disabled={isPending}
+                className="rounded px-4 py-2 text-sm font-semibold text-[var(--text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--text-primary)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* User footer */}
       <div

@@ -2,14 +2,22 @@
 
 import { useState } from 'react'
 import Avatar from '@/components/ui/Avatar'
-import type { OnlineUser } from '@/lib/hooks/usePresence'
+import type { OnlineUser, PresenceStatus } from '@/lib/hooks/usePresence'
 
 interface PresencePanelProps {
   onlineUsers: OnlineUser[]
+  currentStatus?: PresenceStatus
+  onStatusChange?: (status: PresenceStatus) => void
+}
+
+const STATUS_LABELS: Record<PresenceStatus, string> = {
+  online: 'Online',
+  away: 'Away',
+  dnd: 'Do not disturb',
 }
 
 /** Collapsible right-side panel showing who is currently online in the channel. */
-export default function PresencePanel({ onlineUsers }: PresencePanelProps) {
+export default function PresencePanel({ onlineUsers, currentStatus = 'online', onStatusChange }: PresencePanelProps) {
   const [collapsed, setCollapsed] = useState(false)
 
   if (collapsed) {
@@ -55,6 +63,28 @@ export default function PresencePanel({ onlineUsers }: PresencePanelProps) {
         </button>
       </div>
 
+      {onStatusChange && (
+        <div className="border-b border-black/20 px-3 py-3">
+          <label
+            htmlFor="presence-status"
+            className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
+          >
+            Your Status
+          </label>
+          <select
+            id="presence-status"
+            data-testid="presence-status-select"
+            value={currentStatus}
+            onChange={(e) => onStatusChange(e.target.value as PresenceStatus)}
+            className="w-full rounded border border-black/20 bg-[var(--bg-primary)] px-2 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          >
+            {(Object.keys(STATUS_LABELS) as PresenceStatus[]).map((status) => (
+              <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Member list */}
       <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
         {onlineUsers.map((user) => (
@@ -62,8 +92,11 @@ export default function PresencePanel({ onlineUsers }: PresencePanelProps) {
             key={user.user_id}
             className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 transition-colors"
           >
-            <Avatar user={{ avatar_url: user.avatar_url, username: user.username }} size={28} showStatus status="online" />
-            <span className="text-sm truncate">{user.username}</span>
+            <Avatar user={{ avatar_url: user.avatar_url, username: user.username }} size={28} showStatus status={user.status === 'dnd' ? 'dnd' : user.status === 'away' ? 'away' : 'online'} />
+            <div className="min-w-0">
+              <span className="block text-sm truncate">{user.username}</span>
+              <span className="block text-[10px] text-[var(--text-muted)]">{STATUS_LABELS[user.status ?? 'online']}</span>
+            </div>
           </div>
         ))}
         {onlineUsers.length === 0 && (

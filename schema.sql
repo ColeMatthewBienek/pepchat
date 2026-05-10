@@ -74,6 +74,7 @@ create table if not exists public.channels (
   group_id    uuid references public.groups(id) on delete cascade not null,
   name        text not null,
   description text,
+  noob_access boolean not null default false,
   position    int not null default 0,
   created_at  timestamptz default now() not null
 );
@@ -349,13 +350,14 @@ create policy "Users can leave groups"
 -- 7. POLICIES — channels
 -- ────────────────────────────────────────────────────────────
 
--- noobs only see the 'welcome' channel; all other roles see everything
+-- noobs only see explicitly allowed channels; all other roles see everything
 create policy "Members can view channels in their groups"
   on public.channels for select to authenticated
   using (
     group_id = any(select public.get_user_group_ids())
     and (
       public.get_user_role_in_group(group_id) != 'noob'
+      or noob_access = true
       or name = 'welcome'
     )
   );
@@ -384,6 +386,7 @@ create policy "Members can read messages in their channels"
       where group_id = any(select public.get_user_group_ids())
       and (
         public.get_user_role_in_group(group_id) <> 'noob'
+        or noob_access = true
         or name = 'welcome'
       )
     )
@@ -398,6 +401,7 @@ create policy "Members can insert messages as themselves"
       where group_id = any(select public.get_user_group_ids())
       and (
         public.get_user_role_in_group(group_id) <> 'noob'
+        or noob_access = true
         or name = 'welcome'
       )
     )
@@ -425,12 +429,13 @@ create policy "Members can view reactions in their channels"
       where c.group_id = any(select public.get_user_group_ids())
       and (
         public.get_user_role_in_group(c.group_id) <> 'noob'
+        or c.noob_access = true
         or c.name = 'welcome'
       )
     )
   );
 
--- Users can add reactions as themselves (noob: welcome channel only)
+-- Users can add reactions as themselves (noob: visible channels only)
 create policy "Members can insert reactions as themselves"
   on public.message_reactions for insert to authenticated
   with check (
@@ -441,6 +446,7 @@ create policy "Members can insert reactions as themselves"
       where c.group_id = any(select public.get_user_group_ids())
       and (
         public.get_user_role_in_group(c.group_id) <> 'noob'
+        or c.noob_access = true
         or c.name = 'welcome'
       )
     )

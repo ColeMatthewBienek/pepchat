@@ -65,6 +65,7 @@ export interface Channel {
   group_id: string
   name: string
   description: string | null
+  noob_access?: boolean
   position: number
   created_at: string
 }

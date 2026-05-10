@@ -46,6 +46,12 @@ function inviteIsUsable(invite: Pick<InviteRecord, 'revoked_at' | 'expires_at' |
   return true
 }
 
+function normalizeInviteCode(value: string) {
+  const trimmed = value.trim()
+  const match = trimmed.match(/\/join\/([^/?#]+)/)
+  return decodeURIComponent(match?.[1] ?? trimmed).trim()
+}
+
 async function getAdminMembership(supabase: Awaited<ReturnType<typeof createClient>>, groupId: string, userId: string) {
   const { data: membership } = await supabase
     .from('group_members')
@@ -90,7 +96,7 @@ export async function createGroup(
 
   // Seed #welcome (position 0) and #general (position 1)
   const { error: channelError } = await supabase.from('channels').insert([
-    { group_id: group.id, name: 'welcome', position: 0 },
+    { group_id: group.id, name: 'welcome', description: 'Start here for intros and first steps.', noob_access: true, position: 0 },
     { group_id: group.id, name: 'general', position: 1 },
   ])
   if (channelError) return { error: channelError.message }
@@ -116,7 +122,7 @@ export async function joinGroup(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { redirectTo: '/login' }
 
-  const inviteCode = (formData.get('invite_code') as string).trim()
+  const inviteCode = normalizeInviteCode(formData.get('invite_code') as string)
   if (!inviteCode) return { error: 'Invite code is required.' }
 
   const { data: invite } = await supabase

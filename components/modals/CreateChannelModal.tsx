@@ -39,7 +39,7 @@ export default function CreateChannelModal({
   return (
     <Modal open={open} onClose={handleClose} title="Create Channel">
       <p className="text-sm text-[var(--text-muted)] mb-4">
-        Channel names are lowercase with no spaces.
+        Channel names are lowercase with no spaces. Add a topic when the channel has a clear purpose.
       </p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -63,6 +63,37 @@ export default function CreateChannelModal({
             />
           </div>
         </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="ch-description"
+            className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
+          >
+            Topic
+          </label>
+          <textarea
+            id="ch-description"
+            name="description"
+            maxLength={180}
+            rows={3}
+            className="resize-none bg-[var(--bg-primary)] border border-black/20 rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            placeholder="What belongs in this channel?"
+          />
+        </div>
+
+        <label className="flex items-start gap-3 rounded border border-black/20 bg-[var(--bg-primary)] p-3 text-sm text-[var(--text-primary)]">
+          <input
+            type="checkbox"
+            name="noob_access"
+            className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="block font-semibold">Visible to new members</span>
+            <span className="block text-xs text-[var(--text-muted)]">
+              Noob members can open this channel before being promoted.
+            </span>
+          </span>
+        </label>
 
         {error && (
           <p className="text-[var(--danger)] text-sm bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded px-3 py-2">
