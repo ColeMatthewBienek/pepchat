@@ -17,6 +17,13 @@ const ACTION_LABELS: Record<string, string> = {
   reset_password:     'Password Reset',
   report_reviewed:    'Report Reviewed',
   report_dismissed:   'Report Dismissed',
+  group_details_updated: 'Group Details Updated',
+  group_icon_updated:    'Group Icon Updated',
+  group_icon_removed:    'Group Icon Removed',
+  invite_regenerated:    'Invite Created',
+  invite_revoked:        'Invite Revoked',
+  member_role_changed:   'Member Role Changed',
+  member_kicked:         'Member Kicked',
   transfer_ownership: 'Transfer Ownership',
 }
 
@@ -39,6 +46,20 @@ function describeEntry(entry: AuditEntry): string {
       return `reviewed report ${m.report_id ?? entry.target_id}${m.reporter_username ? ` from @${m.reporter_username}` : ''}${m.message_preview ? `: "${m.message_preview}"` : ''}`
     case 'report_dismissed':
       return `dismissed report ${m.report_id ?? entry.target_id}${m.reporter_username ? ` from @${m.reporter_username}` : ''}${m.reason ? ` (${m.reason})` : ''}`
+    case 'group_details_updated':
+      return `updated group details${m.name ? ` for "${m.name}"` : ''}`
+    case 'group_icon_updated':
+      return `updated a group icon${m.icon_ext ? ` (${m.icon_ext})` : ''}`
+    case 'group_icon_removed':
+      return 'removed a group icon'
+    case 'invite_regenerated':
+      return `created an invite${m.group_id ? ` for group ${m.group_id}` : ''}${m.max_uses ? `, limited to ${m.max_uses} uses` : ''}${m.expires_at ? `, expiring ${new Date(String(m.expires_at)).toLocaleDateString()}` : ''}`
+    case 'invite_revoked':
+      return `revoked invite ${entry.target_id}${m.group_id ? ` for group ${m.group_id}` : ''}`
+    case 'member_role_changed':
+      return `changed member ${entry.target_id} from ${m.from_role} → ${m.to_role}${m.group_id ? ` in group ${m.group_id}` : ''}`
+    case 'member_kicked':
+      return `removed member ${entry.target_id}${m.group_id ? ` from group ${m.group_id}` : ''}`
     case 'transfer_ownership':
       return `transferred ownership of "${m.group_name}" from ${m.from_user} to ${m.to_user}`
     default:
