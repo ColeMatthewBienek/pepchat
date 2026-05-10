@@ -138,6 +138,10 @@ const BASE_PROPS = {
   onReply: vi.fn(),
 }
 
+function expandMessageSearch() {
+  fireEvent.click(screen.getByTestId('message-search-expand'))
+}
+
 describe('MessageList — submitEdit', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -417,6 +421,7 @@ describe('MessageList — message search', () => {
 
   it('shows the number of loaded message matches', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG, SYS_MSG]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'peppers' } })
 
@@ -425,6 +430,7 @@ describe('MessageList — message search', () => {
 
   it('searches loaded messages by author', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'carol' } })
 
@@ -446,6 +452,7 @@ describe('MessageList — message search', () => {
       ],
     }
     render(<MessageList {...BASE_PROPS} messages={[MSG, attachmentMsg]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'launch-map' } })
 
@@ -466,6 +473,7 @@ describe('MessageList — message search', () => {
       },
     }
     render(<MessageList {...BASE_PROPS} messages={[OTHER_MSG, replyToSearchMsg]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'orbit window' } })
 
@@ -478,16 +486,23 @@ describe('MessageList — message search', () => {
 
   it('focuses loaded message search with slash when focus is not in an editable field', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
-    const input = screen.getByTestId('message-search-input')
 
     fireEvent.keyDown(document, { key: '/' })
 
-    expect(input).toHaveFocus()
+    expect(screen.getByTestId('message-search-input')).toHaveFocus()
+  })
+
+  it('collapses the message search controls by default', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
+
+    expect(screen.getByTestId('message-search-expand')).toBeInTheDocument()
+    expect(screen.queryByTestId('message-search-input')).not.toBeInTheDocument()
   })
 
   it('jumps to the first matching message when next is clicked', () => {
     const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
     render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'needs' } })
     fireEvent.click(screen.getByTestId('message-search-next'))
@@ -503,6 +518,7 @@ describe('MessageList — message search', () => {
       content: 'Pepper status follow-up',
     }
     render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG, secondPepperMsg]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'pepper' } })
 
@@ -525,6 +541,7 @@ describe('MessageList — message search', () => {
       content: 'Pepper status follow-up',
     }
     render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG, secondPepperMsg]} />)
+    expandMessageSearch()
     const input = screen.getByTestId('message-search-input')
 
     fireEvent.change(input, { target: { value: 'pepper' } })
@@ -543,6 +560,7 @@ describe('MessageList — message search', () => {
 
   it('disables search navigation when there are no matches', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'missing' } })
 
@@ -552,6 +570,7 @@ describe('MessageList — message search', () => {
 
   it('clears the loaded message search query', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'peppers' } })
 
@@ -566,6 +585,7 @@ describe('MessageList — message search', () => {
 
   it('clears the loaded message search query with Escape', () => {
     render(<MessageList {...BASE_PROPS} messages={[MSG, SEARCH_MSG]} />)
+    expandMessageSearch()
     const input = screen.getByTestId('message-search-input')
 
     fireEvent.change(input, { target: { value: 'peppers' } })
@@ -829,6 +849,7 @@ describe('MessageList — group search', () => {
         searchAction={searchAction}
       />
     )
+    expandMessageSearch()
 
     fireEvent.change(screen.getByTestId('message-search-scope'), { target: { value: 'group' } })
     fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'launch' } })

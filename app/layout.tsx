@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 
-const inter = Inter({
-  subsets: ['latin'],
+const appFont = localFont({
+  src: [
+    {
+      path: './fonts/GeistVF.woff',
+      weight: '100 900',
+      style: 'normal',
+    },
+  ],
   variable: '--font-inter',
   display: 'swap',
 })
@@ -28,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={appFont.variable}>
       <body className="antialiased">
         {children}
       </body>
