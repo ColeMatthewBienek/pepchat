@@ -20,6 +20,7 @@ import type { Role } from '@/lib/permissions'
 
 interface ChannelShellProps {
   channelId: string
+  groupId?: string
   channelName: string
   channelTopic?: string | null
   initialMessages: MessageWithProfile[]
@@ -36,6 +37,7 @@ interface ChannelShellProps {
  */
 export default function ChannelShell({
   channelId,
+  groupId,
   channelName,
   channelTopic,
   initialMessages,
@@ -179,9 +181,16 @@ export default function ChannelShell({
           highlightedMessageId={highlightedMessageId}
           initialLastReadAt={initialLastReadAt}
         />
+        {(channelName === 'welcome' || channelName === 'general') && userRole && ['admin', 'moderator'].includes(userRole) && (
+          <div className="mx-4 mb-2 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2 text-xs text-[var(--text-muted)]">
+            <span className="font-semibold text-[var(--text-primary)]">Setup checklist:</span>{' '}
+            set a clear channel topic, create a limited invite, welcome new members in #welcome, and review reports from Admin.
+          </div>
+        )}
         <TypingIndicator typingUsernames={typingUsernames} />
         <MessageInput
           channelId={channelId}
+          groupId={groupId}
           channelName={channelName}
           profile={profile}
           draftStorageKey={`pepchat:draft:channel:${channelId}`}

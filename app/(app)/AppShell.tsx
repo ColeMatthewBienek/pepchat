@@ -182,6 +182,15 @@ export default function AppShell({ profile, children }: AppShellProps) {
           <InstallBanner />
           <NotificationTray />
           {children}
+          <nav className="mobile-bottom-nav" aria-label="Mobile app navigation">
+            <button type="button" onClick={() => setMobileSidebarOpen(true)}>
+              Channels
+            </button>
+            <button type="button" onClick={() => setMobileSidebarOpen(true)}>
+              DMs
+            </button>
+            {userRole === 'admin' ? <a href="/admin/reports">Reports</a> : <a href="/settings/profile">Profile</a>}
+          </nav>
         </main>
       </div>
 

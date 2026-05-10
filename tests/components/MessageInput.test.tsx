@@ -28,6 +28,23 @@ vi.mock('@/lib/hooks/useImageUpload', () => ({
   }),
 }))
 
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          limit: () => Promise.resolve({
+            data: [
+              { profiles: { id: 'user-b', username: 'bob', display_name: 'Bob' } },
+              { profiles: { id: 'user-c', username: 'carol', display_name: 'Carol' } },
+            ],
+          }),
+        }),
+      }),
+    }),
+  }),
+}))
+
 const BASE_PROPS = {
   channelId: 'channel-1',
   channelName: 'general',
@@ -137,5 +154,16 @@ describe('MessageInput draft persistence', () => {
     fireEvent.change(textarea, { target: { value: 'hell' } })
 
     expect(onTyping).toHaveBeenCalledTimes(2)
+  })
+
+  it('suggests group members while typing a mention', async () => {
+    render(<MessageInput {...BASE_PROPS} groupId="group-1" />)
+
+    fireEvent.change(screen.getByTestId('message-input-textarea'), {
+      target: { value: 'hello @b' },
+    })
+
+    expect(await screen.findByTestId('mention-suggestions')).toBeInTheDocument()
+    expect(screen.getByText('@bob')).toBeInTheDocument()
   })
 })

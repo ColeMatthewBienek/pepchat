@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { sendMessage } from '@/app/(app)/messages/actions'
+import { createClient } from '@/lib/supabase/client'
 import { useImageUpload } from '@/lib/hooks/useImageUpload'
 import type { MessageWithProfile, Profile, GifAttachment, Attachment } from '@/lib/types'
 import { registerShare } from '@/lib/klipy'
@@ -15,6 +16,7 @@ const TYPING_BROADCAST_INTERVAL_MS = 1500
 
 interface MessageInputProps {
   channelId: string
+  groupId?: string
   channelName: string
   profile: Profile
   replyingTo?: MessageWithProfile | null
@@ -29,6 +31,7 @@ interface MessageInputProps {
 
 export default function MessageInput({
   channelId,
+  groupId,
   channelName,
   profile,
   replyingTo,
@@ -45,6 +48,8 @@ export default function MessageInput({
   const [isPending, startTransition] = useTransition()
   const [isDragging, setIsDragging] = useState(false)
   const [gifPickerOpen, setGifPickerOpen] = useState(false)
+  const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; username: string; display_name: string | null }>>([])
+  const [mentionIndex, setMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const gifPickerRef = useRef<HTMLDivElement>(null)
@@ -59,6 +64,27 @@ export default function MessageInput({
     skipNextDraftWriteRef.current = true
     setContent(readDraft(draftStorageKey))
   }, [draftStorageKey])
+
+  useEffect(() => {
+    if (!groupId) return
+    let ignore = false
+    const supabase = createClient()
+    supabase
+      .from('group_members')
+      .select('user_id, profiles(id, username, display_name)')
+      .eq('group_id', groupId)
+      .limit(50)
+      .then(({ data }) => {
+        if (ignore) return
+        const users = ((data ?? []) as any[])
+          .map(row => row.profiles)
+          .filter(Boolean)
+          .filter((user) => user.id !== profile.id)
+          .sort((a, b) => a.username.localeCompare(b.username))
+        setMentionUsers(users)
+      })
+    return () => { ignore = true }
+  }, [groupId, profile.id])
 
   useEffect(() => {
     if (skipNextDraftWriteRef.current) {
@@ -168,6 +194,7 @@ export default function MessageInput({
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value)
+    setMentionIndex(0)
     setError('')
     autoResize()
     const now = Date.now()
@@ -187,6 +214,23 @@ export default function MessageInput({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (activeMentionSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex(index => (index + 1) % activeMentionSuggestions.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex(index => (index - 1 + activeMentionSuggestions.length) % activeMentionSuggestions.length)
+        return
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        applyMention(activeMentionSuggestions[mentionIndex] ?? activeMentionSuggestions[0])
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
@@ -227,6 +271,25 @@ export default function MessageInput({
   const inputPlaceholder = replyingTo
     ? `Reply to @${replyingTo.profiles?.username}…`
     : (placeholder ?? `Message #${channelName}`)
+  const activeMention = findActiveMention(content)
+  const activeMentionSuggestions = activeMention
+    ? mentionUsers
+        .filter(user => user.username.toLowerCase().startsWith(activeMention.query.toLowerCase()))
+        .slice(0, 5)
+    : []
+
+  function applyMention(user: { username: string }) {
+    if (!activeMention) return
+    const nextContent = `${content.slice(0, activeMention.start)}@${user.username} ${content.slice(activeMention.end)}`
+    setContent(nextContent)
+    setMentionIndex(0)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      const cursor = activeMention.start + user.username.length + 2
+      textareaRef.current?.setSelectionRange(cursor, cursor)
+      autoResize()
+    })
+  }
 
   return (
     <div
@@ -293,6 +356,29 @@ export default function MessageInput({
       >
         {/* Textarea row */}
         <div className="flex items-end gap-2 px-3 py-2.5 relative">
+          {activeMentionSuggestions.length > 0 && (
+            <div
+              className="absolute bottom-full left-10 mb-2 max-h-48 w-64 overflow-y-auto rounded-lg border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1 shadow-xl"
+              data-testid="mention-suggestions"
+            >
+              {activeMentionSuggestions.map((user, index) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    applyMention(user)
+                  }}
+                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm ${
+                    index === mentionIndex ? 'bg-[var(--accent-soft)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span>@{user.username}</span>
+                  {user.display_name && <span className="truncate pl-2 text-xs opacity-70">{user.display_name}</span>}
+                </button>
+              ))}
+            </div>
+          )}
           {/* Paperclip / attach button */}
           <button
             type="button"
@@ -452,6 +538,15 @@ export default function MessageInput({
       </div>
     </div>
   )
+}
+
+function findActiveMention(content: string): { start: number; end: number; query: string } | null {
+  const beforeCursor = content
+  const match = beforeCursor.match(/(^|\s)@([a-zA-Z0-9_]{0,32})$/)
+  if (!match || match.index === undefined) return null
+  const prefixLength = match[1].length
+  const start = match.index + prefixLength
+  return { start, end: beforeCursor.length, query: match[2] }
 }
 
 function readDraft(key: string): string {

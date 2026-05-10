@@ -9,7 +9,7 @@ import type { Group } from '@/lib/types'
 
 const AvatarCropModal = dynamic(() => import('@/components/profile/AvatarCropModal'), { ssr: false })
 
-type NavItem = 'overview' | 'invite' | 'danger'
+type NavItem = 'overview' | 'invite' | 'moderation' | 'danger'
 
 type ManagedInvite = {
   id: string
@@ -224,6 +224,7 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
   const navItems: { id: NavItem; label: string; testId: string }[] = [
     { id: 'overview', label: 'Overview',   testId: 'nav-overview' },
     { id: 'invite',   label: 'Invite Link', testId: 'nav-invite' },
+    { id: 'moderation', label: 'Moderation', testId: 'nav-moderation' },
     { id: 'danger',   label: 'Danger Zone', testId: 'nav-danger' },
   ]
 
@@ -473,6 +474,42 @@ export default function GroupSettingsModal({ open, onClose, group, isOwner, onIc
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {nav === 'moderation' && (
+              <div className="flex flex-col gap-3" data-testid="moderation-pane">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  Admin Visibility
+                </p>
+                <div className="rounded-lg border border-white/10 bg-[var(--bg-primary)] p-3">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Reports and audit history</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+                    Use the admin dashboard to review reported messages, check moderation actions, and recover context before deleting content.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      href="/admin/reports"
+                      className="rounded bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--accent-hover)]"
+                    >
+                      Open reports
+                    </a>
+                    <a
+                      href="/admin/audit"
+                      className="rounded border border-white/10 px-3 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-white/10"
+                    >
+                      View audit log
+                    </a>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-[var(--bg-primary)] p-3">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Recommended cadence</p>
+                  <ul className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
+                    <li>Review pending reports before promoting new members.</li>
+                    <li>Keep #welcome open to noobs and move detailed discussion into regular channels.</li>
+                    <li>Use limited invites when sharing outside trusted circles.</li>
+                  </ul>
+                </div>
               </div>
             )}
 

@@ -52,8 +52,22 @@ const PURIFY_CONFIG = {
 
 export function renderMarkdown(content: string): string {
   const raw = marked.parse(content) as string
-  if (typeof window === 'undefined') return raw
+  const withMentions = highlightMentions(raw)
+  if (typeof window === 'undefined') return withMentions
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const DOMPurify = require('dompurify')
-  return DOMPurify.sanitize(raw, PURIFY_CONFIG)
+  return DOMPurify.sanitize(withMentions, PURIFY_CONFIG)
+}
+
+function highlightMentions(html: string): string {
+  return html
+    .split(/(<[^>]+>)/g)
+    .map(part => {
+      if (part.startsWith('<')) return part
+      return part.replace(
+        /(^|[^\w])@([a-zA-Z0-9_]{1,32})\b/g,
+        '$1<span class="mention-token">@$2</span>'
+      )
+    })
+    .join('')
 }

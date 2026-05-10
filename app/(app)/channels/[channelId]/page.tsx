@@ -62,6 +62,7 @@ export default async function ChannelPage({
     <div className="flex flex-col h-full min-h-0">
       <ChannelShell
         channelId={params.channelId}
+        groupId={channel.group_id}
         channelName={channel.name}
         channelTopic={channel.description}
         initialMessages={initialMessages}

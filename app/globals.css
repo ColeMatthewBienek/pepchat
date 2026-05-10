@@ -293,6 +293,48 @@ a, button, [role="button"], .channel-row, .dm-entry {
 .message-row {
   -webkit-touch-callout: none;
 }
+
+.mention-token {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-primary);
+  }
+
+  .mobile-bottom-nav button,
+  .mobile-bottom-nav a {
+    min-height: 40px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-soft);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+  }
+}
 /* Admin dashboard nav — desktop sidebar */
 .admin-nav {
   width: 220px;
