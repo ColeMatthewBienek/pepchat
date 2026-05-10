@@ -19,7 +19,16 @@ export interface GifAttachment {
   source: 'klipy'
 }
 
-export type Attachment = ImageAttachment | GifAttachment
+export interface VideoAttachment {
+  url: string
+  type: 'video'
+  name: string
+  size: number
+  duration: number
+  mime_type: string
+}
+
+export type Attachment = ImageAttachment | GifAttachment | VideoAttachment
 
 export interface Profile {
   id: string
@@ -257,7 +266,9 @@ export interface AdminReport {
   channel_name: string | null
   reported_by: string
   reporter_username: string
+  category?: string | null
   reason: string | null
+  moderation_note?: string | null
   status: 'pending' | 'reviewed' | 'dismissed'
   created_at: string
 }

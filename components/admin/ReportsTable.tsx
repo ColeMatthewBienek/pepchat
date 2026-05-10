@@ -8,8 +8,8 @@ import type { AdminReport } from '@/lib/types'
 
 interface ReportsTableProps {
   reports: AdminReport[]
-  onMarkReviewed?: (reportId: string) => Promise<void>
-  onDismiss?: (reportId: string) => Promise<void>
+  onMarkReviewed?: (reportId: string, moderationNote?: string) => Promise<void>
+  onDismiss?: (reportId: string, moderationNote?: string) => Promise<void>
   onDeleteMessage?: (messageId: string) => Promise<void>
 }
 
@@ -24,6 +24,7 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
   const [statusFilter, setStatusFilter] = useState<'all' | AdminReport['status']>('all')
   const [search, setSearch] = useState('')
   const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [moderationNotes, setModerationNotes] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -36,6 +37,8 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
       report.reporter_username.toLowerCase().includes(q) ||
       (report.message_author_username ?? '').toLowerCase().includes(q) ||
       (report.channel_name ?? '').toLowerCase().includes(q) ||
+      (report.category ?? '').toLowerCase().includes(q) ||
+      (report.moderation_note ?? '').toLowerCase().includes(q) ||
       (report.reason ?? '').toLowerCase().includes(q)
     )
   })
@@ -54,9 +57,11 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
     setNotice(null)
     try {
       if (onMarkReviewed) {
-        await onMarkReviewed(reportId)
+        const note = moderationNotes[reportId]?.trim()
+        if (note) await onMarkReviewed(reportId, note)
+        else await onMarkReviewed(reportId)
       } else {
-        const result = await markReportReviewed(reportId)
+        const result = await markReportReviewed(reportId, moderationNotes[reportId]?.trim() || undefined)
         if ('error' in result) throw new Error(result.error)
         router.refresh()
       }
@@ -74,9 +79,11 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
     setNotice(null)
     try {
       if (onDismiss) {
-        await onDismiss(reportId)
+        const note = moderationNotes[reportId]?.trim()
+        if (note) await onDismiss(reportId, note)
+        else await onDismiss(reportId)
       } else {
-        const result = await dismissReport(reportId)
+        const result = await dismissReport(reportId, moderationNotes[reportId]?.trim() || undefined)
         if ('error' in result) throw new Error(result.error)
         router.refresh()
       }
@@ -269,7 +276,17 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
                 @{report.reporter_username}
               </td>
               <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>
-                {report.reason ?? '—'}
+                <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {report.category ?? 'Uncategorized'}
+                </span>
+                <span style={{ display: 'block', marginTop: 3 }}>
+                  {report.reason ?? '—'}
+                </span>
+                {report.moderation_note && (
+                  <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--text-faint)' }}>
+                    Note: {report.moderation_note}
+                  </span>
+                )}
               </td>
               <td style={{ padding: '10px 12px' }}>
                 <span
@@ -285,6 +302,22 @@ export default function ReportsTable({ reports, onMarkReviewed, onDismiss, onDel
               <td style={{ padding: '10px 12px' }}>
                 {canAct ? (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <input
+                      aria-label={`Moderation note for ${reportLabel}`}
+                      placeholder="Note"
+                      value={moderationNotes[report.id] ?? ''}
+                      onChange={e => setModerationNotes(notes => ({ ...notes, [report.id]: e.target.value }))}
+                      style={{
+                        width: 100,
+                        padding: '4px 7px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-soft)',
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12,
+                        outline: 'none',
+                      }}
+                    />
                     <button
                       title="mark reviewed"
                       disabled={pendingAction !== null}

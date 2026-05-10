@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import type { Attachment, ImageAttachment, GifAttachment } from '@/lib/types'
+import type { Attachment, ImageAttachment, GifAttachment, VideoAttachment } from '@/lib/types'
 
 const Lightbox = dynamic(() => import('./Lightbox'), { ssr: false })
 
@@ -17,8 +17,9 @@ export default function MessageAttachments({ attachments }: MessageAttachmentsPr
 
   const images = (attachments ?? []).filter((a): a is ImageAttachment => a.type === 'image')
   const gifs = (attachments ?? []).filter((a): a is GifAttachment => a.type === 'gif')
+  const videos = (attachments ?? []).filter((a): a is VideoAttachment => a.type === 'video')
 
-  if (images.length === 0 && gifs.length === 0) return null
+  if (images.length === 0 && gifs.length === 0 && videos.length === 0) return null
 
   return (
     <div className="mt-1.5">
@@ -133,6 +134,21 @@ export default function MessageAttachments({ attachments }: MessageAttachmentsPr
           onClose={() => setGifLightboxIndex(null)}
         />
       )}
+
+      {videos.map((video, i) => (
+        <div key={i} className={images.length > 0 || gifs.length > 0 ? 'mt-2' : ''}>
+          <video
+            src={video.url}
+            controls
+            preload="metadata"
+            className="block rounded-lg border border-white/10 bg-black"
+            style={{ maxWidth: 420, width: '100%', maxHeight: 320 }}
+          />
+          <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
+            {video.name} · {Math.round(video.duration)}s
+          </p>
+        </div>
+      ))}
     </div>
   )
 }

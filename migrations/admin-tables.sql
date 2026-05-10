@@ -27,7 +27,9 @@ create table if not exists reports (
   id           uuid primary key default gen_random_uuid(),
   message_id   uuid references messages(id) on delete cascade,
   reported_by  uuid references profiles(id),
+  category     text,
   reason       text,
+  moderation_note text,
   status       text default 'pending',
   created_at   timestamptz default now()
 );

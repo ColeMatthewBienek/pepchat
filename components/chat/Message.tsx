@@ -40,6 +40,8 @@ export interface MessageProps {
   onOpenActions?: (msg: MessageWithProfile) => void
   onOpenContextMenu?: (msg: MessageWithProfile, x: number, y: number) => void
   onPin?: (msgId: string) => void
+  isSaved?: boolean
+  onToggleSaved?: (msg: MessageWithProfile) => void
   allowReactions?: boolean
   allowReplies?: boolean
   isPending?: boolean
@@ -71,6 +73,8 @@ export default function Message({
   onOpenActions,
   onOpenContextMenu,
   onPin,
+  isSaved = false,
+  onToggleSaved,
   allowReactions = true,
   allowReplies = true,
   isPending = false,
@@ -303,6 +307,8 @@ export default function Message({
           onStartEdit={onStartEdit}
           onDelete={onDelete}
           onPin={onPin}
+          isSaved={isSaved}
+          onToggleSaved={onToggleSaved}
         />
       )}
     </div>
