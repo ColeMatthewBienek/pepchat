@@ -33,6 +33,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
     messages,
     hasMore,
     loadingMore,
+    initialMessagesLoaded,
     loadMore,
     addMessage,
     removeMessage,
@@ -177,6 +178,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
   }
 
   const isOtherUserOnline = onlineUsers.some(user => user.user_id === otherUser.id)
+  const messagesReadyForHashFallback = !loading && initialMessagesLoaded
 
   return (
     <div ref={swipeRef} className="flex flex-col flex-1 min-h-0">
@@ -185,7 +187,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
         onBack={() => router.back()}
         isOnline={isOtherUserOnline}
       />
-      {messages.length === 0 ? (
+      {messages.length === 0 && initialMessagesLoaded ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1">
             <DMEmptyState otherUser={otherUser} isOnline={isOtherUserOnline} />
@@ -220,6 +222,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
             onEditSuccess={updateMessageContent}
             onDeleteSuccess={removeMessage}
             highlightedMessageId={highlightedMessageId}
+            messagesReadyForHashFallback={messagesReadyForHashFallback}
             messageLinkBasePath="/dm"
             allowMarkUnread={false}
             allowReports={false}

@@ -91,6 +91,31 @@ describe('NotificationTray', () => {
     expect(screen.getByText('Hello from DM')).toBeInTheDocument()
   })
 
+  it('retains stored notification event URLs, including message hashes', async () => {
+    const user = userEvent.setup()
+    mockGetNotificationEvents.mockResolvedValue({
+      ok: true,
+      events: [
+        EVENTS[0],
+        {
+          ...EVENTS[0],
+          id: 'event-channel',
+          type: 'mention',
+          title: 'Bob mentioned you',
+          body: 'hey @alice',
+          url: '/channels/ch-1#msg-1',
+        },
+      ],
+      unreadCount: 2,
+    })
+
+    render(<NotificationTray />)
+    await user.click(await screen.findByTestId('notification-tray-toggle'))
+
+    expect(screen.getByTestId('notification-event-event-1')).toHaveAttribute('href', '/dm/conv-1#dm-1')
+    expect(screen.getByTestId('notification-event-event-channel')).toHaveAttribute('href', '/channels/ch-1#msg-1')
+  })
+
   it('marks an unread event read when clicked', async () => {
     const user = userEvent.setup()
 

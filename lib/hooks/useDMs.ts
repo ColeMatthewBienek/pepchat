@@ -106,6 +106,7 @@ interface UseDMMessagesReturn {
   messages: MessageWithProfile[]
   hasMore: boolean
   loadingMore: boolean
+  initialMessagesLoaded: boolean
   loadMore: () => Promise<void>
   addMessage: (dm: DirectMessageWithProfile) => void
   removeMessage: (messageId: string) => void
@@ -116,11 +117,14 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
   const [messages, setMessages] = useState<MessageWithProfile[]>([])
   const [hasMore, setHasMore]   = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false)
   const loadingRef = useRef(false)
   const hasMoreRef = useRef(false)
 
   useEffect(() => {
     if (!conversationId) return
+    setInitialMessagesLoaded(false)
+    let cancelled = false
     const supabase = createClient()
 
     async function fetchInitial() {
@@ -131,6 +135,7 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE)
 
+      if (cancelled) return
       if (data) {
         const mapped = (data as unknown as DirectMessageWithProfile[]).reverse().map(mapDMToMessage)
         setMessages(mapped)
@@ -138,6 +143,7 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
         setHasMore(more)
         hasMoreRef.current = more
       }
+      setInitialMessagesLoaded(true)
     }
 
     fetchInitial()
@@ -183,7 +189,7 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(sub) }
+    return () => { cancelled = true; supabase.removeChannel(sub) }
   }, [conversationId])
 
   const loadMore = useCallback(async () => {
@@ -237,5 +243,5 @@ export function useDMMessages(conversationId: string): UseDMMessagesReturn {
     )
   }, [])
 
-  return { messages, hasMore, loadingMore, loadMore, addMessage, removeMessage, updateMessageContent }
+  return { messages, hasMore, loadingMore, initialMessagesLoaded, loadMore, addMessage, removeMessage, updateMessageContent }
 }

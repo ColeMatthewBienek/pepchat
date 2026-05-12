@@ -4,8 +4,11 @@ import ChannelShell from '@/components/chat/ChannelShell'
 import type { MessageWithProfile, Profile } from '@/lib/types'
 
 const { mockMessageList, mockMessageInput } = vi.hoisted(() => ({
-  mockMessageList: vi.fn(({ highlightedMessageId }: any) => (
-    <div data-testid="message-list-highlight">{highlightedMessageId ?? ''}</div>
+  mockMessageList: vi.fn(({ highlightedMessageId, messagesReadyForHashFallback }: any) => (
+    <div>
+      <div data-testid="message-list-highlight">{highlightedMessageId ?? ''}</div>
+      <div data-testid="message-list-hash-ready">{String(messagesReadyForHashFallback)}</div>
+    </div>
   )),
   mockMessageInput: vi.fn((_props: any) => <div data-testid="message-input" />),
 }))
@@ -128,6 +131,21 @@ describe('ChannelShell — message links', () => {
     })
 
     await waitFor(() => expect(screen.getByTestId('message-list-highlight')).toHaveTextContent('msg-1'))
+  })
+
+  it('passes hash fallback readiness to MessageList', () => {
+    render(
+      <ChannelShell
+        channelId="ch-1"
+        channelName="general"
+        initialMessages={[MESSAGE]}
+        profile={PROFILE}
+        userRole="user"
+      />
+    )
+
+    expect(mockMessageList).toHaveBeenLastCalledWith(expect.objectContaining({ messagesReadyForHashFallback: true }))
+    expect(screen.getByTestId('message-list-hash-ready')).toHaveTextContent('true')
   })
 
   it('passes a delete-success handler to MessageList', () => {
