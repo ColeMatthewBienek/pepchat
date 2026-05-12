@@ -182,6 +182,7 @@ export default function ChannelShell({
           onDeleteSuccess={removeMessage}
           onOpenPinnedPanel={() => setPinnedPanelOpen(true)}
           highlightedMessageId={highlightedMessageId}
+          messagesReadyForHashFallback={true}
           initialLastReadAt={initialLastReadAt}
         />
         {(channelName === 'welcome' || channelName === 'general') && userRole && ['admin', 'moderator'].includes(userRole) && (

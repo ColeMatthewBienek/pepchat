@@ -868,3 +868,109 @@ describe('MessageList — group search', () => {
     expect(screen.getByTestId('message-search-count')).toHaveTextContent('1 result')
   })
 })
+
+
+describe('MessageList — notification hash fallback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('scrolls to a present highlighted message and does not show the notification fallback', async () => {
+    const scrolledMessageIds: string[] = []
+    vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+      scrolledMessageIds.push(this.getAttribute('data-message-id') ?? '')
+    })
+
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG, OTHER_MSG]}
+        highlightedMessageId="msg-2"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    await waitFor(() => expect(scrolledMessageIds).toContain('msg-2'))
+    expect(screen.queryByTestId('notification-fallback-notice')).not.toBeInTheDocument()
+  })
+
+  it('shows a non-success fallback notice when a highlighted hash target is missing after readiness', async () => {
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG]}
+        highlightedMessageId="missing-msg"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    const notice = await screen.findByTestId('notification-fallback-notice')
+    expect(notice).toHaveTextContent('That message is no longer available.')
+    expect(notice).toHaveClass('text-[var(--danger)]')
+    expect(notice).not.toHaveClass('text-[var(--success)]')
+  })
+
+  it('clears the fallback notice after 4 seconds', async () => {
+    vi.useFakeTimers()
+
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG]}
+        highlightedMessageId="missing-msg"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    expect(screen.getByTestId('notification-fallback-notice')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(4000)
+    })
+
+    expect(screen.queryByTestId('notification-fallback-notice')).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('keeps fallback and local confirmation notices independent', async () => {
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[REPLY_MSG]}
+        highlightedMessageId="missing-msg"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    expect(await screen.findByTestId('notification-fallback-notice')).toHaveTextContent('That message is no longer available.')
+
+    fireEvent.click(screen.getByTestId('reply-quote-msg-4'))
+
+    expect(screen.getByText('Original message is not loaded. Load earlier messages and try again.')).toBeInTheDocument()
+    expect(screen.getByTestId('notification-fallback-notice')).toHaveTextContent('That message is no longer available.')
+  })
+
+  it('does not show the fallback for missing unread auto-scroll targets', () => {
+    render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[OTHER_MSG]}
+        initialLastReadAt="2024-01-01T12:01:00.000Z"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    expect(screen.queryByTestId('notification-fallback-notice')).not.toBeInTheDocument()
+  })
+
+  it('does not show the fallback for search navigation with no loaded target', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG]} messagesReadyForHashFallback={true} />)
+    expandMessageSearch()
+
+    fireEvent.change(screen.getByTestId('message-search-input'), { target: { value: 'missing' } })
+    fireEvent.click(screen.getByTestId('message-search-next'))
+
+    expect(screen.queryByTestId('notification-fallback-notice')).not.toBeInTheDocument()
+  })
+})

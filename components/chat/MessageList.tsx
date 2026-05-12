@@ -52,6 +52,7 @@ interface MessageListProps {
   messageLinkBasePath?: string
   allowMarkUnread?: boolean
   allowReports?: boolean
+  messagesReadyForHashFallback?: boolean
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -108,6 +109,7 @@ export default function MessageList({
   messageLinkBasePath = '/channels',
   allowMarkUnread = true,
   allowReports = true,
+  messagesReadyForHashFallback = true,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -122,6 +124,7 @@ export default function MessageList({
   const [contextMenu, setContextMenu] = useState<{ msg: MessageWithProfile; x: number; y: number } | null>(null)
   const [reportTarget, setReportTarget] = useState<MessageWithProfile | null>(null)
   const [notice, setNotice] = useState('')
+  const [notificationFallbackNotice, setNotificationFallbackNotice] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchAuthor, setSearchAuthor] = useState('')
   const [searchChannel, setSearchChannel] = useState('')
@@ -244,9 +247,20 @@ export default function MessageList({
   }, [messages])
 
   useEffect(() => {
-    if (!highlightedMessageId || !listRef.current) return
-    jumpToMessage(highlightedMessageId)
-  }, [highlightedMessageId])
+    if (!highlightedMessageId || !messagesReadyForHashFallback || !listRef.current) return
+    const didJump = jumpToMessage(highlightedMessageId)
+    if (didJump) {
+      setNotificationFallbackNotice('')
+    } else {
+      setNotificationFallbackNotice('That message is no longer available.')
+    }
+  }, [highlightedMessageId, messagesReadyForHashFallback, messages])
+
+  useEffect(() => {
+    if (!notificationFallbackNotice) return
+    const timer = window.setTimeout(() => setNotificationFallbackNotice(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [notificationFallbackNotice])
 
   const hasSearchFilters = Boolean(normalizedSearch || normalizedAuthor || normalizedChannel || searchDate || showSavedOnly)
   const activeSearchResults = searchScope === 'group' ? groupSearchResults : searchMatches
@@ -319,12 +333,13 @@ export default function MessageList({
   }, [])
 
   function jumpToMessage(messageId: string) {
-    if (!listRef.current) return
+    if (!listRef.current) return false
     const el = listRef.current.querySelector(`[data-message-id="${messageId}"]`)
-    if (!el) return
+    if (!el) return false
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el.classList.add('message-highlighted')
     setTimeout(() => el.classList.remove('message-highlighted'), 1600)
+    return true
   }
 
   function jumpToSearchResult(index: number) {
@@ -826,6 +841,15 @@ export default function MessageList({
         {notice && (
           <p className="text-xs text-[var(--success)] bg-[var(--success)]/10 border border-[var(--success)]/20 rounded px-3 py-1.5 mx-4 mb-2">
             {notice}
+          </p>
+        )}
+        {notificationFallbackNotice && (
+          <p
+            data-testid="notification-fallback-notice"
+            role="status"
+            className="text-xs text-[var(--danger)] bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded px-3 py-1.5 mx-4 mb-2"
+          >
+            {notificationFallbackNotice}
           </p>
         )}
 

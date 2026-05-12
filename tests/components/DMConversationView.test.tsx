@@ -3,18 +3,20 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import DMConversationView from '@/components/dm/DMConversationView'
 import { DM_MESSAGE, PROFILE_A, PROFILE_B } from '@/tests/fixtures'
 
-const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId, messageLinkBasePath }: any) => (
+const mockMessageList = vi.hoisted(() => vi.fn(({ highlightedMessageId, messageLinkBasePath, messagesReadyForHashFallback }: any) => (
   <div>
     <div data-testid="dm-message-link-base">{messageLinkBasePath}</div>
     <div data-testid="dm-message-highlight">{highlightedMessageId ?? ''}</div>
+    <div data-testid="dm-message-hash-ready">{String(messagesReadyForHashFallback)}</div>
   </div>
 )))
 
-const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockOnlineUsers, mockDMHeader, mockMessageInput, mockDMEmptyState } = vi.hoisted(() => ({
+const { mockReplace, mockBack, mockMarkDMsRead, mockDMMessageCount, mockDMInitialMessagesLoaded, mockOnlineUsers, mockDMHeader, mockMessageInput, mockDMEmptyState } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockBack: vi.fn(),
   mockMarkDMsRead: vi.fn().mockResolvedValue(undefined),
   mockDMMessageCount: { value: 1 },
+  mockDMInitialMessagesLoaded: { value: true },
   mockOnlineUsers: { value: [] as Array<{ user_id: string; username: string; avatar_url: string | null }> },
   mockDMHeader: vi.fn((_props: any) => <div data-testid="dm-header" />),
   mockMessageInput: vi.fn((_props: any) => <div data-testid="message-input" />),
@@ -56,6 +58,7 @@ vi.mock('@/lib/hooks/useDMs', () => ({
     addMessage: vi.fn(),
     removeMessage: vi.fn(),
     updateMessageContent: vi.fn(),
+    initialMessagesLoaded: mockDMInitialMessagesLoaded.value,
   }),
 }))
 
@@ -91,6 +94,7 @@ describe('DMConversationView — message links', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockDMMessageCount.value = 1
+    mockDMInitialMessagesLoaded.value = true
     mockOnlineUsers.value = []
     window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}`)
   })
@@ -107,6 +111,44 @@ describe('DMConversationView — message links', () => {
     render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
 
     await waitFor(() => expect(screen.getByTestId('dm-message-highlight')).toHaveTextContent(DM_MESSAGE.id))
+  })
+
+  it('does not mark hash fallback ready before the initial DM messages finish loading', async () => {
+    mockDMInitialMessagesLoaded.value = false
+    mockDMMessageCount.value = 0
+    window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}#${DM_MESSAGE.id}`)
+
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => expect(mockMessageList).toHaveBeenCalled())
+    expect(mockDMEmptyState).not.toHaveBeenCalled()
+    expect(mockMessageList).toHaveBeenLastCalledWith(expect.objectContaining({
+      highlightedMessageId: DM_MESSAGE.id,
+      messagesReadyForHashFallback: false,
+    }))
+  })
+
+  it('marks hash fallback ready after initial DM messages load with a valid hash target', async () => {
+    window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}#dm-1`)
+
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => expect(mockMessageList).toHaveBeenLastCalledWith(expect.objectContaining({
+      highlightedMessageId: 'dm-1',
+      messagesReadyForHashFallback: true,
+    })))
+    expect(screen.getByTestId('dm-message-hash-ready')).toHaveTextContent('true')
+  })
+
+  it('permits missing-target fallback after initial DM messages load', async () => {
+    window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}#missing-dm`)
+
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    await waitFor(() => expect(mockMessageList).toHaveBeenLastCalledWith(expect.objectContaining({
+      highlightedMessageId: 'missing-dm',
+      messagesReadyForHashFallback: true,
+    })))
   })
 
   it('disables channel-style mark unread for DM messages', async () => {
