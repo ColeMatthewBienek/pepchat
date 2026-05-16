@@ -1,4 +1,5 @@
 export type Role = 'admin' | 'moderator' | 'user' | 'noob'
+export type RolePredicate = (role: Role) => boolean
 
 /**
  * Central permissions helper.
