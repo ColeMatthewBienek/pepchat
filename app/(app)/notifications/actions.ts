@@ -1,12 +1,12 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import type {
   NotificationEvent,
   NotificationPreferences,
   NotificationPreferenceUpdate,
   NotificationSubscriptionInput,
 } from '@/lib/types'
+import { withAuth } from '@/lib/actions/withAuth'
 
 type PreferencesResult =
   | { error: string }
@@ -38,169 +38,172 @@ function preferencePayload(update: NotificationPreferenceUpdate): NotificationPr
   return payload
 }
 
-export async function getNotificationPreferences(): Promise<PreferencesResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+export const getNotificationPreferences = withAuth(
+  async ({ supabase, user }): Promise<PreferencesResult> => {
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
 
-  const { data, error } = await supabase
-    .from('notification_preferences')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
+    if (error && error.code !== 'PGRST116') {
+      return { error: error.message }
+    }
 
-  if (error && error.code !== 'PGRST116') {
-    return { error: error.message }
-  }
+    return { ok: true, preferences: (data as NotificationPreferences | null) ?? defaultPreferences(user.id) }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)
 
-  return { ok: true, preferences: (data as NotificationPreferences | null) ?? defaultPreferences(user.id) }
-}
+export const updateNotificationPreferences = withAuth(
+  async ({ supabase, user }, update: NotificationPreferenceUpdate): Promise<PreferencesResult> => {
+    const payload = preferencePayload(update)
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .upsert(
+        {
+          user_id: user.id,
+          ...payload,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
+      .select('*')
+      .single()
 
-export async function updateNotificationPreferences(
-  update: NotificationPreferenceUpdate
-): Promise<PreferencesResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+    if (error || !data) {
+      return { error: error?.message ?? "Couldn't save notification preferences." }
+    }
 
-  const payload = preferencePayload(update)
-  const { data, error } = await supabase
-    .from('notification_preferences')
-    .upsert(
-      {
-        user_id: user.id,
-        ...payload,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
-    .select('*')
-    .single()
+    return { ok: true, preferences: data as NotificationPreferences }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)
 
-  if (error || !data) {
-    return { error: error?.message ?? "Couldn't save notification preferences." }
-  }
+export const saveNotificationSubscription = withAuth(
+  async ({ supabase, user }, input: NotificationSubscriptionInput): Promise<SubscriptionResult> => {
+    const endpoint = input.endpoint?.trim()
+    const p256dh = input.keys?.p256dh?.trim()
+    const auth = input.keys?.auth?.trim()
 
-  return { ok: true, preferences: data as NotificationPreferences }
-}
+    if (!endpoint || !p256dh || !auth) {
+      return { error: 'Invalid push subscription.' }
+    }
 
-export async function saveNotificationSubscription(
-  input: NotificationSubscriptionInput
-): Promise<SubscriptionResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+    const { error } = await supabase
+      .from('notification_subscriptions')
+      .upsert(
+        {
+          user_id: user.id,
+          endpoint,
+          p256dh,
+          auth,
+          user_agent: input.user_agent ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'endpoint' }
+      )
 
-  const endpoint = input.endpoint?.trim()
-  const p256dh = input.keys?.p256dh?.trim()
-  const auth = input.keys?.auth?.trim()
+    if (error) {
+      return { error: error.message }
+    }
 
-  if (!endpoint || !p256dh || !auth) {
-    return { error: 'Invalid push subscription.' }
-  }
+    return { ok: true }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)
 
-  const { error } = await supabase
-    .from('notification_subscriptions')
-    .upsert(
-      {
-        user_id: user.id,
-        endpoint,
-        p256dh,
-        auth,
-        user_agent: input.user_agent ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'endpoint' }
-    )
+export const deleteNotificationSubscription = withAuth(
+  async ({ supabase, user }, endpoint: string): Promise<SubscriptionResult> => {
+    const normalizedEndpoint = endpoint.trim()
+    if (!normalizedEndpoint) return { error: 'Invalid push subscription.' }
 
-  if (error) {
-    return { error: error.message }
-  }
+    const { error } = await supabase
+      .from('notification_subscriptions')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('endpoint', normalizedEndpoint)
 
-  return { ok: true }
-}
+    if (error) {
+      return { error: error.message }
+    }
 
-export async function deleteNotificationSubscription(endpoint: string): Promise<SubscriptionResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+    return { ok: true }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)
 
-  const normalizedEndpoint = endpoint.trim()
-  if (!normalizedEndpoint) return { error: 'Invalid push subscription.' }
+export const getNotificationEvents = withAuth(
+  async ({ supabase, user }, limit: number = 20): Promise<EventsResult> => {
+    const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 50)
+    const { data, error } = await supabase
+      .from('notification_events')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(boundedLimit)
 
-  const { error } = await supabase
-    .from('notification_subscriptions')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('endpoint', normalizedEndpoint)
+    if (error) return { error: error.message }
 
-  if (error) {
-    return { error: error.message }
-  }
+    const { count, error: countError } = await supabase
+      .from('notification_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .is('read_at', null)
 
-  return { ok: true }
-}
+    if (countError) return { error: countError.message }
 
-export async function getNotificationEvents(limit = 20): Promise<EventsResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+    const events = (data ?? []) as NotificationEvent[]
+    return {
+      ok: true,
+      events,
+      unreadCount: count ?? 0,
+    }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)
 
-  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 50)
-  const { data, error } = await supabase
-    .from('notification_events')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(boundedLimit)
+export const markNotificationEventRead = withAuth(
+  async ({ supabase, user }, eventId: string): Promise<SubscriptionResult> => {
+    const normalizedId = eventId.trim()
+    if (!normalizedId) return { error: 'Invalid notification event.' }
 
-  if (error) return { error: error.message }
+    const { error } = await supabase
+      .from('notification_events')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', normalizedId)
+      .eq('user_id', user.id)
 
-  const { count, error: countError } = await supabase
-    .from('notification_events')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .is('read_at', null)
+    if (error) return { error: error.message }
+    return { ok: true }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)
 
-  if (countError) return { error: countError.message }
+export const markAllNotificationEventsRead = withAuth(
+  async ({ supabase, user }): Promise<SubscriptionResult> => {
+    const { error } = await supabase
+      .from('notification_events')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .is('read_at', null)
 
-  const events = (data ?? []) as NotificationEvent[]
-  return {
-    ok: true,
-    events,
-    unreadCount: count ?? 0,
-  }
-}
-
-export async function markNotificationEventRead(eventId: string): Promise<SubscriptionResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
-
-  const normalizedId = eventId.trim()
-  if (!normalizedId) return { error: 'Invalid notification event.' }
-
-  const { error } = await supabase
-    .from('notification_events')
-    .update({ read_at: new Date().toISOString() })
-    .eq('id', normalizedId)
-    .eq('user_id', user.id)
-
-  if (error) return { error: error.message }
-  return { ok: true }
-}
-
-export async function markAllNotificationEventsRead(): Promise<SubscriptionResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
-
-  const { error } = await supabase
-    .from('notification_events')
-    .update({ read_at: new Date().toISOString() })
-    .eq('user_id', user.id)
-    .is('read_at', null)
-
-  if (error) return { error: error.message }
-  return { ok: true }
-}
+    if (error) return { error: error.message }
+    return { ok: true }
+  },
+  { unauthenticated: () => {
+    return { error: 'Not authenticated.' }
+  }},
+)

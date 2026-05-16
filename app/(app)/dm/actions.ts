@@ -1,9 +1,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { enqueueDirectMessageNotification } from '@/lib/server-notifications'
 import { DM_SELECT } from '@/lib/queries'
 import type { DirectMessageWithProfile, Attachment } from '@/lib/types'
-import { enqueueDirectMessageNotification } from '@/lib/server-notifications'
+import { withAuth } from '@/lib/actions/withAuth'
+import { withSideEffects } from '@/lib/actions/sideEffects'
 
 type DMPreviewMessage = {
   id: string
@@ -30,7 +32,7 @@ function formatDMPreview(content: string, attachments?: Attachment[] | null): st
 
 async function updateConversationPreview(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  conversationId: string
+  conversationId: string,
 ): Promise<void> {
   const { data: latest } = await supabase
     .from('direct_messages')
@@ -50,124 +52,151 @@ async function updateConversationPreview(
     .eq('id', conversationId)
 }
 
-export async function sendDM(
-  conversationId: string,
-  recipientId: string,
-  content: string,
-  attachments?: Attachment[]
-): Promise<{ error: string } | { ok: true; message: DirectMessageWithProfile }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+export const sendDM = withAuth(
+  async (ctx, conversationId: string, recipientId: string, content: string, attachments?: Attachment[]): Promise<{ error: string } | { ok: true; message: DirectMessageWithProfile }> => {
+    const trimmed = content.trim()
+    if (!trimmed && (!attachments || attachments.length === 0)) return { error: 'Message cannot be empty.' }
+    if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
 
-  const trimmed = content.trim()
-  if (!trimmed && (!attachments || attachments.length === 0)) return { error: 'Message cannot be empty.' }
-  if (trimmed.length > 4000) return { error: 'Message too long (max 4000 characters).' }
+    const result = await withSideEffects(ctx.supabase, ctx.user.id, async () => {
+      const { data: msg, error } = await ctx.supabase
+        .from('direct_messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id:       ctx.user.id,
+          recipient_id:    recipientId,
+          content:         trimmed,
+          attachments:     attachments ?? [],
+        })
+        .select(DM_SELECT)
+        .single()
 
-  const { data: msg, error } = await supabase
-    .from('direct_messages')
-    .insert({
-      conversation_id: conversationId,
-      sender_id:       user.id,
-      recipient_id:    recipientId,
-      content:         trimmed,
-      attachments:     attachments ?? [],
+      if (error || !msg) throw new Error(error?.message ?? 'Failed to send message.')
+
+      // Update conversation preview
+      await ctx.supabase
+        .from('dm_conversations')
+        .update({ last_message: formatDMPreview(trimmed, attachments), last_message_at: new Date().toISOString() })
+        .eq('id', conversationId)
+
+      return msg as unknown as DirectMessageWithProfile
+    }, {
+      onFailure: 'silent',
+      notifications: [{
+        type: 'dm',
+        payload: {
+          recipientId,
+          senderId: ctx.user.id,
+          messageId: '',
+          conversationId,
+          content: trimmed,
+          attachments: attachments ?? [],
+        },
+      }],
     })
-    .select(DM_SELECT)
-    .single()
 
-  if (error || !msg) return { error: error?.message ?? 'Failed to send message.' }
+    // Notification fanout — send after commit via separate enqueue
+    try {
+      const sentMessage = result.data
+      await enqueueDirectMessageNotification(ctx.supabase, {
+        recipientId,
+        senderId: ctx.user.id,
+        senderName: sentMessage.sender.display_name ?? sentMessage.sender.username,
+        messageId: sentMessage.id,
+        conversationId,
+        content: trimmed,
+        attachments: attachments ?? [],
+      })
+    } catch {
+      // Notification fanout should never block the core message send path.
+    }
 
-  // Update conversation preview
-  await supabase
-    .from('dm_conversations')
-    .update({ last_message: formatDMPreview(trimmed, attachments), last_message_at: new Date().toISOString() })
-    .eq('id', conversationId)
+    return { ok: true, message: result.data }
+  },
+  { unauthenticated: () => ({ error: 'Not authenticated.' }) }
+)
 
-  const sentMessage = msg as unknown as DirectMessageWithProfile
-  try {
-    await enqueueDirectMessageNotification(supabase, {
-      recipientId,
-      senderId: user.id,
-      senderName: sentMessage.sender.display_name ?? sentMessage.sender.username,
-      messageId: sentMessage.id,
-      conversationId,
-      content: trimmed,
-      attachments: attachments ?? [],
+export const editDM = withAuth(
+  async (ctx, messageId: string, content: string): Promise<{ error: string } | { ok: true }> => {
+    const trimmed = content.trim()
+    if (!trimmed) return { error: 'Message cannot be empty.' }
+
+    const result = await withSideEffects(ctx.supabase, ctx.user.id, async () => {
+      const { data, error } = await ctx.supabase
+        .from('direct_messages')
+        .update({ content: trimmed, edited_at: new Date().toISOString() })
+        .eq('id', messageId)
+        .eq('sender_id', ctx.user.id)
+        .select('id, conversation_id, content, attachments, created_at')
+        .single()
+
+      if (error) throw new Error(error.message)
+
+      const updatedMessage = data as DMPreviewMessage | null
+      if (updatedMessage) {
+        await updateConversationPreview(ctx.supabase, updatedMessage.conversation_id)
+      }
+    }, {
+      onFailure: 'silent',
+      audit: {
+        action: 'dm.edit',
+        targetType: 'direct_message',
+        targetId: messageId,
+      },
     })
-  } catch {
-    // Notification fanout should never block the core message send path.
+
+    if (!result.sideEffects.ok) {
+      console.warn('[editDM] Side effect failed', result.sideEffects)
+    }
+
+    return { ok: true }
   }
+)
 
-  return { ok: true, message: sentMessage }
-}
+export const deleteDM = withAuth(
+  async (ctx, messageId: string): Promise<{ error: string } | { ok: true }> => {
+    const result = await withSideEffects(ctx.supabase, ctx.user.id, async () => {
+      const { data: target } = await ctx.supabase
+        .from('direct_messages')
+        .select('conversation_id')
+        .eq('id', messageId)
+        .single()
 
-export async function editDM(
-  messageId: string,
-  content: string
-): Promise<{ error: string } | { ok: true }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+      const { data, error } = await ctx.supabase
+        .from('direct_messages')
+        .delete()
+        .eq('id', messageId)
 
-  const trimmed = content.trim()
-  if (!trimmed) return { error: 'Message cannot be empty.' }
+      if (error) throw new Error(error.message)
 
-  const { data, error } = await supabase
-    .from('direct_messages')
-    .update({ content: trimmed, edited_at: new Date().toISOString() })
-    .eq('id', messageId)
-    .eq('sender_id', user.id)
-    .select('id, conversation_id, content, attachments, created_at')
-    .single()
+      // Update the conversation preview after delete
+      if (target) {
+        await updateConversationPreview(ctx.supabase, target.conversation_id)
+      }
+    }, {
+      onFailure: 'silent',
+      audit: {
+        action: 'dm.delete',
+        targetType: 'direct_message',
+        targetId: messageId,
+      },
+    })
 
-  if (error) return { error: error.message }
-  const updatedMessage = data as DMPreviewMessage | null
-  if (updatedMessage) {
-    await updateConversationPreview(supabase, updatedMessage.conversation_id)
+    if (!result.sideEffects.ok) {
+      console.warn('[deleteDM] Side effect failed', result.sideEffects)
+    }
+
+    return { ok: true }
   }
-  return { ok: true }
-}
+)
 
-export async function deleteDM(
-  messageId: string
-): Promise<{ error: string } | { ok: true }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
-
-  const { data: target } = await supabase
-    .from('direct_messages')
-    .select('id, conversation_id')
-    .eq('id', messageId)
-    .eq('sender_id', user.id)
-    .single()
-
-  const { error } = await supabase
-    .from('direct_messages')
-    .delete()
-    .eq('id', messageId)
-    .eq('sender_id', user.id)
-
-  if (error) return { error: error.message }
-  const deletedMessage = target as { conversation_id: string } | null
-  if (deletedMessage) {
-    await updateConversationPreview(supabase, deletedMessage.conversation_id)
-  }
-  return { ok: true }
-}
-
-export async function markDMsRead(
-  conversationId: string
-): Promise<void> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
-  await supabase
-    .from('direct_messages')
-    .update({ read_at: new Date().toISOString() })
-    .eq('conversation_id', conversationId)
-    .eq('recipient_id', user.id)
-    .is('read_at', null)
-}
+export const markDMsRead = withAuth(
+  async ({ supabase, user }, conversationId: string): Promise<void> => {
+    await supabase
+      .from('direct_messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('recipient_id', user.id)
+      .is('read_at', null)
+  },
+)
