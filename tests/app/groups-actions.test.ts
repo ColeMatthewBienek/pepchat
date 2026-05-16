@@ -185,7 +185,8 @@ describe('group actions — updateGroupDetails', () => {
   })
 
   it('rejects empty group names', async () => {
-    setupClient([])
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    setupClient([membership])
 
     await expect(updateGroupDetails('group-1', groupDetailsForm('   '))).resolves.toEqual({
       error: 'Group name is required.',
@@ -245,7 +246,7 @@ describe('group actions — regenerateGroupInvite', () => {
     setupClient([membership])
 
     await expect(regenerateGroupInvite('group-1')).resolves.toEqual({
-      error: 'Only group admins can regenerate invite links.',
+      error: 'Permission denied.',
     })
   })
 
