@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { gateGroupRole } from '@/lib/permissions/gate'
 import { PERMISSIONS } from '@/lib/permissions'
 
@@ -31,7 +32,7 @@ describe('gateGroupRole', () => {
   it('allows when the predicate passes', async () => {
     const { supabase, builder } = setupSupabase({ data: { role: 'admin' } })
 
-    await expect(gateGroupRole(supabase, {
+    await expect(gateGroupRole(supabase as unknown as SupabaseClient, {
       groupId: 'group-1',
       userId: 'user-1',
       predicate: PERMISSIONS.canAssignRoles,
@@ -50,7 +51,7 @@ describe('gateGroupRole', () => {
       error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' },
     })
 
-    await expect(gateGroupRole(supabase, {
+    await expect(gateGroupRole(supabase as unknown as SupabaseClient, {
       groupId: 'group-1',
       userId: 'user-1',
       predicate: PERMISSIONS.canAssignRoles,
@@ -61,7 +62,7 @@ describe('gateGroupRole', () => {
   it('denies failed predicates with the caller-provided message', async () => {
     const { supabase } = setupSupabase({ data: { role: 'user' } })
 
-    await expect(gateGroupRole(supabase, {
+    await expect(gateGroupRole(supabase as unknown as SupabaseClient, {
       groupId: 'group-1',
       userId: 'user-1',
       predicate: PERMISSIONS.canKickMembers,
@@ -72,7 +73,7 @@ describe('gateGroupRole', () => {
   it('propagates lookup error messages', async () => {
     const { supabase } = setupSupabase({ error: { message: 'Membership lookup failed' } })
 
-    await expect(gateGroupRole(supabase, {
+    await expect(gateGroupRole(supabase as unknown as SupabaseClient, {
       groupId: 'group-1',
       userId: 'user-1',
       predicate: PERMISSIONS.canAssignRoles,
@@ -83,7 +84,7 @@ describe('gateGroupRole', () => {
   it('does not call auth.getUser()', async () => {
     const { supabase } = setupSupabase({ data: { role: 'moderator' } })
 
-    await gateGroupRole(supabase, {
+    await gateGroupRole(supabase as unknown as SupabaseClient, {
       groupId: 'group-1',
       userId: 'user-1',
       predicate: PERMISSIONS.canKickMembers,
