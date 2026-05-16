@@ -28,6 +28,10 @@ vi.mock('@/lib/hooks/useImageUpload', () => ({
   }),
 }))
 
+const mockChannel = vi.fn().mockReturnThis()
+const mockOn = vi.fn().mockReturnThis()
+const mockSubscribe = vi.fn().mockReturnThis()
+
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
     from: () => ({
@@ -42,6 +46,10 @@ vi.mock('@/lib/supabase/client', () => ({
         }),
       }),
     }),
+    channel: mockChannel,
+    on: mockOn,
+    subscribe: mockSubscribe,
+    removeChannel: vi.fn(),
   }),
 }))
 

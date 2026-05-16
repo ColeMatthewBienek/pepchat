@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { sendMessage } from '@/app/(app)/messages/actions'
-import { createClient } from '@/lib/supabase/client'
 import { useImageUpload } from '@/lib/hooks/useImageUpload'
+import { useMentionCandidates } from '@/lib/hooks/useMentionCandidates'
 import type { MessageWithProfile, Profile, GifAttachment, Attachment } from '@/lib/types'
 import { registerShare } from '@/lib/klipy'
 import type { KlipyGif } from '@/lib/klipy'
@@ -50,7 +50,7 @@ export default function MessageInput({
   const [isPending, startTransition] = useTransition()
   const [isDragging, setIsDragging] = useState(false)
   const [gifPickerOpen, setGifPickerOpen] = useState(false)
-  const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; username: string; display_name: string | null }>>([])
+  const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; username: string; display_name?: string | null }>>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -66,27 +66,11 @@ export default function MessageInput({
     skipNextDraftWriteRef.current = true
     setContent(readDraft(draftStorageKey))
   }, [draftStorageKey])
-
+  // Fetch mention candidates — extracted to useMentionCandidates hook (Finding 4)
+  const { candidates: mentionCandidates } = useMentionCandidates(groupId, profile.id)
   useEffect(() => {
-    if (!groupId) return
-    let ignore = false
-    const supabase = createClient()
-    supabase
-      .from('group_members')
-      .select('user_id, profiles(id, username, display_name)')
-      .eq('group_id', groupId)
-      .limit(50)
-      .then(({ data }) => {
-        if (ignore) return
-        const users = ((data ?? []) as any[])
-          .map(row => row.profiles)
-          .filter(Boolean)
-          .filter((user) => user.id !== profile.id)
-          .sort((a, b) => a.username.localeCompare(b.username))
-        setMentionUsers(users)
-      })
-    return () => { ignore = true }
-  }, [groupId, profile.id])
+    setMentionUsers(mentionCandidates)
+  }, [mentionCandidates])
 
   useEffect(() => {
     if (skipNextDraftWriteRef.current) {
