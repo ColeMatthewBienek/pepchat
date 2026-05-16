@@ -12,6 +12,12 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/server-notifications', () => ({
   enqueueMentionNotifications: mockEnqueueMentionNotifications,
+  dispatchNotification: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }))
 
 type QueryResult = { data?: unknown; error?: { message: string } | null }
