@@ -1,18 +1,19 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useMembersList } from '@/lib/hooks/useMembersList'
 import { assignRole, kickMember } from '@/app/(app)/members/actions'
 import Avatar from '@/components/ui/Avatar'
 import RolePill from '@/components/ui/RolePill'
 import { PERMISSIONS, type Role } from '@/lib/permissions'
-import type { GroupMember, Profile } from '@/lib/types'
+import type { Profile } from '@/lib/types'
 
 const ProfileCard = dynamic(() => import('@/components/profile/ProfileCard'), { ssr: false })
 
-type MemberWithProfile = GroupMember & { profiles: Pick<Profile, 'username' | 'avatar_url'> }
+type MemberWithProfile = import('@/lib/hooks/useMembersList').MemberWithProfile
 
 const ASSIGNABLE_ROLES: Role[] = ['moderator', 'user', 'noob']
 
@@ -27,7 +28,7 @@ interface MembersPanelProps {
  * Admins can assign roles and kick. Moderators see read-only view.
  */
 export default function MembersPanel({ groupId, currentUserId, currentUserRole }: MembersPanelProps) {
-  const [members, setMembers] = useState<MemberWithProfile[]>([])
+  const { members, loading } = useMembersList(groupId)
   const [expanded, setExpanded] = useState(true)
   const [memberSearch, setMemberSearch] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -56,31 +57,6 @@ export default function MembersPanel({ groupId, currentUserId, currentUserRole }
     const { data: convId } = await supabase.rpc('get_or_create_dm', { other_user_id: userId })
     if (convId) router.push(`/dm/${convId}`)
   }
-
-  useEffect(() => {
-    if (!groupId) return
-    const supabase = createClient()
-
-    async function fetchMembers() {
-      const { data } = await supabase
-        .from('group_members')
-        .select('*, profiles(username, avatar_url)')
-        .eq('group_id', groupId)
-        .order('role')
-
-      if (data) setMembers(data as MemberWithProfile[])
-    }
-
-    fetchMembers()
-
-    // Live updates when roles change or members join/leave
-    const sub = supabase
-      .channel(`members-${groupId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` }, fetchMembers)
-      .subscribe()
-
-    return () => { supabase.removeChannel(sub) }
-  }, [groupId])
 
   function handleRoleChange(member: MemberWithProfile, newRole: Role) {
     const memberName = (member.profiles as any)?.display_name ?? member.profiles?.username ?? member.user_id
