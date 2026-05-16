@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGroup, leaveGroup, listGroupInvites, regenerateGroupInvite, removeGroupIcon, revokeGroupInvite, updateGroupDetails } from '@/app/(app)/groups/actions'
+import { createGroup, leaveGroup, listGroupInvites, regenerateGroupInvite, removeGroupIcon, revokeGroupInvite, updateGroupDetails, uploadGroupIcon } from '@/app/(app)/groups/actions'
+import { PERMISSIONS } from '@/lib/permissions'
 
 const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
@@ -213,6 +214,15 @@ describe('group actions — updateGroupDetails', () => {
     }))
   })
 
+  it('rejects insufficient roles with the existing message', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'user' } })
+    setupClient([membership])
+
+    await expect(updateGroupDetails('group-1', groupDetailsForm())).resolves.toEqual({
+      error: 'Only group admins can update group details.',
+    })
+  })
+
   it('clears blank descriptions', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
     const update = makeUpdateBuilder()
@@ -246,7 +256,17 @@ describe('group actions — regenerateGroupInvite', () => {
     setupClient([membership])
 
     await expect(regenerateGroupInvite('group-1')).resolves.toEqual({
-      error: 'Permission denied.',
+      error: 'Only group admins can regenerate invite links.',
+    })
+  })
+
+  it('rejects moderators even though the UI invite predicate allows them', async () => {
+    expect(PERMISSIONS.canGenerateInvite('moderator')).toBe(true)
+    const membership = makeSelectBuilder({ data: { role: 'moderator' } })
+    setupClient([membership])
+
+    await expect(regenerateGroupInvite('group-1')).resolves.toEqual({
+      error: 'Only group admins can regenerate invite links.',
     })
   })
 
@@ -328,6 +348,15 @@ describe('group actions — invite management', () => {
     })
   })
 
+  it('rejects non-admin invite history access with the existing message', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'moderator' } })
+    setupClient([membership])
+
+    await expect(listGroupInvites('group-1')).resolves.toEqual({
+      error: 'Only group admins can view invite history.',
+    })
+  })
+
   it('revokes invites for admins', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
     const update = makeUpdateBuilder()
@@ -345,6 +374,33 @@ describe('group actions — invite management', () => {
       target_id: 'invite-1',
       metadata: { group_id: 'group-1' },
     }))
+  })
+
+  it('rejects non-admin invite revocation with the existing message', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'moderator' } })
+    setupClient([membership])
+
+    await expect(revokeGroupInvite('invite-1', 'group-1')).resolves.toEqual({
+      error: 'Only group admins can revoke invites.',
+    })
+  })
+})
+
+describe('group actions — uploadGroupIcon', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects insufficient roles with the existing message', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'user' } })
+    setupClient([membership])
+
+    await expect(uploadGroupIcon('group-1', {
+      dataUrl: 'data:image/png;base64,aWNvbg==',
+      ext: 'png',
+    })).resolves.toEqual({
+      error: 'Only group admins can update the group photo.',
+    })
   })
 })
 
@@ -368,6 +424,15 @@ describe('group actions — removeGroupIcon', () => {
     })
 
     expect(update.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects insufficient roles with the existing message', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'user' } })
+    setupClient([membership])
+
+    await expect(removeGroupIcon('group-1')).resolves.toEqual({
+      error: 'Only group admins can remove the group photo.',
+    })
   })
 
   it('surfaces storage remove errors before clearing the group icon', async () => {
