@@ -173,7 +173,7 @@ export const updateGroupDetails = withAuth(
     groupId: string,
     formData: FormData,
   ): Promise<{ error: string } | { ok: true }> {
-    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: "Permission denied." })
+    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can update group details.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
     const name = (formData.get('name') as string | null)?.trim() ?? ''
@@ -208,7 +208,7 @@ export const regenerateGroupInvite = withAuth(
     groupId: string,
     formData?: FormData,
   ): Promise<{ error: string } | { ok: true; invite_code: string; invite: InviteRecord }> {
-    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: "Permission denied." })
+    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can regenerate invite links.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
     const options = parseInviteOptions(formData)
@@ -251,7 +251,7 @@ export const listGroupInvites = withAuth(
     { supabase, user },
     groupId: string,
   ): Promise<{ error: string } | { ok: true; invites: InviteRecord[]; uses: any[] }> {
-    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: "Permission denied." })
+    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can view invite history.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
     const { data: invites, error: invitesError } = await supabase
@@ -282,7 +282,7 @@ export const revokeGroupInvite = withAuth(
     inviteId: string,
     groupId: string,
   ): Promise<{ error: string } | { ok: true }> {
-    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: "Permission denied." })
+    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can revoke invites.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
     const { error } = await supabase
@@ -341,7 +341,7 @@ export const uploadGroupIcon = withAuth(
     groupId: string,
     iconBlob: { dataUrl: string; ext: string },
   ): Promise<{ error: string } | { ok: true; icon_url: string }> {
-    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: "Permission denied." })
+    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can update the group photo.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
     const bytes = Buffer.from(iconBlob.dataUrl.split(',')[1], 'base64')
@@ -379,7 +379,7 @@ export const removeGroupIcon = withAuth(
     { supabase, user },
     groupId: string,
   ): Promise<{ error: string } | { ok: true }> {
-    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: "Permission denied." })
+    const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can remove the group photo.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
     const files = await supabase.storage.from('avatars').list(`groups/${groupId}`)
