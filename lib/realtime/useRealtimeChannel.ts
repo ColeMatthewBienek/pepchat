@@ -1,0 +1,66 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { RealtimeChannel, RealtimeChannelOptions } from '@supabase/supabase-js'
+
+export type RealtimeStatus = 'CLOSED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'SUBSCRIBED' | string
+
+export type RealtimeBinding = {
+  type: 'broadcast' | 'presence' | 'postgres_changes'
+  filter: Record<string, unknown>
+  handler: (payload: any) => void
+}
+
+export type UseRealtimeChannelConfig = {
+  topic: string
+  enabled?: boolean
+  options?: RealtimeChannelOptions
+  bindings: RealtimeBinding[]
+  onStatus?: (status: RealtimeStatus, channel: RealtimeChannel) => void | Promise<void>
+  deps: React.DependencyList
+}
+
+export type UseRealtimeChannelResult = {
+  channelRef: React.MutableRefObject<RealtimeChannel | null>
+  status: RealtimeStatus | null
+}
+
+export function useRealtimeChannel(config: UseRealtimeChannelConfig): UseRealtimeChannelResult {
+  const channelRef = useRef<RealtimeChannel | null>(null)
+  const [status, setStatus] = useState<RealtimeStatus | null>(null)
+
+  useEffect(() => {
+    if (config.enabled === false) {
+      channelRef.current = null
+      setStatus(null)
+      return
+    }
+
+    const supabase = createClient()
+    const channel = config.options
+      ? supabase.channel(config.topic, config.options)
+      : supabase.channel(config.topic)
+
+    for (const binding of config.bindings) {
+      ;(channel.on as any)(binding.type, binding.filter, binding.handler)
+    }
+
+    channelRef.current = channel
+    channel.subscribe((nextStatus) => {
+      setStatus(nextStatus)
+      void config.onStatus?.(nextStatus, channel)
+    })
+
+    return () => {
+      if (channelRef.current === channel) {
+        channelRef.current = null
+      }
+      void supabase.removeChannel(channel)
+    }
+  // deps is the explicit lifecycle contract for this seam; callers own stability.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, config.deps)
+
+  return { channelRef, status }
+}
