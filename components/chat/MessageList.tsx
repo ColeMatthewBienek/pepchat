@@ -309,7 +309,7 @@ export default function MessageList({
       }).then(result => {
         if (ignore) return
         if ('error' in result) {
-          setError(result.error)
+          setError(result.error ?? '')
           setGroupSearchResults([])
         } else {
           setError('')
@@ -472,7 +472,7 @@ export default function MessageList({
       const action = editAction ?? editMessage
       const result = await action(messageId, editContent)
       if ('error' in result) {
-        setError(result.error)
+        setError(result.error ?? '')
       } else {
         setEditingId(null)
         onEditSuccess?.(messageId, editContent)

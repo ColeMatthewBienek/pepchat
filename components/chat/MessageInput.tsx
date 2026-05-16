@@ -153,7 +153,7 @@ export default function MessageInput({
         ? await sendAction('', replyingTo?.id ?? null, [gifAttachment])
         : await sendMessage(channelId, '', replyingTo?.id, [gifAttachment])
       if ('error' in result) {
-        setError(result.error)
+        setError(result.error ?? '')
       } else {
         textareaRef.current?.focus()
         onCancelReply?.()
@@ -252,7 +252,7 @@ export default function MessageInput({
         ? await sendAction(trimmed, replyingTo?.id ?? null, attachments)
         : await sendMessage(channelId, trimmed, replyingTo?.id, attachments)
       if ('error' in result) {
-        setError(result.error)
+        setError(result.error ?? '')
       } else {
         removeDraft(draftStorageKey)
         setContent('')
