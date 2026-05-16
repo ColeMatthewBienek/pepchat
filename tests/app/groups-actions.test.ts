@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGroup, leaveGroup, listGroupInvites, regenerateGroupInvite, removeGroupIcon, revokeGroupInvite, updateGroupDetails, uploadGroupIcon } from '@/app/(app)/groups/actions'
+import { createGroup, joinGroup, leaveGroup, listGroupInvites, regenerateGroupInvite, removeGroupIcon, revokeGroupInvite, updateGroupDetails, uploadGroupIcon } from '@/app/(app)/groups/actions'
 import { PERMISSIONS } from '@/lib/permissions'
 
-const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
+const { mockCreateClient, mockCreateAdminClient } = vi.hoisted(() => ({
+  mockCreateClient: vi.fn(),
+  mockCreateAdminClient: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: mockCreateClient,
+}))
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: mockCreateAdminClient,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -113,6 +120,18 @@ function setupClient(builders: Record<string, unknown>[], options: {
   return { from }
 }
 
+function setupAdminClient(builders: Record<string, unknown>[]) {
+  let index = 0
+  const from = vi.fn(() => {
+    const builder = builders[index]
+    index += 1
+    return builder
+  })
+
+  mockCreateAdminClient.mockReturnValue({ from })
+  return { from }
+}
+
 function groupForm(name = 'Test Group') {
   const formData = new FormData()
   formData.set('name', name)
@@ -153,6 +172,77 @@ describe('group actions — createGroup', () => {
     await expect(createGroup(groupForm())).resolves.toEqual({
       error: 'Channel seed failed',
     })
+  })
+})
+
+describe('group actions — joinGroup', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+  })
+
+  it('joins through an active managed invite and records usage for new members', async () => {
+    const invite = makeSelectBuilder({ data: { id: 'invite-1', group_id: 'group-1', code: 'managed', max_uses: null, uses_count: 0, expires_at: null, revoked_at: null, created_at: '2026-05-16T00:00:00.000Z', created_by: 'admin-1' } })
+    const existing = makeSelectBuilder({ data: null })
+    const memberInsert = makeInsertBuilder()
+    const useInsert = makeInsertBuilder()
+    const usageUpdate = makeUpdateBuilder()
+    const formData = new FormData()
+    formData.set('invite_code', 'https://pepchat.test/join/managed?x=1')
+    setupClient([invite, existing, memberInsert, useInsert, usageUpdate])
+
+    await expect(joinGroup(formData)).resolves.toEqual({ redirectTo: '/groups/group-1' })
+    expect(memberInsert.insert).toHaveBeenCalledWith({ group_id: 'group-1', user_id: 'user-1', role: 'noob' })
+    expect(useInsert.insert).toHaveBeenCalledWith({ invite_id: 'invite-1', group_id: 'group-1', user_id: 'user-1' })
+    expect(usageUpdate.update).toHaveBeenCalledWith({ uses_count: 1 })
+  })
+
+  it('falls back to legacy invites when no managed row exists', async () => {
+    const managed = makeSelectBuilder({ data: null })
+    const legacy = makeSelectBuilder({ data: { id: 'legacy-group' } })
+    const existing = makeSelectBuilder({ data: null })
+    const memberInsert = makeInsertBuilder()
+    const formData = new FormData()
+    formData.set('invite_code', 'legacy-code')
+    setupClient([managed, legacy, existing, memberInsert])
+
+    await expect(joinGroup(formData)).resolves.toEqual({ redirectTo: '/groups/legacy-group' })
+    expect(memberInsert.insert).toHaveBeenCalledWith({ group_id: 'legacy-group', user_id: 'user-1', role: 'noob' })
+  })
+
+  it('does not add usage for existing members', async () => {
+    const invite = makeSelectBuilder({ data: { id: 'invite-1', group_id: 'group-1', code: 'managed', max_uses: null, uses_count: 0, expires_at: null, revoked_at: null, created_at: '2026-05-16T00:00:00.000Z', created_by: 'admin-1' } })
+    const existing = makeSelectBuilder({ data: { id: 'member-1' } })
+    const formData = new FormData()
+    formData.set('invite_code', 'managed')
+    const { from } = setupClient([invite, existing])
+
+    await expect(joinGroup(formData)).resolves.toEqual({ redirectTo: '/groups/group-1' })
+    expect(from).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects invalid and unusable managed invites with existing messages', async () => {
+    const invalidForm = new FormData()
+    invalidForm.set('invite_code', 'missing')
+    setupClient([makeSelectBuilder({ data: null }), makeSelectBuilder({ data: null })])
+    await expect(joinGroup(invalidForm)).resolves.toEqual({ error: 'Invalid invite code.' })
+
+    const unusableForm = new FormData()
+    unusableForm.set('invite_code', 'revoked')
+    setupClient([makeSelectBuilder({ data: { id: 'invite-1', group_id: 'group-1', code: 'revoked', max_uses: null, uses_count: 0, expires_at: null, revoked_at: '2026-05-16T00:00:00.000Z', created_at: '2026-05-16T00:00:00.000Z', created_by: 'admin-1' } })])
+    await expect(joinGroup(unusableForm)).resolves.toEqual({ error: 'Invite link has expired or reached its usage limit.' })
+  })
+
+  it('uses the service-role lookup to block RLS-hidden revoked managed invites before legacy fallback', async () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
+    const formData = new FormData()
+    formData.set('invite_code', 'overlap')
+    const userScoped = setupClient([])
+    setupAdminClient([makeSelectBuilder({ data: { id: 'invite-1', group_id: 'group-1', code: 'overlap', max_uses: null, uses_count: 0, expires_at: null, revoked_at: '2026-05-16T00:00:00.000Z', created_at: '2026-05-16T00:00:00.000Z', created_by: 'admin-1' } })])
+
+    await expect(joinGroup(formData)).resolves.toEqual({ error: 'Invite link has expired or reached its usage limit.' })
+    expect(userScoped.from).not.toHaveBeenCalled()
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
   })
 })
 
@@ -357,16 +447,22 @@ describe('group actions — invite management', () => {
     })
   })
 
-  it('revokes invites for admins', async () => {
+  it('revokes invites for admins and rotates mirrored legacy codes', async () => {
     const membership = makeSelectBuilder({ data: { role: 'admin' } })
-    const update = makeUpdateBuilder()
+    const inviteLookup = makeSelectBuilder({ data: { code: 'managed-code' } })
+    const revokeUpdate = makeUpdateBuilder()
+    const groupLookup = makeSelectBuilder({ data: { invite_code: 'managed-code' } })
+    const legacyUpdate = makeUpdateBuilder()
     const audit = makeAuditBuilder()
-    setupClient([membership, update, audit])
+    setupClient([membership, inviteLookup, revokeUpdate, groupLookup, legacyUpdate, audit])
 
     await expect(revokeGroupInvite('invite-1', 'group-1')).resolves.toEqual({ ok: true })
 
-    expect(update.update).toHaveBeenCalledWith({
+    expect(revokeUpdate.update).toHaveBeenCalledWith({
       revoked_at: expect.any(String),
+    })
+    expect(legacyUpdate.update).toHaveBeenCalledWith({
+      invite_code: expect.stringMatching(/^[a-f0-9]{12}$/),
     })
     expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({
       action: 'invite_revoked',
@@ -374,6 +470,19 @@ describe('group actions — invite management', () => {
       target_id: 'invite-1',
       metadata: { group_id: 'group-1' },
     }))
+  })
+
+  it('preserves different legacy codes when revoking managed invites', async () => {
+    const membership = makeSelectBuilder({ data: { role: 'admin' } })
+    const inviteLookup = makeSelectBuilder({ data: { code: 'managed-code' } })
+    const revokeUpdate = makeUpdateBuilder()
+    const groupLookup = makeSelectBuilder({ data: { invite_code: 'legacy-code' } })
+    const audit = makeAuditBuilder()
+    const { from } = setupClient([membership, inviteLookup, revokeUpdate, groupLookup, audit])
+
+    await expect(revokeGroupInvite('invite-1', 'group-1')).resolves.toEqual({ ok: true })
+    expect(from).toHaveBeenCalledTimes(5)
+    expect(audit.insert).toHaveBeenCalledWith(expect.objectContaining({ action: 'invite_revoked' }))
   })
 
   it('rejects non-admin invite revocation with the existing message', async () => {

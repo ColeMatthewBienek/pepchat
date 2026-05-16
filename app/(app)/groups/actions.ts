@@ -2,58 +2,20 @@
 
 import { withAuth } from '@/lib/actions/withAuth'
 import { logAuditEvent } from '@/lib/audit'
+import {
+  consumeInvite,
+  listInvites,
+  normalizeInviteCode,
+  parseInviteOptions,
+  regenerateInvite,
+  resolveInvite,
+  revokeInvite,
+  type InviteRecord,
+} from '@/lib/invites'
+import { inviteLookupClient } from '@/lib/invites/lookupClient'
 import { gateGroupRole } from '@/lib/permissions/gate'
 import { PERMISSIONS } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
-
-function generateInviteCode(): string {
-  return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
-}
-
-type InviteRecord = {
-  id: string
-  group_id: string
-  code: string
-  created_by: string | null
-  max_uses: number | null
-  uses_count: number
-  expires_at: string | null
-  revoked_at: string | null
-  created_at: string
-  profiles?: { username: string | null } | null
-}
-
-function parseInviteOptions(formData?: FormData) {
-  const maxUsesRaw = formData?.get('max_uses')?.toString().trim() ?? ''
-  const expiresRaw = formData?.get('expires_at')?.toString().trim() ?? ''
-  const max_uses = maxUsesRaw ? Number(maxUsesRaw) : null
-  const expires_at = expiresRaw ? new Date(expiresRaw).toISOString() : null
-
-  if (max_uses !== null && (!Number.isInteger(max_uses) || max_uses < 1 || max_uses > 1000)) {
-    return { error: 'Usage limit must be between 1 and 1000.' } as const
-  }
-
-  if (expiresRaw) {
-    const expiresAt = new Date(expiresRaw)
-    if (Number.isNaN(expiresAt.getTime())) return { error: 'Expiration date is invalid.' } as const
-    if (expiresAt.getTime() <= Date.now()) return { error: 'Expiration date must be in the future.' } as const
-  }
-
-  return { max_uses, expires_at } as const
-}
-
-function inviteIsUsable(invite: Pick<InviteRecord, 'revoked_at' | 'expires_at' | 'max_uses' | 'uses_count'>) {
-  if (invite.revoked_at) return false
-  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return false
-  if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return false
-  return true
-}
-
-function normalizeInviteCode(value: string) {
-  const trimmed = value.trim()
-  const match = trimmed.match(/\/join\/([^/?#]+)/)
-  return decodeURIComponent(match?.[1] ?? trimmed).trim()
-}
 
 /**
  * Creates a new group. Creator gets the 'admin' role.
@@ -113,53 +75,16 @@ export const joinGroup = withAuth(
     formData: FormData,
   ): Promise<{ error: string } | { redirectTo: string }> {
     const inviteCode = normalizeInviteCode(formData.get('invite_code') as string)
-    if (!inviteCode) return { error: 'Invite code is required.' }
+    const resolved = await resolveInvite(supabase, inviteCode, {
+      authoritativeSupabase: inviteLookupClient(supabase),
+    })
 
-    const { data: invite } = await supabase
-      .from('group_invites')
-      .select('id, group_id, max_uses, uses_count, expires_at, revoked_at')
-      .eq('code', inviteCode)
-      .single()
+    if (!resolved.ok) return { error: resolved.message }
 
-    const { data: legacyGroup } = invite ? { data: null } : await supabase
-      .from('groups')
-      .select('id')
-      .eq('invite_code', inviteCode)
-      .single()
+    const consumed = await consumeInvite(supabase, resolved.invite, user.id)
+    if (!consumed.ok) return { error: consumed.message }
 
-    const group = invite ? { id: (invite as any).group_id } : legacyGroup
-    if (!group) return { error: 'Invalid invite code.' }
-    if (invite && !inviteIsUsable(invite as any)) return { error: 'Invite link has expired or reached its usage limit.' }
-
-    const { data: existing } = await supabase
-      .from('group_members')
-      .select('id')
-      .eq('group_id', group.id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (!existing) {
-      const { error } = await supabase.from('group_members').insert({
-        group_id: group.id,
-        user_id: user.id,
-        role: 'noob',
-      })
-      if (error) return { error: error.message }
-
-      if (invite) {
-        await supabase.from('group_invite_uses').insert({
-          invite_id: (invite as any).id,
-          group_id: (invite as any).group_id,
-          user_id: user.id,
-        })
-        await supabase
-          .from('group_invites')
-          .update({ uses_count: (invite as any).uses_count + 1 })
-          .eq('id', (invite as any).id)
-      }
-    }
-
-    return { redirectTo: `/groups/${group.id}` }
+    return { redirectTo: `/groups/${consumed.groupId}` }
   },
   { unauthenticated: () => ({ redirectTo: '/login' }) },
 )
@@ -214,21 +139,15 @@ export const regenerateGroupInvite = withAuth(
     const options = parseInviteOptions(formData)
     if ('error' in options) return { error: options.error ?? 'Invalid invite options.' }
 
-    const invite_code = generateInviteCode()
-    const { data: invite, error: inviteError } = await supabase
-      .from('group_invites')
-      .insert({
-        group_id: groupId,
-        code: invite_code,
-        created_by: user.id,
-        max_uses: options.max_uses,
-        expires_at: options.expires_at,
-      })
-      .select()
-      .single()
+    const result = await regenerateInvite(supabase, {
+      groupId,
+      createdBy: user.id,
+      options,
+    })
 
-    if (inviteError || !invite) return { error: inviteError?.message ?? 'Failed to create invite.' }
+    if ('error' in result) return result
 
+    const { invite_code, invite } = result
     const { error } = await supabase
       .from('groups')
       .update({ invite_code })
@@ -241,7 +160,7 @@ export const regenerateGroupInvite = withAuth(
       max_uses: options.max_uses,
       expires_at: options.expires_at,
     })
-    return { ok: true, invite_code, invite: invite as InviteRecord }
+    return { ok: true, invite_code, invite }
   },
   { unauthenticated: () => ({ error: 'Not authenticated.' }) },
 )
@@ -254,24 +173,10 @@ export const listGroupInvites = withAuth(
     const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can view invite history.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
-    const { data: invites, error: invitesError } = await supabase
-      .from('group_invites')
-      .select('*, profiles!group_invites_created_by_fkey(username)')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: false })
+    const result = await listInvites(supabase, groupId)
+    if ('error' in result) return result
 
-    if (invitesError) return { error: invitesError.message }
-
-    const { data: uses, error: usesError } = await supabase
-      .from('group_invite_uses')
-      .select('*, group_invites(code), profiles(username)')
-      .eq('group_id', groupId)
-      .order('used_at', { ascending: false })
-      .limit(25)
-
-    if (usesError) return { error: usesError.message }
-
-    return { ok: true, invites: (invites ?? []) as InviteRecord[], uses: uses ?? [] }
+    return result
   },
   { unauthenticated: () => ({ error: 'Not authenticated.' }) },
 )
@@ -285,13 +190,9 @@ export const revokeGroupInvite = withAuth(
     const gateResult = await gateGroupRole(supabase, { groupId, userId: user.id, predicate: PERMISSIONS.canManageGroup, deniedMessage: 'Only group admins can revoke invites.' })
     if ('error' in gateResult) return { error: gateResult.error }
 
-    const { error } = await supabase
-      .from('group_invites')
-      .update({ revoked_at: new Date().toISOString() })
-      .eq('id', inviteId)
-      .eq('group_id', groupId)
+    const result = await revokeInvite(supabase, { inviteId, groupId })
+    if ('error' in result) return result
 
-    if (error) return { error: error.message }
     await logAuditEvent(supabase, user.id, 'invite_revoked', 'invite', inviteId, {
       group_id: groupId,
     })
