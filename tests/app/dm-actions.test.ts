@@ -97,6 +97,7 @@ describe('DM actions — conversation preview maintenance', () => {
   })
 
   it('uses an image label for image-only DM previews', async () => {
+    const { DM_SELECT } = await import('@/lib/queries')
     const messageBuilder = makeBuilder({
       data: {
         id: 'dm-1',
@@ -119,6 +120,7 @@ describe('DM actions — conversation preview maintenance', () => {
       { type: 'image', url: 'https://example.com/image.jpg', name: 'image.jpg', size: 123 },
     ])
 
+    expect(messageBuilder.select).toHaveBeenCalledWith(DM_SELECT)
     expect(conversationBuilder.update).toHaveBeenCalledWith({
       last_message: 'Image',
       last_message_at: expect.any(String),

@@ -1,29 +1,9 @@
-import { createServerClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createMiddlewareClient } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
+  const { supabase, getResponse } = createMiddlewareClient(request)
 
   // Refresh session — must happen before any redirect logic
   const {
@@ -58,7 +38,7 @@ export async function middleware(request: NextRequest) {
     if (!hasProfile) return redirectWithNext(request, '/setup-profile', currentPath)
   }
 
-  return supabaseResponse
+  return getResponse()
 }
 
 function safeRedirectPath(value: string | null): string | null {
@@ -82,7 +62,7 @@ function redirectWithNext(request: NextRequest, targetPath: string, nextPath: st
   return NextResponse.redirect(url)
 }
 
-async function userHasProfile(supabase: ReturnType<typeof createServerClient>, userId: string) {
+async function userHasProfile(supabase: SupabaseClient, userId: string) {
   const { data: profile } = await supabase
     .from('profiles')
     .select('id')
