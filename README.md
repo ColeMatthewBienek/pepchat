@@ -1,6 +1,6 @@
 # 🌶️ PepChat
 
-A real-time Discord-light chat app built with **Next.js 14**, **Supabase**, and **Tailwind CSS**. Multiple groups, multiple channels, live messaging, presence indicators, and a full role-based permission system — no external UI libraries.
+A real-time Discord-light chat app built with **Next.js 14**, **Supabase**, and **Tailwind CSS**. Multiple groups, multiple channels, live messaging, presenze indicators, and a full role-based permission system — no external UI libraries.
 
 ---
 
