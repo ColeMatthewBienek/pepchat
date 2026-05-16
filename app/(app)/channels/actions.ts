@@ -79,7 +79,7 @@ export const updateChannelSettings = withAuth(
       .eq('id', channelId)
       .single()
 
-    if (channelError) return { error: channelError.message }
+    if (channelError && channelError.code !== 'PGRST116') return { error: channelError.message }
     if (!channel) return { error: 'Channel not found.' }
 
     const gateResult = await gateGroupRole(supabase, {

@@ -225,8 +225,11 @@ describe('channel actions — updateChannelSettings', () => {
     expect(update.eq).toHaveBeenCalledWith('id', 'ch-1')
   })
 
-  it('returns Channel not found when the pre-gate channel lookup has no row', async () => {
-    const channel = makeSelectBuilder({ data: null })
+  it('returns Channel not found when the pre-gate channel lookup has the Supabase missing-row shape', async () => {
+    const channel = makeSelectBuilder({
+      data: null,
+      error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' },
+    })
     const gate = makeGateBuilder('admin')
     setupClient([channel, gate])
 
