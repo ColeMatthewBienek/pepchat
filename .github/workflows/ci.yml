@@ -25,11 +25,33 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: install-dependencies
-        run: npm ci
+      - name: type-check-with-retry
+        shell: bash
+        run: |
+          set +e
+          npm ci
+          install_status=$?
+          if [ "$install_status" -eq 0 ]; then
+            npx tsc --noEmit
+            typecheck_status=$?
+          else
+            typecheck_status=0
+          fi
 
-      - name: tsc-noemit
-        run: npx tsc --noEmit
+          if [ "$install_status" -eq 0 ] && [ "$typecheck_status" -eq 0 ]; then
+            exit 0
+          fi
+
+          echo "Type-check job failed on the first attempt; verifying npm cache and retrying once."
+          npm cache verify || true
+
+          npm ci
+          install_status=$?
+          if [ "$install_status" -ne 0 ]; then
+            exit "$install_status"
+          fi
+
+          npx tsc --noEmit
 
   tests:
     name: Tests
