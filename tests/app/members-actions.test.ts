@@ -176,18 +176,24 @@ describe('member actions — membership guards', () => {
     expect(mutation.delete).not.toHaveBeenCalled()
   })
 
-  it('does not kick admins or moderators when the caller is a moderator', async () => {
-    const caller = makeSingleBuilder({ data: { role: 'moderator' } })
-    const target = makeSingleBuilder({ data: { role: 'moderator' } })
-    const mutation = makeMutationBuilder()
-    setupClient([caller, target, mutation], 'mod-1')
+  it.each([
+    { targetRole: 'admin', targetUserId: 'target-admin-1' },
+    { targetRole: 'moderator', targetUserId: 'target-mod-1' },
+  ] as const)(
+    'does not kick a $targetRole when the caller is a moderator',
+    async ({ targetRole, targetUserId }) => {
+      const caller = makeSingleBuilder({ data: { role: 'moderator' } })
+      const target = makeSingleBuilder({ data: { role: targetRole } })
+      const mutation = makeMutationBuilder()
+      setupClient([caller, target, mutation], 'mod-1')
 
-    await expect(kickMember('group-1', 'target-mod-1')).resolves.toEqual({
-      error: 'Moderators can only kick users and noobs.',
-    })
+      await expect(kickMember('group-1', targetUserId)).resolves.toEqual({
+        error: 'Moderators can only kick users and noobs.',
+      })
 
-    expect(mutation.delete).not.toHaveBeenCalled()
-  })
+      expect(mutation.delete).not.toHaveBeenCalled()
+    },
+  )
 
   it('does not let admins kick the group admin', async () => {
     const caller = makeSingleBuilder({ data: { role: 'admin' } })
