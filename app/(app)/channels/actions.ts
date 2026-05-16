@@ -1,9 +1,13 @@
 'use server'
 
 import { withAuth } from '@/lib/actions/withAuth'
+import { gateGroupRole } from '@/lib/permissions/gate'
+import { PERMISSIONS } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 
-/** Creates a text channel inside a group. Owner/admin only (enforced by RLS). */
+const CHANNEL_MANAGE_DENIED = 'You do not have permission to manage channels.'
+
+/** Creates a text channel inside a group. Channel manager only. */
 export const createChannel = withAuth(
   async function createChannelBody(
     { supabase, user },
@@ -16,6 +20,14 @@ export const createChannel = withAuth(
 
     if (!name) return { error: 'Channel name is required.' }
     if (!groupId) return { error: 'Missing group.' }
+
+    const gateResult = await gateGroupRole(supabase, {
+      groupId,
+      userId: user.id,
+      predicate: PERMISSIONS.canManageChannels,
+      deniedMessage: CHANNEL_MANAGE_DENIED,
+    })
+    if ('error' in gateResult) return gateResult
 
     // Get the current max position
     const { data: existing } = await supabase
@@ -48,7 +60,7 @@ export const createChannel = withAuth(
 /** Updates channel name, topic, and access settings. */
 export const updateChannelSettings = withAuth(
   async function updateChannelSettingsBody(
-    { supabase },
+    { supabase, user },
     channelId: string,
     formData: FormData,
   ): Promise<{ error: string } | { ok: true }> {
@@ -60,6 +72,23 @@ export const updateChannelSettings = withAuth(
     if (!name) return { error: 'Channel name is required.' }
     if (name.length > 80) return { error: 'Channel name must be 80 characters or fewer.' }
     if (description.length > 180) return { error: 'Topic must be 180 characters or fewer.' }
+
+    const { data: channel, error: channelError } = await supabase
+      .from('channels')
+      .select('id, group_id')
+      .eq('id', channelId)
+      .single()
+
+    if (channelError && channelError.code !== 'PGRST116') return { error: channelError.message }
+    if (!channel) return { error: 'Channel not found.' }
+
+    const gateResult = await gateGroupRole(supabase, {
+      groupId: channel.group_id,
+      userId: user.id,
+      predicate: PERMISSIONS.canManageChannels,
+      deniedMessage: CHANNEL_MANAGE_DENIED,
+    })
+    if ('error' in gateResult) return gateResult
 
     const { error } = await supabase
       .from('channels')
@@ -76,13 +105,21 @@ export const updateChannelSettings = withAuth(
   { unauthenticated: () => ({ error: 'Not authenticated.' }) },
 )
 
-/** Deletes a channel. Owner/admin only (enforced by RLS). */
+/** Deletes a channel. Channel manager only. */
 export const deleteChannel = withAuth(
   async function deleteChannelBody(
-    { supabase },
+    { supabase, user },
     channelId: string,
     groupId: string,
   ): Promise<{ error: string } | never> {
+    const gateResult = await gateGroupRole(supabase, {
+      groupId,
+      userId: user.id,
+      predicate: PERMISSIONS.canManageChannels,
+      deniedMessage: CHANNEL_MANAGE_DENIED,
+    })
+    if ('error' in gateResult) return gateResult
+
     const { error } = await supabase
       .from('channels')
       .delete()
@@ -97,7 +134,7 @@ export const deleteChannel = withAuth(
 /** Swaps a channel's position with the one above or below it. */
 export const moveChannel = withAuth(
   async function moveChannelBody(
-    { supabase },
+    { supabase, user },
     channelId: string,
     direction: 'up' | 'down',
   ): Promise<{ error: string } | void> {
@@ -110,6 +147,14 @@ export const moveChannel = withAuth(
 
     if (channelError) return { error: channelError.message }
     if (!ch) return { error: 'Channel not found.' }
+
+    const gateResult = await gateGroupRole(supabase, {
+      groupId: ch.group_id,
+      userId: user.id,
+      predicate: PERMISSIONS.canManageChannels,
+      deniedMessage: CHANNEL_MANAGE_DENIED,
+    })
+    if ('error' in gateResult) return gateResult
 
     // Find the adjacent channel
     const { data: adjacent, error: adjacentError } = await supabase
