@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Attachment, NotificationPreferences } from '@/lib/types'
+import type { NotificationDraft } from '@/lib/actions/sideEffects'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -149,4 +150,26 @@ export async function enqueueMentionNotifications(
   await supabase
     .from('notification_events')
     .insert(rows)
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Dispatcher — single entry-point for side-effect pipeline
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function dispatchNotification(
+  supabase: SupabaseClient,
+  draft: NotificationDraft,
+): Promise<void> {
+  switch (draft.type) {
+    case 'mention':
+      await enqueueMentionNotifications(supabase, draft.payload as MentionNotificationInput)
+      break
+
+    case 'dm_message':
+      await enqueueDirectMessageNotification(supabase, draft.payload as DirectMessageNotificationInput)
+      break
+
+    default:
+      console.warn(`[notifications] Unknown type: ${draft.type}`)
+  }
 }
