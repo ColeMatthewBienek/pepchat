@@ -59,6 +59,47 @@ describe('member actions — membership guards', () => {
     vi.clearAllMocks()
   })
 
+  it('returns the existing unauthenticated error for role assignment', async () => {
+    const from = vi.fn()
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      },
+      from,
+    })
+
+    await expect(assignRole('group-1', 'user-1', 'moderator')).resolves.toEqual({
+      error: 'Not authenticated.',
+    })
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it('returns the existing unauthenticated error for kicking members', async () => {
+    const from = vi.fn()
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      },
+      from,
+    })
+
+    await expect(kickMember('group-1', 'user-1')).resolves.toEqual({
+      error: 'Not authenticated.',
+    })
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it('keeps the shared predicate denial for non-admin role assignment callers', async () => {
+    const caller = makeSingleBuilder({ data: { role: 'moderator' } })
+    const target = makeSingleBuilder({ data: { role: 'user' } })
+    setupClient([caller, target])
+
+    await expect(assignRole('group-1', 'user-1', 'noob')).resolves.toEqual({
+      error: 'Only admins can assign roles.',
+    })
+    expect(target.single).not.toHaveBeenCalled()
+  })
+
   it('does not assign a role when the target member is missing', async () => {
     const caller = makeSingleBuilder({ data: { role: 'admin' } })
     const target = makeSingleBuilder({ data: null })
