@@ -911,6 +911,54 @@ describe('MessageList — notification hash fallback', () => {
     expect(notice).not.toHaveClass('text-[var(--success)]')
   })
 
+  it('clears an earlier fallback notice immediately after a later successful hash jump', async () => {
+    const { rerender } = render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG]}
+        highlightedMessageId="missing-msg"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    expect(await screen.findByTestId('notification-fallback-notice')).toHaveTextContent('That message is no longer available.')
+
+    rerender(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG, OTHER_MSG]}
+        highlightedMessageId="msg-2"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    await waitFor(() => expect(screen.queryByTestId('notification-fallback-notice')).not.toBeInTheDocument())
+  })
+
+  it('shows the fallback notice when the current hash target is removed after a successful jump', async () => {
+    const { rerender } = render(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG, OTHER_MSG]}
+        highlightedMessageId="msg-2"
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    await waitFor(() => expect(screen.queryByTestId('notification-fallback-notice')).not.toBeInTheDocument())
+
+    rerender(
+      <MessageList
+        {...BASE_PROPS}
+        messages={[MSG]}
+        highlightedMessageId={null}
+        messagesReadyForHashFallback={true}
+      />
+    )
+
+    expect(await screen.findByTestId('notification-fallback-notice')).toHaveTextContent('That message is no longer available.')
+  })
+
   it('clears the fallback notice after 4 seconds', async () => {
     vi.useFakeTimers()
 

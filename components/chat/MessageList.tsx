@@ -144,6 +144,8 @@ export default function MessageList({
   const searchInputRef = useRef<HTMLInputElement>(null)
   const isAtBottomRef = useRef(true)
   const didInitialScrollRef = useRef(false)
+  const activeHashTargetIdRef = useRef<string | null>(null)
+  const noticedMissingHashTargetIdRef = useRef<string | null>(null)
 
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
@@ -247,12 +249,24 @@ export default function MessageList({
   }, [messages])
 
   useEffect(() => {
-    if (!highlightedMessageId || !messagesReadyForHashFallback || !listRef.current) return
-    const didJump = jumpToMessage(highlightedMessageId)
-    if (didJump) {
-      setNotificationFallbackNotice('')
-    } else {
-      setNotificationFallbackNotice('That message is no longer available.')
+    if (!messagesReadyForHashFallback || !listRef.current) return
+
+    if (highlightedMessageId) {
+      activeHashTargetIdRef.current = highlightedMessageId
+      const didJump = jumpToMessage(highlightedMessageId)
+      if (didJump) {
+        noticedMissingHashTargetIdRef.current = null
+        setNotificationFallbackNotice('')
+      } else {
+        showMissingHashTargetNotice(highlightedMessageId)
+      }
+      return
+    }
+
+    const activeHashTargetId = activeHashTargetIdRef.current
+    if (!activeHashTargetId) return
+    if (!findMessageElement(activeHashTargetId)) {
+      showMissingHashTargetNotice(activeHashTargetId)
     }
   }, [highlightedMessageId, messagesReadyForHashFallback, messages])
 
@@ -332,9 +346,19 @@ export default function MessageList({
     return () => document.removeEventListener('keydown', handleDocumentKeyDown)
   }, [])
 
+  function findMessageElement(messageId: string) {
+    if (!listRef.current) return null
+    return listRef.current.querySelector(`[data-message-id="${messageId}"]`)
+  }
+
+  function showMissingHashTargetNotice(messageId: string) {
+    if (noticedMissingHashTargetIdRef.current === messageId) return
+    noticedMissingHashTargetIdRef.current = messageId
+    setNotificationFallbackNotice('That message is no longer available.')
+  }
+
   function jumpToMessage(messageId: string) {
-    if (!listRef.current) return false
-    const el = listRef.current.querySelector(`[data-message-id="${messageId}"]`)
+    const el = findMessageElement(messageId)
     if (!el) return false
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el.classList.add('message-highlighted')
