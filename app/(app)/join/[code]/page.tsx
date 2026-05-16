@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { consumeInvite, resolveInvite } from '@/lib/invites'
+import { inviteLookupClient } from '@/lib/invites/lookupClient'
 import { createClient } from '@/lib/supabase/server'
 
 function InviteMessage({ title, body }: { title: string; body: string }) {
@@ -28,67 +30,31 @@ export default async function JoinPage({
   } = await supabase.auth.getUser()
   if (!user) redirect(`/login?next=${encodeURIComponent(`/join/${params.code}`)}`)
 
-  const { data: invite } = await supabase
-    .from('group_invites')
-    .select('id, group_id, max_uses, uses_count, expires_at, revoked_at')
-    .eq('code', params.code)
-    .single()
+  const resolved = await resolveInvite(supabase, params.code, {
+    authoritativeSupabase: inviteLookupClient(supabase),
+  })
 
-  const { data: legacyGroup } = invite ? { data: null } : await supabase
-    .from('groups')
-    .select('id')
-    .eq('invite_code', params.code)
-    .single()
-
-  const group = invite ? { id: invite.group_id } : legacyGroup
-  if (!group) {
+  if (!resolved.ok) {
+    const isUnusable = resolved.reason === 'unusable'
     return (
       <InviteMessage
-        title="Invite not found"
-        body="This invite link may have been revoked, mistyped, or replaced by a newer invite."
-      />
-    )
-  }
-  if (
-    invite?.revoked_at ||
-    (invite?.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) ||
-    (invite && invite.max_uses !== null && invite.uses_count >= invite.max_uses)
-  ) {
-    return (
-      <InviteMessage
-        title="Invite expired"
-        body="This invite is no longer accepting new members. Ask an admin for a fresh link."
+        title={isUnusable ? 'Invite expired' : 'Invite not found'}
+        body={isUnusable
+          ? 'This invite is no longer accepting new members. Ask an admin for a fresh link.'
+          : 'This invite link may have been revoked, mistyped, or replaced by a newer invite.'}
       />
     )
   }
 
-  // Already a member?
-  const { data: existing } = await supabase
-    .from('group_members')
-    .select('id')
-    .eq('group_id', group.id)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!existing) {
-    await supabase.from('group_members').insert({
-      group_id: group.id,
-      user_id: user.id,
-      role: 'noob',
-    })
-
-    if (invite) {
-      await supabase.from('group_invite_uses').insert({
-        invite_id: invite.id,
-        group_id: invite.group_id,
-        user_id: user.id,
-      })
-      await supabase
-        .from('group_invites')
-        .update({ uses_count: invite.uses_count + 1 })
-        .eq('id', invite.id)
-    }
+  const consumed = await consumeInvite(supabase, resolved.invite, user.id)
+  if (!consumed.ok) {
+    return (
+      <InviteMessage
+        title="Could not join group"
+        body={consumed.message}
+      />
+    )
   }
 
-  redirect(`/groups/${group.id}`)
+  redirect(`/groups/${consumed.groupId}`)
 }
