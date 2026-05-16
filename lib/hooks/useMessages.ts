@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { useRealtimeChannel } from '@/lib/realtime/useRealtimeChannel'
 import { MESSAGE_SELECT } from '@/lib/queries'
 import type { MessageWithProfile, Reaction } from '@/lib/types'
 
@@ -41,48 +41,53 @@ export function useMessages(
   const [messages, setMessages]       = useState<MessageWithProfile[]>(initialMessages)
   const [hasMore, setHasMore]         = useState(initialMessages.length === PAGE_SIZE)
   const [loadingMore, setLoadingMore] = useState(false)
-  const channelRef = useRef<RealtimeChannel | null>(null)
-
-  useEffect(() => {
-    const supabase = createClient()
-
-    const room = supabase
-      .channel(`messages-${channelId}`)
-      // ── Broadcast: new messages sent by other users ──────────────────────
-      .on('broadcast', { event: 'new_message' }, ({ payload }) => {
-        const msg = payload.message as MessageWithProfile
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev
-          return [...prev, msg]
-        })
-      })
-      // ── Broadcast: reaction added by another user ────────────────────────
-      .on('broadcast', { event: 'reaction_added' }, ({ payload }) => {
-        const { messageId, reaction } = payload as { messageId: string; reaction: Reaction }
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== messageId) return m
-            const existing = m.reactions ?? []
-            if (existing.some((r) => r.id === reaction.id || (r.user_id === reaction.user_id && r.emoji === reaction.emoji))) return m
-            return { ...m, reactions: [...existing, reaction] }
+  const { channelRef } = useRealtimeChannel({
+    topic: `messages-${channelId}`,
+    deps: [channelId],
+    bindings: [
+      {
+        type: 'broadcast',
+        filter: { event: 'new_message' },
+        handler: ({ payload }) => {
+          const msg = payload.message as MessageWithProfile
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev
+            return [...prev, msg]
           })
-        )
-      })
-      // ── Broadcast: reaction removed by another user ──────────────────────
-      .on('broadcast', { event: 'reaction_removed' }, ({ payload }) => {
-        const { messageId, userId, emoji } = payload as { messageId: string; userId: string; emoji: string }
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== messageId) return m
-            return { ...m, reactions: (m.reactions ?? []).filter((r) => !(r.user_id === userId && r.emoji === emoji)) }
-          })
-        )
-      })
-      // ── postgres_changes: edits and deletes ──────────────────────────────
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => {
+        },
+      },
+      {
+        type: 'broadcast',
+        filter: { event: 'reaction_added' },
+        handler: ({ payload }) => {
+          const { messageId, reaction } = payload as { messageId: string; reaction: Reaction }
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== messageId) return m
+              const existing = m.reactions ?? []
+              if (existing.some((r) => r.id === reaction.id || (r.user_id === reaction.user_id && r.emoji === reaction.emoji))) return m
+              return { ...m, reactions: [...existing, reaction] }
+            })
+          )
+        },
+      },
+      {
+        type: 'broadcast',
+        filter: { event: 'reaction_removed' },
+        handler: ({ payload }) => {
+          const { messageId, userId, emoji } = payload as { messageId: string; userId: string; emoji: string }
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== messageId) return m
+              return { ...m, reactions: (m.reactions ?? []).filter((r) => !(r.user_id === userId && r.emoji === emoji)) }
+            })
+          )
+        },
+      },
+      {
+        type: 'postgres_changes',
+        filter: { event: 'UPDATE', schema: 'public', table: 'messages' },
+        handler: (payload) => {
           if (payload.new.channel_id !== channelId) return
           setMessages((prev) =>
             prev.map((m) =>
@@ -91,21 +96,17 @@ export function useMessages(
                 : m
             )
           )
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'messages' },
-        (payload) => {
+        },
+      },
+      {
+        type: 'postgres_changes',
+        filter: { event: 'DELETE', schema: 'public', table: 'messages' },
+        handler: (payload) => {
           setMessages((prev) => prev.filter((m) => m.id !== payload.old.id))
-        }
-      )
-      .subscribe()
-
-    channelRef.current = room
-
-    return () => { supabase.removeChannel(room) }
-  }, [channelId])
+        },
+      },
+    ],
+  })
 
   /** Broadcast a freshly inserted message to all other room members. */
   const broadcastNewMessage = useCallback((msg: MessageWithProfile) => {

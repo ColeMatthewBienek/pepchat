@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { useRealtimeChannel } from '@/lib/realtime/useRealtimeChannel'
 
 export interface OnlineUser {
   user_id: string
@@ -38,7 +37,6 @@ export function usePresence(
   const [onlineUsers, setOnlineUsers]       = useState<OnlineUser[]>([])
   const [typingUsernames, setTypingUsernames] = useState<string[]>([])
   const [status, setStatusState] = useState<PresenceStatus>('online')
-  const roomRef        = useRef<RealtimeChannel | null>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Capture stable identity values so broadcastTyping callback doesn't need to re-run the effect
@@ -60,52 +58,52 @@ export function usePresence(
     }
   }, [])
 
-  useEffect(() => {
-    const supabase = createClient()
-    const room = supabase.channel(`presence-${channelId}`, {
-      config: { presence: { key: currentUser.user_id } },
-    })
+  function syncState() {
+    const state = roomRef.current?.presenceState<PresencePayload>() ?? {}
+    const users: OnlineUser[]  = []
+    const typing: string[]     = []
 
-    function syncState() {
-      const state = room.presenceState<PresencePayload>()
-      const users: OnlineUser[]  = []
-      const typing: string[]     = []
-
-      for (const presences of Object.values(state)) {
-        const p = presences[0] as PresencePayload | undefined
-        if (!p) continue
-        users.push({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url, status: p.status ?? 'online' })
-        if (p.typing && p.user_id !== currentUser.user_id) {
-          typing.push(p.username)
-        }
+    for (const presences of Object.values(state)) {
+      const p = presences[0] as PresencePayload | undefined
+      if (!p) continue
+      users.push({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url, status: p.status ?? 'online' })
+      if (p.typing && p.user_id !== userIdRef.current) {
+        typing.push(p.username)
       }
-
-      setOnlineUsers(users)
-      setTypingUsernames(typing)
     }
 
-    room
-      .on('presence', { event: 'sync' }, syncState)
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await room.track({
-            user_id:    currentUser.user_id,
-            username:   currentUser.username,
-            avatar_url: currentUser.avatar_url,
-            status:     statusRef.current,
-            typing:     false,
-          } satisfies PresencePayload)
-        }
-      })
+    setOnlineUsers(users)
+    setTypingUsernames(typing)
+  }
 
-    roomRef.current = room
+  const { channelRef: roomRef } = useRealtimeChannel({
+    topic: `presence-${channelId}`,
+    options: { config: { presence: { key: currentUser.user_id } } },
+    deps: [channelId],
+    bindings: [
+      { type: 'presence', filter: { event: 'sync' }, handler: syncState },
+    ],
+    onStatus: async (status, room) => {
+      if (status === 'SUBSCRIBED') {
+        await room.track({
+          user_id:    userIdRef.current,
+          username:   usernameRef.current,
+          avatar_url: avatarRef.current,
+          status:     statusRef.current,
+          typing:     false,
+        } satisfies PresencePayload)
+      }
+    },
+  })
 
+  useEffect(() => {
     return () => {
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
-      supabase.removeChannel(room)
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+        typingTimerRef.current = null
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelId]) // intentionally omit currentUser fields — captured by refs above
+  }, [channelId])
 
   const broadcastTyping = useCallback(() => {
     const room = roomRef.current
