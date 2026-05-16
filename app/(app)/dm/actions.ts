@@ -1,10 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { DM_SELECT } from '@/lib/queries'
 import type { DirectMessageWithProfile, Attachment } from '@/lib/types'
 import { enqueueDirectMessageNotification } from '@/lib/server-notifications'
-
-const DM_SELECT = '*, sender:profiles!sender_id(id, username, avatar_url, display_name, username_color, banner_color, badge, pronouns, bio, location, website, member_since, updated_at, created_at)'
 
 type DMPreviewMessage = {
   id: string

@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { middleware } from '@/middleware'
+import { createMiddlewareClient } from '@/lib/supabase/middleware'
 
 const { mockCreateServerClient } = vi.hoisted(() => ({ mockCreateServerClient: vi.fn() }))
 
@@ -87,5 +88,41 @@ describe('middleware invite return paths', () => {
     const response = await middleware(makeRequest('/login?next=//evil.example'))
 
     expect(response.headers.get('location')).toBe('https://pepchat.test/channels')
+  })
+})
+
+describe('middleware Supabase factory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('mutates request cookies, rebinds the response, and preserves response cookie options', () => {
+    const request = makeRequest('/channels')
+    const { getResponse } = createMiddlewareClient(request)
+    const initialResponse = getResponse()
+
+    const cookieAdapter = mockCreateServerClient.mock.calls[0]?.[2]?.cookies
+    expect(cookieAdapter.getAll()).toEqual([])
+
+    cookieAdapter.setAll([
+      {
+        name: 'sb-session',
+        value: 'refreshed-token',
+        options: { path: '/', httpOnly: true, sameSite: 'lax' as const },
+      },
+    ])
+
+    const reboundResponse = getResponse()
+    expect(request.cookies.get('sb-session')?.value).toBe('refreshed-token')
+    expect(reboundResponse).not.toBe(initialResponse)
+    expect(reboundResponse.cookies.get('sb-session')).toEqual(
+      expect.objectContaining({
+        name: 'sb-session',
+        value: 'refreshed-token',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+      })
+    )
   })
 })
