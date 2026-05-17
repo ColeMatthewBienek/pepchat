@@ -59,8 +59,8 @@ const roles = [
 
 export default function HelpPage() {
   return (
-    <main className="min-h-full bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-5 py-8 md:px-8">
+    <main className="h-full overflow-y-auto bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-5 pb-24 pt-8 md:px-8 md:pb-8">
         <header className="border-b border-[var(--border-soft)] pb-6">
           <p className="text-sm font-semibold uppercase tracking-wide text-[var(--accent)]">PepChat Help</p>
           <h1 className="mt-2 text-3xl font-semibold">Use PepChat without losing your place</h1>
@@ -73,7 +73,7 @@ export default function HelpPage() {
               href="/channels"
               className="rounded border border-[var(--border-soft)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
-              Go to channels
+              Back to channels
             </Link>
             <Link
               href="/settings/profile"
