@@ -52,6 +52,7 @@ describe('invite-only profile RLS schema', () => {
     }
     expect(migration).toContain('drop policy if exists "Profiles are viewable by authenticated users" on public.profiles')
     expect(migration).toContain('drop policy if exists "Authenticated users can read groups" on public.groups')
+    expect(migration).toContain('drop policy if exists "Anyone can read groups to check invite codes" on public.groups')
     expect(schema).not.toContain('create policy "Profiles are viewable by authenticated users"')
     expect(schema).not.toContain('create policy "Authenticated users can read groups"')
   })
