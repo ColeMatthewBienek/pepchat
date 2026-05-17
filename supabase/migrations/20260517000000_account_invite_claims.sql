@@ -352,6 +352,7 @@ create policy "Profiled users can read visible profiles"
   );
 
 drop policy if exists "Authenticated users can read groups" on public.groups;
+drop policy if exists "Anyone can read groups to check invite codes" on public.groups;
 drop policy if exists "Profiled users can read visible groups" on public.groups;
 
 create policy "Profiled users can read visible groups"
