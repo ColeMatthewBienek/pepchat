@@ -1,13 +1,26 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import {
+  createOrReplaceAccountInviteClaim,
+  completeAccountInviteProfile,
+  userHasPendingAccountInviteClaim,
+} from '@/lib/invites/accountClaims'
+import { inviteCodeFromNextPath, normalizeInviteCode, resolveInvite } from '@/lib/invites'
+import { inviteLookupClient } from '@/lib/invites/lookupClient'
 import { redirect } from 'next/navigation'
 
-function safeRedirectPath(value: FormDataEntryValue | null): string {
+function safeRedirectPath(value: FormDataEntryValue | string | null): string {
   if (typeof value !== 'string') return '/channels'
   if (!value.startsWith('/') || value.startsWith('//')) return '/channels'
   if (value.includes('\\')) return '/channels'
   return value
+}
+
+function inviteCodeFromForm(formData: FormData): string {
+  const invite = formData.get('invite')
+  if (typeof invite === 'string' && invite.trim()) return normalizeInviteCode(invite)
+  return inviteCodeFromNextPath(formData.get('next')?.toString())
 }
 
 /**
@@ -26,7 +39,6 @@ export async function login(
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: error.message }
 
-  // If the user has no profile yet, send them to setup
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -38,7 +50,14 @@ export async function login(
       .eq('id', user.id)
       .single()
 
-    if (!profile) redirect(`/setup-profile?next=${encodeURIComponent(next)}`)
+    if (!profile) {
+      const hasPendingClaim = await userHasPendingAccountInviteClaim(supabase, user.id)
+      if (!hasPendingClaim) {
+        await supabase.auth.signOut()
+        return { error: 'An invite is required to finish account setup.' }
+      }
+      redirect(`/setup-profile?next=${encodeURIComponent(next)}`)
+    }
   }
 
   redirect(next)
@@ -55,15 +74,35 @@ export async function signup(
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const inviteCode = inviteCodeFromForm(formData)
+
+  if (!inviteCode) return { error: 'A valid invite is required to create an account.' }
+
+  const resolved = await resolveInvite(supabase, inviteCode, {
+    authoritativeSupabase: inviteLookupClient(supabase),
+    mode: 'account_signup',
+  })
+  if (!resolved.ok || resolved.invite.kind !== 'managed') {
+    return { error: resolved.ok ? 'A valid invite is required to create an account.' : resolved.message }
+  }
 
   const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) return { error: error.message }
 
   // Supabase returns a fake-success with an identities array when the email is
   // already registered. Surface this as a user-facing error instead of silently
-  // sending them to the check-email screen.
+  // sending them to the check-email screen. Do not create invite claims here.
   if (data.user && data.user.identities?.length === 0) {
     return { error: 'An account with that email already exists.' }
+  }
+
+  if (data.user) {
+    const claim = await createOrReplaceAccountInviteClaim({
+      inviteCode,
+      authUserId: data.user.id,
+      email,
+    })
+    if ('error' in claim) return { error: claim.error }
   }
 
   return { email }
@@ -92,7 +131,9 @@ export async function setupProfile(
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Check uniqueness
+  const hasPendingClaim = await userHasPendingAccountInviteClaim(supabase, user.id)
+  if (!hasPendingClaim) return { error: 'An invite is required to finish account setup.' }
+
   const { data: existing } = await supabase
     .from('profiles')
     .select('id')
@@ -101,14 +142,11 @@ export async function setupProfile(
 
   if (existing) return { error: 'That username is already taken.' }
 
-  const { error } = await supabase.from('profiles').insert({
-    id: user.id,
-    username,
-  })
+  const completed = await completeAccountInviteProfile(supabase, username)
+  if ('error' in completed) return { error: completed.error }
 
-  if (error) return { error: error.message }
-
-  redirect(next)
+  const destination = next === '/channels' ? `/groups/${completed.groupId}` : next
+  redirect(destination)
 }
 
 /**

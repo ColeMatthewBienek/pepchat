@@ -1,145 +1,46 @@
-'use client'
-
-import { useEffect, useTransition, useState } from 'react'
 import Link from 'next/link'
-import { signup } from '../actions'
-import { CheckEmailView } from '@/components/auth/CheckEmailView'
+import SignupForm from './SignupForm'
+import { inviteCodeFromNextPath, normalizeInviteCode, resolveInvite } from '@/lib/invites'
+import { inviteLookupClient } from '@/lib/invites/lookupClient'
+import { createClient } from '@/lib/supabase/server'
 
-export default function SignupPage() {
-  const [error, setError] = useState('')
-  const [isPending, startTransition] = useTransition()
-  const [confirmedEmail, setConfirmedEmail] = useState<string | null>(null)
-  const [nextPath, setNextPath] = useState('')
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const value = new URLSearchParams(window.location.search).get('next')
-    if (value?.startsWith('/') && !value.startsWith('//')) {
-      setNextPath(value)
-    }
-  }, [])
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError('')
-
-    const formData = new FormData(e.currentTarget)
-    const password = formData.get('password') as string
-    const confirm = formData.get('confirm') as string
-
-    if (password !== confirm) {
-      setError('Passwords do not match.')
-      return
-    }
-
-    startTransition(async () => {
-      const result = await signup(formData)
-      if ('error' in result) {
-        setError(result.error)
-      } else {
-        setConfirmedEmail(result.email)
-      }
-    })
-  }
-
-  if (confirmedEmail) {
-    return <CheckEmailView email={confirmedEmail} onBack={() => setConfirmedEmail(null)} />
-  }
-
+function ClosedSignup({ message }: { message: string }) {
   return (
-    <div className="w-full max-w-md bg-[var(--bg-secondary)] rounded-lg p-8 shadow-xl">
-      <h1 className="text-2xl font-bold text-center mb-2">Create an account</h1>
-      <p className="text-[var(--text-muted)] text-center text-sm mb-8">
-        Join PepChat today
-      </p>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {nextPath && <input type="hidden" name="next" value={nextPath} />}
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="email"
-            className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className="bg-[var(--bg-primary)] border border-black/20 rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            placeholder="you@example.com"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="password"
-            className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="bg-[var(--bg-primary)] border border-black/20 rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            placeholder="At least 8 characters"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="confirm"
-            className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
-          >
-            Confirm Password
-          </label>
-          <input
-            id="confirm"
-            name="confirm"
-            type="password"
-            required
-            autoComplete="new-password"
-            className="bg-[var(--bg-primary)] border border-black/20 rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            placeholder="••••••••"
-          />
-        </div>
-
-        {error && (
-          <p className="text-[var(--danger)] text-sm bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded px-3 py-2">
-            {error}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={isPending}
-          className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded py-2.5 text-sm transition-colors"
-        >
-          {isPending ? 'Creating account…' : 'Create Account'}
-        </button>
-      </form>
-
-      <p className="text-center text-sm text-[var(--text-muted)] mt-6">
-        Already have an account?{' '}
-        <Link
-          href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : '/login'}
-          className="text-[var(--accent)] hover:underline"
-        >
-          Log in
-        </Link>
-      </p>
-
-      <p className="text-center mt-4">
-        <Link href="/install" className="text-xs hover:underline" style={{ color: 'var(--text-faint)' }}>
-          Install as app
-        </Link>
-      </p>
+    <div className="w-full max-w-md bg-[var(--bg-secondary)] rounded-lg p-8 shadow-xl text-center">
+      <h1 className="text-2xl font-bold mb-2">PepChat is invite-only</h1>
+      <p className="text-[var(--text-muted)] text-sm mb-6">{message}</p>
+      <Link href="/login" className="text-[var(--accent)] hover:underline text-sm">
+        Log in with an existing account
+      </Link>
     </div>
   )
+}
+
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams?: { invite?: string; next?: string }
+}) {
+  const supabase = await createClient()
+  const invite = normalizeInviteCode(searchParams?.invite ?? inviteCodeFromNextPath(searchParams?.next) ?? '')
+  const nextPath = searchParams?.next?.startsWith('/') && !searchParams.next.startsWith('//') && !searchParams.next.includes('\\')
+    ? searchParams.next
+    : invite
+      ? `/join/${invite}`
+      : ''
+
+  if (!invite) {
+    return <ClosedSignup message="Ask a group admin for a fresh invite link before creating an account." />
+  }
+
+  const resolved = await resolveInvite(supabase, invite, {
+    authoritativeSupabase: inviteLookupClient(supabase),
+    mode: 'account_signup',
+  })
+
+  if (!resolved.ok || resolved.invite.kind !== 'managed') {
+    return <ClosedSignup message={resolved.ok ? 'Ask a group admin for a fresh invite link.' : resolved.message} />
+  }
+
+  return <SignupForm invite={invite} nextPath={nextPath} />
 }

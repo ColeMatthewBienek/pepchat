@@ -160,6 +160,45 @@ describe('resolveInvite', () => {
     })).resolves.toEqual({ ok: false, reason: 'unusable', message: 'Invite link has expired or reached its usage limit.' })
     expect(userScoped.from).not.toHaveBeenCalled()
   })
+
+  it('account-signup mode rejects legacy invite codes for new account bootstrap', async () => {
+    const managed = builder({ data: null })
+    const legacy = builder({ data: { id: 'group-legacy' } })
+    const supabase = client([managed, legacy])
+
+    await expect(resolveInvite(supabase as any, 'legacy-code', { mode: 'account_signup' })).resolves.toEqual({
+      ok: false,
+      reason: 'legacy_not_allowed',
+      message: 'This invite link is no longer accepted for new accounts. Ask an admin for a fresh invite.',
+    })
+  })
+
+  it('account-signup mode requires the invite creator to still be group owner or admin', async () => {
+    const managedInvite = invite({ created_by: 'former-admin' })
+    const managed = builder({ data: managedInvite })
+    const group = builder({ data: { owner_id: 'owner-1' } })
+    const membership = builder({ data: { role: 'moderator' } })
+    const supabase = client([managed, group, membership])
+
+    await expect(resolveInvite(supabase as any, 'managed-code', { mode: 'account_signup' })).resolves.toEqual({
+      ok: false,
+      reason: 'creator_not_allowed',
+      message: 'This invite is no longer valid. Ask an admin for a fresh link.',
+    })
+  })
+
+  it('account-signup mode accepts managed invites created by current group owners', async () => {
+    const managedInvite = invite({ created_by: 'owner-1' })
+    const managed = builder({ data: managedInvite })
+    const group = builder({ data: { owner_id: 'owner-1' } })
+    const supabase = client([managed, group])
+
+    await expect(resolveInvite(supabase as any, 'managed-code', { mode: 'account_signup' })).resolves.toEqual({
+      ok: true,
+      invite: { kind: 'managed', invite: managedInvite, groupId: 'group-1' },
+    })
+  })
+
 })
 
 describe('consumeInvite', () => {

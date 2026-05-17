@@ -23,47 +23,63 @@ function makeProfileBuilder(profile: unknown) {
   return builder
 }
 
-function setupSupabase(userId: string | null, profile: unknown = { id: userId }) {
+function setupSupabase(userId: string | null, profile: unknown = { id: userId }, hasPendingClaim = false) {
   const profileBuilder = makeProfileBuilder(profile)
   const from = vi.fn(() => profileBuilder)
+  const rpc = vi.fn().mockResolvedValue({ data: hasPendingClaim, error: null })
+  const signOut = vi.fn().mockResolvedValue({ error: null })
 
   mockCreateServerClient.mockReturnValue({
     auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: userId ? { id: userId } : null },
-        error: null,
-      }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: userId ? { id: userId } : null }, error: null }),
+      signOut,
     },
     from,
+    rpc,
   })
 
-  return { from, profileBuilder }
+  return { from, profileBuilder, rpc, signOut }
 }
 
-describe('middleware invite return paths', () => {
+describe('middleware invite-only gate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('preserves protected invite paths for unauthenticated users', async () => {
+  it('allows unauthenticated public join links to render invite landing', async () => {
     setupSupabase(null)
 
     const response = await middleware(makeRequest('/join/invite-123'))
 
+    expect(response.headers.get('location')).toBeNull()
+  })
+
+  it('redirects unauthenticated protected app routes to login with next', async () => {
+    setupSupabase(null)
+
+    const response = await middleware(makeRequest('/channels/abc'))
+
+    expect(response.headers.get('location')).toBe('https://pepchat.test/login?next=%2Fchannels%2Fabc')
+  })
+
+  it('redirects authenticated users without profiles and pending claims to setup with current path', async () => {
+    const { rpc } = setupSupabase('user-1', null, true)
+
+    const response = await middleware(makeRequest('/channels?dm=conversation-1'))
+
+    expect(rpc).toHaveBeenCalledWith('user_has_pending_account_invite_claim', { p_auth_user_id: 'user-1' })
     expect(response.headers.get('location')).toBe(
-      'https://pepchat.test/login?next=%2Fjoin%2Finvite-123',
+      'https://pepchat.test/setup-profile?next=%2Fchannels%3Fdm%3Dconversation-1',
     )
   })
 
-  it('redirects authenticated users without profiles to setup with the current path', async () => {
-    const { from } = setupSupabase('user-1', null)
+  it('signs out authenticated users without profiles and pending claims', async () => {
+    const { signOut } = setupSupabase('user-1', null, false)
 
-    const response = await middleware(makeRequest('/join/invite-123'))
+    const response = await middleware(makeRequest('/setup-profile'))
 
-    expect(from).toHaveBeenCalledWith('profiles')
-    expect(response.headers.get('location')).toBe(
-      'https://pepchat.test/setup-profile?next=%2Fjoin%2Finvite-123',
-    )
+    expect(signOut).toHaveBeenCalled()
+    expect(response.headers.get('location')).toBe('https://pepchat.test/login?invite_required=1')
   })
 
   it('sends authenticated login visitors with profiles to a safe next path', async () => {
@@ -82,10 +98,10 @@ describe('middleware invite return paths', () => {
     expect(response.headers.get('location')).toBe('https://pepchat.test/channels?dm=conversation-1')
   })
 
-  it('ignores unsafe next paths for authenticated login visitors', async () => {
+  it.each(['//evil.example', '/join\\evil'])('ignores unsafe next paths for authenticated login visitors: %s', async next => {
     setupSupabase('user-1')
 
-    const response = await middleware(makeRequest('/login?next=//evil.example'))
+    const response = await middleware(makeRequest(`/login?next=${encodeURIComponent(next)}`))
 
     expect(response.headers.get('location')).toBe('https://pepchat.test/channels')
   })
@@ -116,13 +132,7 @@ describe('middleware Supabase factory', () => {
     expect(request.cookies.get('sb-session')?.value).toBe('refreshed-token')
     expect(reboundResponse).not.toBe(initialResponse)
     expect(reboundResponse.cookies.get('sb-session')).toEqual(
-      expect.objectContaining({
-        name: 'sb-session',
-        value: 'refreshed-token',
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-      })
+      expect.objectContaining({ name: 'sb-session', value: 'refreshed-token', path: '/', httpOnly: true, sameSite: 'lax' }),
     )
   })
 })

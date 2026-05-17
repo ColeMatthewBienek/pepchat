@@ -5,13 +5,13 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware'
 export async function middleware(request: NextRequest) {
   const { supabase, getResponse } = createMiddlewareClient(request)
 
-  // Refresh session — must happen before any redirect logic
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
   const currentPath = `${request.nextUrl.pathname}${request.nextUrl.search}`
+  const isJoinRoute = pathname.startsWith('/join')
   const isAuthRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
@@ -20,29 +20,40 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/auth/confirm') ||
     pathname.startsWith('/auth/callback')
 
-  // Unauthenticated user trying to access protected route
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isJoinRoute) {
     return redirectWithNext(request, '/login', currentPath)
   }
 
-  // Authenticated user hitting auth pages — send them into the app
   if (user && (pathname === '/login' || pathname === '/signup')) {
     const nextPath = safeRedirectPath(request.nextUrl.searchParams.get('next')) ?? '/channels'
     const hasProfile = await userHasProfile(supabase, user.id)
-    if (!hasProfile) return redirectWithNext(request, '/setup-profile', nextPath)
+    if (!hasProfile) {
+      const hasPendingClaim = await userHasPendingInviteClaim(supabase, user.id)
+      if (hasPendingClaim) return redirectWithNext(request, '/setup-profile', nextPath)
+      await supabase.auth.signOut()
+      return redirectToPath(request, '/login?invite_required=1')
+    }
     return redirectToPath(request, nextPath)
   }
 
-  if (user && !isAuthRoute) {
+  if (user) {
     const hasProfile = await userHasProfile(supabase, user.id)
-    if (!hasProfile) return redirectWithNext(request, '/setup-profile', currentPath)
+    if (!hasProfile) {
+      const hasPendingClaim = await userHasPendingInviteClaim(supabase, user.id)
+      if (!hasPendingClaim) {
+        await supabase.auth.signOut()
+        return redirectToPath(request, '/login?invite_required=1')
+      }
+      if (pathname.startsWith('/setup-profile')) return getResponse()
+      if (!isAuthRoute && !isJoinRoute) return redirectWithNext(request, '/setup-profile', currentPath)
+    }
   }
 
   return getResponse()
 }
 
 function safeRedirectPath(value: string | null): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return null
   return value
 }
 
@@ -70,6 +81,14 @@ async function userHasProfile(supabase: SupabaseClient, userId: string) {
     .single()
 
   return Boolean(profile)
+}
+
+async function userHasPendingInviteClaim(supabase: SupabaseClient, userId: string) {
+  const { data, error } = await supabase.rpc('user_has_pending_account_invite_claim', {
+    p_auth_user_id: userId,
+  })
+  if (error) return false
+  return Boolean(data)
 }
 
 export const config = {
