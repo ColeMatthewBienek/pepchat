@@ -26,10 +26,11 @@ export type LegacyInvite = {
 }
 
 export type ResolvedInvite = ManagedInvite | LegacyInvite
+export type InviteResolveMode = 'group_join' | 'account_signup'
 
 export type InviteResolveResult =
   | { ok: true; invite: ResolvedInvite }
-  | { ok: false; reason: 'missing_code' | 'not_found' | 'unusable'; message: string }
+  | { ok: false; reason: 'missing_code' | 'not_found' | 'unusable' | 'legacy_not_allowed' | 'creator_not_allowed'; message: string }
 
 export type InviteConsumeResult =
   | { ok: true; groupId: string; joined: boolean }
@@ -48,6 +49,12 @@ export function normalizeInviteCode(value: string) {
   const trimmed = value.trim()
   const match = trimmed.match(/\/join\/([^/?#]+)/)
   return decodeURIComponent(match?.[1] ?? trimmed).trim()
+}
+
+export function inviteCodeFromNextPath(value: string | null | undefined) {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return ''
+  const match = value.match(/^\/join\/([^/?#]+)/)
+  return match ? normalizeInviteCode(match[1]) : ''
 }
 
 export function parseInviteOptions(formData?: FormData): RegenerateInviteOptions | { error: string } {
@@ -80,12 +87,37 @@ export function inviteIsUsable(
   return true
 }
 
+async function inviteCreatorCanBootstrapAccounts(
+  supabase: SupabaseClient,
+  invite: Pick<InviteRecord, 'group_id' | 'created_by'>,
+) {
+  if (!invite.created_by) return false
+
+  const { data: group } = await supabase
+    .from('groups')
+    .select('owner_id')
+    .eq('id', invite.group_id)
+    .single()
+
+  if ((group as { owner_id?: string } | null)?.owner_id === invite.created_by) return true
+
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('role')
+    .eq('group_id', invite.group_id)
+    .eq('user_id', invite.created_by)
+    .single()
+
+  return (membership as { role?: string } | null)?.role === 'admin'
+}
+
 export async function resolveInvite(
   supabase: SupabaseClient,
   code: string,
-  opts: { now?: number; authoritativeSupabase?: SupabaseClient } = {},
+  opts: { now?: number; authoritativeSupabase?: SupabaseClient; mode?: InviteResolveMode } = {},
 ): Promise<InviteResolveResult> {
   const inviteCode = normalizeInviteCode(code)
+  const mode = opts.mode ?? 'group_join'
   if (!inviteCode) {
     return { ok: false, reason: 'missing_code', message: 'Invite code is required.' }
   }
@@ -102,6 +134,12 @@ export async function resolveInvite(
     if (!inviteIsUsable(invite, opts.now)) {
       return { ok: false, reason: 'unusable', message: 'Invite link has expired or reached its usage limit.' }
     }
+    if (mode === 'account_signup') {
+      const creatorAllowed = await inviteCreatorCanBootstrapAccounts(inviteClient, invite)
+      if (!creatorAllowed) {
+        return { ok: false, reason: 'creator_not_allowed', message: 'This invite is no longer valid. Ask an admin for a fresh link.' }
+      }
+    }
     return { ok: true, invite: { kind: 'managed', invite, groupId: invite.group_id } }
   }
 
@@ -113,6 +151,14 @@ export async function resolveInvite(
 
   if (!legacyGroup) {
     return { ok: false, reason: 'not_found', message: 'Invalid invite code.' }
+  }
+
+  if (mode === 'account_signup') {
+    return {
+      ok: false,
+      reason: 'legacy_not_allowed',
+      message: 'This invite link is no longer accepted for new accounts. Ask an admin for a fresh invite.',
+    }
   }
 
   return { ok: true, invite: { kind: 'legacy', code: inviteCode, groupId: (legacyGroup as { id: string }).id } }

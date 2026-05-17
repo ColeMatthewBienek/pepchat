@@ -7,7 +7,21 @@
 -- 1. ENUM TYPES
 -- ────────────────────────────────────────────────────────────
 
-create type if not exists public.member_role as enum ('admin', 'moderator', 'user', 'noob');
+do $$
+begin
+  create type public.member_role as enum ('admin', 'moderator', 'user', 'noob');
+exception
+  when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.account_invite_claim_status as enum ('pending_profile', 'consumed', 'revoked');
+exception
+  when duplicate_object then null;
+end
+$$;
 
 -- ────────────────────────────────────────────────────────────
 -- 2. TABLES
@@ -67,6 +81,17 @@ create table if not exists public.group_invite_uses (
   group_id   uuid references public.groups(id) on delete cascade not null,
   user_id    uuid references public.profiles(id) on delete cascade not null,
   used_at    timestamptz default now() not null
+);
+
+create table if not exists public.account_invite_claims (
+  id           uuid primary key default gen_random_uuid(),
+  invite_id    uuid references public.group_invites(id) on delete restrict not null,
+  group_id     uuid references public.groups(id) on delete cascade not null,
+  auth_user_id uuid references auth.users(id) on delete cascade not null,
+  email        text not null,
+  status       public.account_invite_claim_status not null default 'pending_profile',
+  claimed_at   timestamptz default now() not null,
+  consumed_at  timestamptz
 );
 
 create table if not exists public.channels (
@@ -178,6 +203,7 @@ alter table public.groups              enable row level security;
 alter table public.group_members       enable row level security;
 alter table public.group_invites       enable row level security;
 alter table public.group_invite_uses   enable row level security;
+alter table public.account_invite_claims enable row level security;
 alter table public.channels            enable row level security;
 alter table public.messages            enable row level security;
 alter table public.message_reactions   enable row level security;
@@ -229,6 +255,97 @@ set search_path = public as $$
   )
 $$;
 
+-- True if the current user has a usable pending first-account invite claim.
+create or replace function public.user_has_pending_account_invite_claim(p_auth_user_id uuid default auth.uid())
+returns boolean language plpgsql security definer stable
+set search_path = public, auth as $$
+declare
+  v_user_id uuid := auth.uid();
+begin
+  if p_auth_user_id is null then
+    p_auth_user_id := v_user_id;
+  end if;
+  if v_user_id is null or p_auth_user_id <> v_user_id then
+    return false;
+  end if;
+  return exists (
+    select 1
+    from public.account_invite_claims c
+    join public.group_invites i on i.id = c.invite_id
+    where c.auth_user_id = p_auth_user_id
+      and c.status = 'pending_profile'
+      and i.revoked_at is null
+      and (i.expires_at is null or i.expires_at > now())
+      and (i.max_uses is null or i.uses_count < i.max_uses)
+  );
+end;
+$$;
+
+create or replace function public.create_or_replace_account_invite_claim(
+  p_invite_code text,
+  p_auth_user_id uuid,
+  p_email text
+)
+returns setof public.account_invite_claims
+language plpgsql security definer
+set search_path = public, auth as $$
+declare
+  v_invite public.group_invites%rowtype;
+  v_group_owner uuid;
+  v_creator_role public.member_role;
+  v_claim public.account_invite_claims%rowtype;
+begin
+  select * into v_invite from public.group_invites where code = trim(p_invite_code) for update;
+  if not found then raise exception 'Invite not found.'; end if;
+  if v_invite.revoked_at is not null
+    or (v_invite.expires_at is not null and v_invite.expires_at <= now())
+    or (v_invite.max_uses is not null and v_invite.uses_count >= v_invite.max_uses)
+  then
+    raise exception 'This invite is no longer valid. Ask an admin for a fresh link.';
+  end if;
+  select owner_id into v_group_owner from public.groups where id = v_invite.group_id;
+  select role into v_creator_role from public.group_members where group_id = v_invite.group_id and user_id = v_invite.created_by limit 1;
+  if v_invite.created_by is null or (v_invite.created_by <> v_group_owner and coalesce(v_creator_role::text, '') <> 'admin') then
+    raise exception 'This invite is no longer valid. Ask an admin for a fresh link.';
+  end if;
+  update public.account_invite_claims set status = 'revoked' where auth_user_id = p_auth_user_id and status = 'pending_profile';
+  insert into public.account_invite_claims(invite_id, group_id, auth_user_id, email)
+  values (v_invite.id, v_invite.group_id, p_auth_user_id, lower(trim(p_email))) returning * into v_claim;
+  return next v_claim;
+end;
+$$;
+
+create or replace function public.complete_account_invite_profile(p_username text)
+returns table(group_id uuid)
+language plpgsql security definer
+set search_path = public, auth as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_claim public.account_invite_claims%rowtype;
+  v_invite public.group_invites%rowtype;
+begin
+  if v_user_id is null then raise exception 'Not authenticated.'; end if;
+  select * into v_claim from public.account_invite_claims
+  where auth_user_id = v_user_id and status = 'pending_profile'
+  order by claimed_at desc limit 1 for update;
+  if not found then raise exception 'An invite is required to finish account setup.'; end if;
+  select * into v_invite from public.group_invites where id = v_claim.invite_id for update;
+  if not found or v_invite.revoked_at is not null
+    or (v_invite.expires_at is not null and v_invite.expires_at <= now())
+    or (v_invite.max_uses is not null and v_invite.uses_count >= v_invite.max_uses)
+  then
+    raise exception 'This invite is no longer valid. Ask an admin for a fresh link.';
+  end if;
+  insert into public.profiles(id, username) values (v_user_id, trim(p_username));
+  insert into public.group_members(group_id, user_id, role) values (v_claim.group_id, v_user_id, 'noob') on conflict (group_id, user_id) do nothing;
+  insert into public.group_invite_uses(invite_id, group_id, user_id) values (v_invite.id, v_claim.group_id, v_user_id);
+  update public.group_invites set uses_count = uses_count + 1 where id = v_invite.id;
+  update public.account_invite_claims set status = 'consumed', consumed_at = now() where id = v_claim.id;
+  group_id := v_claim.group_id;
+  return next;
+end;
+$$;
+
 -- ────────────────────────────────────────────────────────────
 -- 4. POLICIES — profiles
 -- ────────────────────────────────────────────────────────────
@@ -237,9 +354,6 @@ create policy "Profiles are viewable by authenticated users"
   on public.profiles for select to authenticated
   using (true);
 
-create policy "Users can insert their own profile"
-  on public.profiles for insert to authenticated
-  with check (id = auth.uid());
 
 create policy "Users can update their own profile"
   on public.profiles for update to authenticated
@@ -488,6 +602,8 @@ create index if not exists idx_groups_invite_code    on public.groups(invite_cod
 create index if not exists idx_group_invites_group_created on public.group_invites(group_id, created_at desc);
 create index if not exists idx_group_invites_active_code   on public.group_invites(code) where revoked_at is null;
 create index if not exists idx_group_invite_uses_invite    on public.group_invite_uses(invite_id, used_at desc);
+create index if not exists idx_account_invite_claims_pending_user on public.account_invite_claims(auth_user_id) where status = 'pending_profile';
+create unique index if not exists account_invite_claims_one_pending_per_user on public.account_invite_claims(auth_user_id) where status = 'pending_profile';
 create index if not exists idx_reactions_message         on public.message_reactions(message_id);
 create index if not exists idx_read_state_user_channel   on public.channel_read_state(user_id, channel_id);
 create index if not exists idx_notification_subscriptions_user on public.notification_subscriptions(user_id);
@@ -579,3 +695,15 @@ alter publication supabase_realtime add table public.group_members;
 alter publication supabase_realtime add table public.message_reactions;
 alter publication supabase_realtime add table public.channel_read_state;
 alter publication supabase_realtime add table public.notification_events;
+
+
+-- Invite-only account gate privilege hardening
+revoke all on table public.account_invite_claims from anon, authenticated;
+revoke all on table public.account_invite_claims from public;
+revoke insert on table public.profiles from anon, authenticated;
+revoke all on function public.user_has_pending_account_invite_claim(uuid) from public;
+revoke all on function public.create_or_replace_account_invite_claim(text, uuid, text) from public;
+revoke all on function public.complete_account_invite_profile(text) from public;
+grant execute on function public.user_has_pending_account_invite_claim(uuid) to authenticated;
+grant execute on function public.complete_account_invite_profile(text) to authenticated;
+grant execute on function public.create_or_replace_account_invite_claim(text, uuid, text) to service_role;
