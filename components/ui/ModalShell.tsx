@@ -30,11 +30,11 @@ export default function ModalShell({ open, onClose, title, children, size = 'md'
     <div
       ref={backdropRef}
       data-testid="modal-backdrop"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 modal-backdrop-enter"
       onClick={(e) => { if (e.target === backdropRef.current) onClose() }}
     >
       <div
-        className="w-full rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden flex flex-col"
+        className="w-full rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden flex flex-col modal-panel-enter"
         style={{
           maxWidth: maxW,
           maxHeight: 'calc(100dvh - 48px)',

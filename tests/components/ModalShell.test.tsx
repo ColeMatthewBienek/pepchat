@@ -44,6 +44,14 @@ describe('ModalShell', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('applies shared modal motion classes', () => {
+    render(<ModalShell open={true} onClose={vi.fn()} title="Motion"><p>body</p></ModalShell>)
+
+    const backdrop = screen.getByTestId('modal-backdrop')
+    expect(backdrop).toHaveClass('modal-backdrop-enter')
+    expect(backdrop.firstElementChild).toHaveClass('modal-panel-enter')
+  })
+
   it('renders in document.body via portal', () => {
     const { container } = render(
       <ModalShell open={true} onClose={vi.fn()} title="Portal Test"><p>portal body</p></ModalShell>

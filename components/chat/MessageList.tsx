@@ -53,6 +53,7 @@ interface MessageListProps {
   allowMarkUnread?: boolean
   allowReports?: boolean
   messagesReadyForHashFallback?: boolean
+  animateInitialMessages?: boolean
 }
 
 function isCompact(msg: MessageWithProfile, prev: MessageWithProfile | null): boolean {
@@ -110,6 +111,7 @@ export default function MessageList({
   allowMarkUnread = true,
   allowReports = true,
   messagesReadyForHashFallback = true,
+  animateInitialMessages = true,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -150,6 +152,7 @@ export default function MessageList({
   const knownIdsRef = useRef(new Set(messages.map(m => m.id)))
   const prevFirstIdRef = useRef(messages[0]?.id)
   const newIdsRef = useRef(new Set<string>())
+  const initialStaggerIdsRef = useRef<Set<string> | null>(null)
 
   useEffect(() => {
     setLocalLastReadAt(initialLastReadAt)
@@ -169,6 +172,12 @@ export default function MessageList({
     ))
   }, [currentUserId, localLastReadAt, visibleMessages])
   const unreadMessageId = unreadMessages[0]?.id ?? null
+  const shouldStaggerInitialMessages = animateInitialMessages && !highlightedMessageId && !unreadMessageId
+  if (initialStaggerIdsRef.current === null && visibleMessages.length > 0) {
+    initialStaggerIdsRef.current = shouldStaggerInitialMessages
+      ? new Set(visibleMessages.slice(0, 12).map(msg => msg.id))
+      : new Set()
+  }
   const unreadDividerLabel = `${unreadMessages.length} new ${unreadMessages.length === 1 ? 'message' : 'messages'}`
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const normalizedAuthor = searchAuthor.trim().toLowerCase()
@@ -894,8 +903,14 @@ export default function MessageList({
           const showUnreadDivider = msg.id === unreadMessageId
 
           const isNewMsg = newIdsRef.current.has(msg.id)
+          const shouldStagger = !isNewMsg && (initialStaggerIdsRef.current?.has(msg.id) ?? false)
           return (
-            <div key={msg.id} data-message-id={msg.id} className={isNewMsg ? 'message-new' : undefined}>
+            <div
+              key={msg.id}
+              data-message-id={msg.id}
+              className={isNewMsg ? 'message-new' : shouldStagger ? 'message-stagger-in' : undefined}
+              style={shouldStagger ? { animationDelay: `${Math.min(idx, 12) * 14}ms` } : undefined}
+            >
               {showUnreadDivider && (
                 <div data-testid="unread-divider" style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 16px 14px' }}>
                   <div style={{ flex: 1, height: 1, background: 'var(--accent)' }} />

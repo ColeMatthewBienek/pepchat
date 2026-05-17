@@ -1,8 +1,12 @@
 import dynamic from 'next/dynamic'
+import { ChatSurfaceSkeleton } from '@/components/ui/Skeleton'
 
 const DMConversationView = dynamic(
   () => import('@/components/dm/DMConversationView'),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => <ChatSurfaceSkeleton variant="dm" />,
+  }
 )
 
 export default function DMPage({

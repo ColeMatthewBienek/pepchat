@@ -99,6 +99,13 @@ describe('DMConversationView — message links', () => {
     window.history.replaceState(null, '', `/dm/${DM_MESSAGE.conversation_id}`)
   })
 
+  it('renders a chat skeleton while conversation participants load', () => {
+    render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
+
+    expect(screen.getByLabelText('Loading conversation')).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByText('Loading conversation…')).toBeNull()
+  })
+
   it('passes the DM message link base path to MessageList', async () => {
     render(<DMConversationView conversationId={DM_MESSAGE.conversation_id} />)
 
