@@ -8,6 +8,7 @@ import { useDMMessages } from '@/lib/hooks/useDMs'
 import MessageList from '@/components/chat/MessageList'
 import MessageInput from '@/components/chat/MessageInput'
 import TypingIndicator from '@/components/chat/TypingIndicator'
+import { ChatSurfaceSkeleton } from '@/components/ui/Skeleton'
 import DMHeader from './DMHeader'
 import DMEmptyState from './DMEmptyState'
 import { sendDM, editDM, deleteDM, markDMsRead } from '@/app/(app)/dm/actions'
@@ -162,11 +163,7 @@ export default function DMConversationView({ conversationId }: DMConversationVie
   }, [conversationId, recipientId, addMessage])
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-[var(--text-muted)]">Loading conversation…</p>
-      </div>
-    )
+    return <ChatSurfaceSkeleton variant="dm" />
   }
 
   if (error || !currentUser || !otherUser) {

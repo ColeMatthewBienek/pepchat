@@ -30,14 +30,14 @@ export default function PinnedMessagesPanel({
     <>
       {/* Mobile overlay */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        className="fixed inset-0 bg-black/50 z-40 lg:hidden modal-backdrop-enter"
         onClick={onClose}
       />
 
       {/* Panel */}
       <div
         data-testid="pinned-panel"
-        className="fixed inset-y-0 right-0 z-50 w-full lg:static lg:w-80 lg:z-auto flex flex-col flex-shrink-0 border-l border-black/20"
+        className="fixed inset-y-0 right-0 z-50 w-full lg:static lg:w-80 lg:z-auto flex flex-col flex-shrink-0 border-l border-black/20 drawer-panel-enter"
         style={{ background: 'var(--bg-secondary)', maxWidth: 320 }}
       >
         {/* Header */}

@@ -12,6 +12,7 @@ import NotificationTray from '@/components/notifications/NotificationTray'
 import { MobileSidebarContext } from '@/lib/context/MobileSidebarContext'
 import InstallBanner from '@/components/ui/InstallBanner'
 import NetworkStatusBanner from '@/components/ui/NetworkStatusBanner'
+import MotionSurface from '@/components/ui/MotionSurface'
 import { useGroups } from '@/lib/hooks/useGroups'
 import { useChannels } from '@/lib/hooks/useChannels'
 import { useUnreadChannels } from '@/lib/hooks/useUnreadChannels'
@@ -138,7 +139,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         {/* Mobile sidebar overlay backdrop */}
         {mobileSidebarOpen && (
           <div
-            className="fixed inset-0 z-20 bg-black/60 md:hidden fade-in"
+            className="fixed inset-0 z-20 bg-black/60 md:hidden modal-backdrop-enter"
             onClick={() => setMobileSidebarOpen(false)}
           />
         )}
@@ -147,7 +148,7 @@ export default function AppShell({ profile, children }: AppShellProps) {
         <div
           className={`
             fixed inset-y-0 left-0 z-30 flex
-            transform transition-transform duration-250
+            transform transition-transform ease-[var(--ease-pep-spring)] duration-[var(--motion-panel)]
             ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             md:relative md:translate-x-0 md:z-auto md:flex
           `}
@@ -183,7 +184,9 @@ export default function AppShell({ profile, children }: AppShellProps) {
           <InstallBanner />
           <NetworkStatusBanner />
           <NotificationTray />
-          {children}
+          <MotionSurface motionKey={pathname} direction={pathname.startsWith('/settings') || pathname.startsWith('/admin') || pathname.startsWith('/help') ? 'none' : 'forward'} className="flex flex-1 min-h-0 overflow-hidden">
+            {children}
+          </MotionSurface>
           <nav className="mobile-bottom-nav" aria-label="Mobile app navigation">
             <button type="button" onClick={() => setMobileSidebarOpen(true)} aria-current={!pathname.startsWith('/dm') ? 'page' : undefined}>
               Channels

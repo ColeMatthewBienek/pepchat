@@ -29,13 +29,13 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
   return (
     <div
       ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 modal-backdrop-enter"
       onClick={(e) => {
         if (e.target === backdropRef.current) onClose()
       }}
     >
       <div
-        className="w-full max-w-md rounded-lg shadow-xl animate-fade-in"
+        className="w-full max-w-md rounded-lg shadow-xl modal-panel-enter"
         style={{ background: 'var(--bg-secondary)' }}
       >
         {/* Header */}

@@ -600,6 +600,34 @@ describe('MessageList — message search', () => {
   })
 })
 
+describe('MessageList — initial message motion', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('staggers only the initial visible messages', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG, SEARCH_MSG]} />)
+
+    expect(document.querySelector('[data-message-id="msg-1"]')).toHaveClass('message-stagger-in')
+    expect(document.querySelector('[data-message-id="msg-2"]')).toHaveStyle({ animationDelay: '14ms' })
+    expect(document.querySelector('[data-message-id="msg-3"]')).toHaveClass('message-stagger-in')
+  })
+
+  it('does not stagger hash or unread jump targets', () => {
+    render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG]} highlightedMessageId="msg-2" />)
+
+    expect(document.querySelector('[data-message-id="msg-1"]')).not.toHaveClass('message-stagger-in')
+    expect(document.querySelector('[data-message-id="msg-2"]')).not.toHaveClass('message-stagger-in')
+  })
+
+  it('does not restagger older loaded messages or appended messages', () => {
+    const { rerender } = render(<MessageList {...BASE_PROPS} messages={[MSG, OTHER_MSG]} />)
+
+    rerender(<MessageList {...BASE_PROPS} messages={[REPLY_MSG, MSG, OTHER_MSG, NEW_MSG]} />)
+
+    expect(document.querySelector('[data-message-id="msg-4"]')).not.toHaveClass('message-stagger-in')
+    expect(document.querySelector('[data-message-id="msg-5"]')).not.toHaveClass('message-stagger-in')
+  })
+})
+
 describe('MessageList — new message jump button', () => {
   beforeEach(() => vi.clearAllMocks())
 
