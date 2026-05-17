@@ -150,7 +150,7 @@ export default function ChannelShell({
   }, [broadcastReactionChange, profile.id, profile.username, toggleReactionOptimistic])
 
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
       {/* Main column */}
       <div
         className="flex flex-col flex-1 min-w-0 min-h-0"
