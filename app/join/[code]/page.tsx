@@ -1,3 +1,5 @@
+export const runtime = 'edge'
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { consumeInvite, resolveInvite } from '@/lib/invites'
