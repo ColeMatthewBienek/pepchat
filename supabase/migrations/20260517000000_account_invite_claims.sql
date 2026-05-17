@@ -34,6 +34,9 @@ revoke all on table public.account_invite_claims from public;
 drop policy if exists "Users can insert their own profile" on public.profiles;
 revoke insert on table public.profiles from anon, authenticated;
 
+alter table public.groups
+  add column if not exists is_public boolean not null default false;
+
 create or replace function public.user_has_pending_account_invite_claim(p_auth_user_id uuid default auth.uid())
 returns boolean
 language plpgsql
@@ -63,6 +66,41 @@ begin
       and (i.max_uses is null or i.uses_count < i.max_uses)
   );
 end;
+$$;
+
+create or replace function public.user_has_profile(p_auth_user_id uuid default auth.uid())
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, auth
+as $$
+  select p_auth_user_id is not null
+    and auth.uid() is not null
+    and p_auth_user_id = auth.uid()
+    and exists (
+      select 1
+      from public.profiles p
+      where p.id = p_auth_user_id
+    )
+$$;
+
+create or replace function public.users_share_group(p_other_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, auth
+as $$
+  select auth.uid() is not null
+    and p_other_user_id is not null
+    and exists (
+      select 1
+      from public.group_members mine
+      join public.group_members theirs on theirs.group_id = mine.group_id
+      where mine.user_id = auth.uid()
+        and theirs.user_id = p_other_user_id
+    )
 $$;
 
 create or replace function public.create_or_replace_account_invite_claim(
@@ -183,10 +221,182 @@ begin
 end;
 $$;
 
+create or replace function public.consume_managed_group_invite(p_invite_code text)
+returns table(group_id uuid, joined boolean)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_invite public.group_invites%rowtype;
+  v_existing uuid;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  select * into v_invite
+  from public.group_invites
+  where code = trim(p_invite_code)
+  for update;
+
+  if not found
+    or v_invite.revoked_at is not null
+    or (v_invite.expires_at is not null and v_invite.expires_at <= now())
+    or (v_invite.max_uses is not null and v_invite.uses_count >= v_invite.max_uses)
+  then
+    raise exception 'This invite is no longer valid. Ask an admin for a fresh link.';
+  end if;
+
+  select id into v_existing
+  from public.group_members
+  where group_id = v_invite.group_id and user_id = v_user_id
+  limit 1;
+
+  if v_existing is not null then
+    group_id := v_invite.group_id;
+    joined := false;
+    return next;
+    return;
+  end if;
+
+  insert into public.group_members(group_id, user_id, role)
+  values (v_invite.group_id, v_user_id, 'noob');
+
+  insert into public.group_invite_uses(invite_id, group_id, user_id)
+  values (v_invite.id, v_invite.group_id, v_user_id);
+
+  update public.group_invites
+  set uses_count = uses_count + 1
+  where id = v_invite.id;
+
+  group_id := v_invite.group_id;
+  joined := true;
+  return next;
+end;
+$$;
+
+create or replace function public.consume_legacy_group_invite(p_invite_code text)
+returns table(group_id uuid, joined boolean)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_group_id uuid;
+  v_existing uuid;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  select id into v_group_id
+  from public.groups
+  where invite_code = trim(p_invite_code);
+
+  if v_group_id is null then
+    raise exception 'Invalid invite code.';
+  end if;
+
+  select id into v_existing
+  from public.group_members
+  where group_id = v_group_id and user_id = v_user_id
+  limit 1;
+
+  if v_existing is not null then
+    group_id := v_group_id;
+    joined := false;
+    return next;
+    return;
+  end if;
+
+  insert into public.group_members(group_id, user_id, role)
+  values (v_group_id, v_user_id, 'noob');
+
+  group_id := v_group_id;
+  joined := true;
+  return next;
+end;
+$$;
+
 revoke all on function public.user_has_pending_account_invite_claim(uuid) from public;
+revoke all on function public.user_has_profile(uuid) from public;
+revoke all on function public.users_share_group(uuid) from public;
 revoke all on function public.create_or_replace_account_invite_claim(text, uuid, text) from public;
 revoke all on function public.complete_account_invite_profile(text) from public;
+revoke all on function public.consume_managed_group_invite(text) from public;
+revoke all on function public.consume_legacy_group_invite(text) from public;
 
 grant execute on function public.user_has_pending_account_invite_claim(uuid) to authenticated;
+grant execute on function public.user_has_profile(uuid) to authenticated;
+grant execute on function public.users_share_group(uuid) to authenticated;
 grant execute on function public.complete_account_invite_profile(text) to authenticated;
+grant execute on function public.consume_managed_group_invite(text) to authenticated;
+grant execute on function public.consume_legacy_group_invite(text) to authenticated;
 grant execute on function public.create_or_replace_account_invite_claim(text, uuid, text) to service_role;
+
+
+drop policy if exists "Profiles are viewable by authenticated users" on public.profiles;
+drop policy if exists "Profiled users can read visible profiles" on public.profiles;
+
+create policy "Profiled users can read visible profiles"
+  on public.profiles for select to authenticated
+  using (
+    public.user_has_profile()
+    and (
+      id = auth.uid()
+      or public.users_share_group(id)
+    )
+  );
+
+drop policy if exists "Authenticated users can read groups" on public.groups;
+drop policy if exists "Profiled users can read visible groups" on public.groups;
+
+create policy "Profiled users can read visible groups"
+  on public.groups for select to authenticated
+  using (
+    public.user_has_profile()
+    and (
+      is_public = true
+      or owner_id = auth.uid()
+      or id = any(select public.get_user_group_ids())
+    )
+  );
+
+drop policy if exists "Authenticated users can join groups" on public.group_members;
+drop policy if exists "Group owners can insert their admin membership" on public.group_members;
+drop policy if exists "Authenticated users can join public groups" on public.group_members;
+
+create policy "Group owners can insert their admin membership"
+  on public.group_members for insert to authenticated
+  with check (
+    user_id = auth.uid()
+    and role = 'admin'
+    and exists (
+      select 1 from public.groups
+      where groups.id = group_members.group_id
+        and groups.owner_id = auth.uid()
+    )
+  );
+
+create policy "Authenticated users can join public groups"
+  on public.group_members for insert to authenticated
+  with check (
+    public.user_has_profile()
+    and user_id = auth.uid()
+    and role = 'noob'
+    and exists (
+      select 1 from public.groups
+      where groups.id = group_members.group_id
+        and groups.is_public = true
+    )
+  );
+
+drop policy if exists "Authenticated users can read group invites" on public.group_invites;
+drop policy if exists "Admins can read group invites" on public.group_invites;
+
+create policy "Admins can read group invites"
+  on public.group_invites for select to authenticated
+  using (public.is_group_admin(group_id));

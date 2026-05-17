@@ -36,10 +36,13 @@ function builder(result: QueryResult = {}) {
   return api
 }
 
-function client(builders: Record<string, unknown>[]) {
+function client(builders: Record<string, unknown>[], rpcResult: QueryResult = {}) {
   let index = 0
+  const rpcBuilder = builder(rpcResult)
   return {
     from: vi.fn(() => builders[index++]),
+    rpc: vi.fn(() => rpcBuilder),
+    rpcBuilder,
   }
 }
 
@@ -214,31 +217,26 @@ describe('consumeInvite', () => {
     expect(supabase.from).toHaveBeenCalledTimes(1)
   })
 
-  it('inserts only membership for new legacy members', async () => {
+  it('uses the atomic legacy invite RPC for new legacy members', async () => {
     const membershipLookup = builder({ data: null })
-    const membershipInsert = builder()
-    const supabase = client([membershipLookup, membershipInsert])
+    const supabase = client([membershipLookup], { data: { group_id: 'group-1', joined: true } })
 
     await expect(consumeInvite(supabase as any, { kind: 'legacy', code: 'legacy', groupId: 'group-1' }, 'user-1')).resolves.toEqual({ ok: true, groupId: 'group-1', joined: true })
-    expect(membershipInsert.insert).toHaveBeenCalledWith({ group_id: 'group-1', user_id: 'user-1', role: 'noob' })
-    expect(supabase.from).toHaveBeenCalledTimes(2)
+    expect(supabase.rpc).toHaveBeenCalledWith('consume_legacy_group_invite', { p_invite_code: 'legacy' })
+    expect(supabase.from).toHaveBeenCalledTimes(1)
   })
 
-  it('records invite use and increments usage for new managed members', async () => {
+  it('uses the atomic managed invite RPC so membership, usage, and counts are one transaction', async () => {
     const membershipLookup = builder({ data: null })
-    const membershipInsert = builder()
-    const inviteUse = builder()
-    const usageUpdate = builder()
-    const supabase = client([membershipLookup, membershipInsert, inviteUse, usageUpdate])
+    const supabase = client([membershipLookup], { data: { group_id: 'group-1', joined: true } })
 
     await expect(consumeInvite(supabase as any, { kind: 'managed', invite: invite({ uses_count: 2 }), groupId: 'group-1' }, 'user-1')).resolves.toEqual({ ok: true, groupId: 'group-1', joined: true })
-    expect(inviteUse.insert).toHaveBeenCalledWith({ invite_id: 'invite-1', group_id: 'group-1', user_id: 'user-1' })
-    expect(usageUpdate.update).toHaveBeenCalledWith({ uses_count: 3 })
+    expect(supabase.rpc).toHaveBeenCalledWith('consume_managed_group_invite', { p_invite_code: 'managed-code' })
   })
 
-  it('returns membership insert errors', async () => {
-    const supabase = client([builder({ data: null }), builder({ error: { message: 'insert failed' } })])
-    await expect(consumeInvite(supabase as any, { kind: 'legacy', code: 'legacy', groupId: 'group-1' }, 'user-1')).resolves.toEqual({ ok: false, message: 'insert failed' })
+  it('returns atomic invite consumption errors', async () => {
+    const supabase = client([builder({ data: null })], { error: { message: 'invite exhausted' } })
+    await expect(consumeInvite(supabase as any, { kind: 'managed', invite: invite(), groupId: 'group-1' }, 'user-1')).resolves.toEqual({ ok: false, message: 'invite exhausted' })
   })
 })
 

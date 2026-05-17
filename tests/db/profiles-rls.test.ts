@@ -39,4 +39,42 @@ describe('invite-only profile RLS schema', () => {
     expect(migration).toContain("set status = 'consumed'")
     expect(migration).toContain('grant execute on function public.complete_account_invite_profile(text) to authenticated')
   })
+
+  it('requires a completed profile before reading profile or group metadata', () => {
+    for (const sql of [migration, schema]) {
+      expect(sql).toContain('create or replace function public.user_has_profile')
+      expect(sql).toContain('create or replace function public.users_share_group')
+      expect(sql).toContain('create policy "Profiled users can read visible profiles"')
+      expect(sql).toContain('public.user_has_profile()')
+      expect(sql).toContain('or public.users_share_group(id)')
+      expect(sql).toContain('create policy "Profiled users can read visible groups"')
+      expect(sql).toContain('id = any(select public.get_user_group_ids())')
+    }
+    expect(migration).toContain('drop policy if exists "Profiles are viewable by authenticated users" on public.profiles')
+    expect(migration).toContain('drop policy if exists "Authenticated users can read groups" on public.groups')
+    expect(schema).not.toContain('create policy "Profiles are viewable by authenticated users"')
+    expect(schema).not.toContain('create policy "Authenticated users can read groups"')
+  })
+
+  it('blocks direct private group self-join while preserving public group self-join for profiled users', () => {
+    expect(migration).toContain('drop policy if exists "Authenticated users can join groups" on public.group_members')
+    for (const sql of [migration, schema]) {
+      expect(sql).toContain('create policy "Authenticated users can join public groups"')
+      expect(sql).toContain('public.user_has_profile()')
+      expect(sql).toContain('groups.is_public = true')
+      expect(sql).toContain('role = \'noob\'')
+    }
+    expect(schema).not.toContain('create policy "Authenticated users can join groups"')
+  })
+
+  it('restricts invite code enumeration and uses atomic RPCs for invite joins', () => {
+    for (const sql of [migration, schema]) {
+      expect(sql).toContain('create policy "Admins can read group invites"')
+      expect(sql).not.toContain('create policy "Authenticated users can read group invites"')
+      expect(sql).toContain('create or replace function public.consume_managed_group_invite')
+      expect(sql).toContain('for update')
+      expect(sql).toContain('grant execute on function public.consume_managed_group_invite(text) to authenticated')
+      expect(sql).toContain('v_invite.max_uses is not null and v_invite.uses_count >= v_invite.max_uses')
+    }
+  })
 })

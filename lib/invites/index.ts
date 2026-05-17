@@ -169,36 +169,29 @@ export async function consumeInvite(
   invite: ResolvedInvite,
   userId: string,
 ): Promise<InviteConsumeResult> {
-  const groupId = invite.groupId
   const { data: existing } = await supabase
     .from('group_members')
     .select('id')
-    .eq('group_id', groupId)
+    .eq('group_id', invite.groupId)
     .eq('user_id', userId)
     .single()
 
-  if (existing) return { ok: true, groupId, joined: false }
+  if (existing) return { ok: true, groupId: invite.groupId, joined: false }
 
-  const { error } = await supabase.from('group_members').insert({
-    group_id: groupId,
-    user_id: userId,
-    role: 'noob',
-  })
+  const rpcName = invite.kind === 'managed' ? 'consume_managed_group_invite' : 'consume_legacy_group_invite'
+  const inviteCode = invite.kind === 'managed' ? invite.invite.code : invite.code
+  const { data, error } = await supabase
+    .rpc(rpcName, { p_invite_code: inviteCode })
+    .single()
+
   if (error) return { ok: false, message: error.message }
 
-  if (invite.kind === 'managed') {
-    await supabase.from('group_invite_uses').insert({
-      invite_id: invite.invite.id,
-      group_id: invite.invite.group_id,
-      user_id: userId,
-    })
-    await supabase
-      .from('group_invites')
-      .update({ uses_count: invite.invite.uses_count + 1 })
-      .eq('id', invite.invite.id)
+  const consumed = data as { group_id?: string; joined?: boolean } | null
+  return {
+    ok: true,
+    groupId: consumed?.group_id ?? invite.groupId,
+    joined: consumed?.joined ?? true,
   }
-
-  return { ok: true, groupId, joined: true }
 }
 
 export async function regenerateInvite(

@@ -98,6 +98,7 @@ function makeOrderedSelectBuilder(result: QueryResult) {
 function setupClient(builders: Record<string, unknown>[], options: {
   storage?: Record<string, unknown>
   userId?: string | null
+  rpcResult?: QueryResult
 } = {}) {
   let index = 0
   const from = vi.fn(() => {
@@ -105,6 +106,8 @@ function setupClient(builders: Record<string, unknown>[], options: {
     index += 1
     return builder
   })
+  const rpcBuilder = makeSelectBuilder(options.rpcResult ?? {})
+  const rpc = vi.fn(() => rpcBuilder)
 
   mockCreateClient.mockResolvedValue({
     auth: {
@@ -114,10 +117,11 @@ function setupClient(builders: Record<string, unknown>[], options: {
       }),
     },
     from,
+    rpc,
     storage: options.storage,
   })
 
-  return { from }
+  return { from, rpc, rpcBuilder }
 }
 
 function setupAdminClient(builders: Record<string, unknown>[]) {
@@ -184,30 +188,24 @@ describe('group actions — joinGroup', () => {
   it('joins through an active managed invite and records usage for new members', async () => {
     const invite = makeSelectBuilder({ data: { id: 'invite-1', group_id: 'group-1', code: 'managed', max_uses: null, uses_count: 0, expires_at: null, revoked_at: null, created_at: '2026-05-16T00:00:00.000Z', created_by: 'admin-1' } })
     const existing = makeSelectBuilder({ data: null })
-    const memberInsert = makeInsertBuilder()
-    const useInsert = makeInsertBuilder()
-    const usageUpdate = makeUpdateBuilder()
     const formData = new FormData()
     formData.set('invite_code', 'https://pepchat.test/join/managed?x=1')
-    setupClient([invite, existing, memberInsert, useInsert, usageUpdate])
+    const { rpc } = setupClient([invite, existing], { rpcResult: { data: { group_id: 'group-1', joined: true } } })
 
     await expect(joinGroup(formData)).resolves.toEqual({ redirectTo: '/groups/group-1' })
-    expect(memberInsert.insert).toHaveBeenCalledWith({ group_id: 'group-1', user_id: 'user-1', role: 'noob' })
-    expect(useInsert.insert).toHaveBeenCalledWith({ invite_id: 'invite-1', group_id: 'group-1', user_id: 'user-1' })
-    expect(usageUpdate.update).toHaveBeenCalledWith({ uses_count: 1 })
+    expect(rpc).toHaveBeenCalledWith('consume_managed_group_invite', { p_invite_code: 'managed' })
   })
 
   it('falls back to legacy invites when no managed row exists', async () => {
     const managed = makeSelectBuilder({ data: null })
     const legacy = makeSelectBuilder({ data: { id: 'legacy-group' } })
     const existing = makeSelectBuilder({ data: null })
-    const memberInsert = makeInsertBuilder()
     const formData = new FormData()
     formData.set('invite_code', 'legacy-code')
-    setupClient([managed, legacy, existing, memberInsert])
+    const { rpc } = setupClient([managed, legacy, existing], { rpcResult: { data: { group_id: 'legacy-group', joined: true } } })
 
     await expect(joinGroup(formData)).resolves.toEqual({ redirectTo: '/groups/legacy-group' })
-    expect(memberInsert.insert).toHaveBeenCalledWith({ group_id: 'legacy-group', user_id: 'user-1', role: 'noob' })
+    expect(rpc).toHaveBeenCalledWith('consume_legacy_group_invite', { p_invite_code: 'legacy-code' })
   })
 
   it('does not add usage for existing members', async () => {
